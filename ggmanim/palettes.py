@@ -3,9 +3,39 @@ import funcy as f
 import numpy as np
 
 
+class HashableManimColor(ManimColor):
+    def __hash__(self):
+            return hash(self.to_integer())
+
+    def __lt__(self, other):
+        return self.to_integer() < other.to_integer()
+
+    def __eq__(self, other):
+            return self.to_integer() == other.to_integer()
+
+    def __repr__(self):
+            return f"HashableManimColor({self.to_hex()})"
+
+    def __str__(self):
+            return self.to_integer()
+
+    def __getitem__(self, key):
+            return self.to_integer()[key]
+
+    def __iter__(self):
+            return iter(self.to_integer())
+
+    def __len__(self):
+            return len(self.to_integer())
+
+    @classmethod
+    def from_hex(cls, hex_str):
+            return cls(hex_str)
+
+
 MUTED = np.asarray(
     f.lmap(
-        ManimColor.from_hex,
+        HashableManimColor.from_hex,
         [
             "#332288",
             "#117733",
@@ -22,7 +52,7 @@ MUTED = np.asarray(
 
 BRIGHT = np.asarray(
     f.lmap(
-        ManimColor.from_hex,
+        HashableManimColor.from_hex,
         [
             "#77AADD",
             "#BBCC33",
