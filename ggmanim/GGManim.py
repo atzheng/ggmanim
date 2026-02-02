@@ -34,6 +34,12 @@ CATEGORICAL_AES = {
 }
 
 
+def auto_breaks(xmin, xmax):
+    break_size = (xmax - xmin) / 5
+    oom = 10 ** np.round(np.log10(break_size))
+    return oom
+    
+
 @dataclass
 class Layer(object):
     data: pd.DataFrame
@@ -43,13 +49,13 @@ class Layer(object):
 
 
 class GGManim(object):
-    def __init__(self, data=None, aes=None, **kwargs):
+    def __init__(self, data=None, aes=None, palette=BRIGHT, **kwargs):
         super(GGManim, self).__init__(**kwargs)
         self.data = data
         self.aes = aes or {}
         self.layers = {}
         self.axis_kwargs = {}
-        self.palette = BRIGHT
+        self.palette = palette
         self.x_label = Tex("") if aes is None else Tex(aes.get("x", ""))
         self.y_label = Tex("") if aes is None else Tex(aes.get("y", ""))
         self.x_range = None
@@ -73,6 +79,9 @@ class GGManim(object):
     def geom_line(self, **kwargs):
         return self.add_layer("geom_line", **kwargs)
 
+    def geom_vline(self, **kwargs):
+        return self.add_layer("geom_vline", **kwargs)
+
     def geom_smooth(self, **kwargs):
         return self.add_layer("geom_smooth", **kwargs)
 
@@ -91,11 +100,21 @@ class GGManim(object):
         return self
 
     def xlim(self, x_range):
-        self.x_range = x_range
+        if len(x_range) == 2:
+            self.x_range = [*x_range, auto_breaks(*x_range)]
+        elif len(x_range) == 3:
+            self.x_range = x_range
+        else:
+            raise ValueError("x_range must be length 2 or 3")
         return self
 
     def ylim(self, y_range):
-        self.y_range = y_range
+        if len(y_range) == 2:
+            self.y_range = [*y_range, auto_breaks(*y_range)]
+        elif len(y_range) == 3:
+            self.y_range = y_range
+        else:
+            raise ValueError("y_range must be length 2 or 3")
         return self
 
     def build(self, **kwargs):
@@ -106,37 +125,53 @@ class GGManim(object):
 
         # build scales
         # -------------------------------------------------------------------------
-        x_min = min(
-            (layer.data[layer.aes["x"]].min() for layer in self.layers.values())
-        )
-        x_max = max(
-            (layer.data[layer.aes["x"]].max() for layer in self.layers.values())
-        )
-        y_min = min(
-            (layer.data[layer.aes["y"]].min() for layer in self.layers.values())
-        )
-        y_max = max(
-            (layer.data[layer.aes["y"]].max() for layer in self.layers.values())
-        )
+        if self.x_range is None:
+            x_min = min(
+                (layer.data[layer.aes["x"]].min() for layer in self.layers.values())
+            )
+            x_max = max(
+                (layer.data[layer.aes["x"]].max() for layer in self.layers.values())
+            )
+            x_breaks = auto_breaks(x_min, x_max)
+            x_range = [x_min, x_max, x_breaks]
+            print(x_range)
+        else:
+            x_range = self.x_range
+
+        if self.y_range is None:
+            y_min = min(
+                (layer.data[layer.aes["y"]].min() for layer in self.layers.values())
+            )
+            y_max = max(
+                (layer.data[layer.aes["y"]].max() for layer in self.layers.values())
+            )
+            y_breaks = auto_breaks(y_min, y_max)
+            y_range = [y_min, y_max, y_breaks]
+            print(y_range)
+        else:
+            y_range = self.y_range
+
         plot = VDict()
         axes = Axes(
-            x_range=self.x_range or [x_min, x_max],
-            y_range=self.y_range or [y_min, y_max],
+            x_range=x_range,
+            y_range=y_range,
             **self.axis_kwargs,
             **kwargs,
-        )
+        ).set_color(BLACK)
 
         scales = {}
         legends = VDict()
 
         if any("color" in layer.aes for layer in self.layers.values()):
-            unique_colors = np.unique(np.concatenate(
-                [
-                    layer.data[layer.aes["color"]].unique()
-                    for layer in self.layers.values()
-                    if "color" in layer.aes
-                ]
-            ))
+            unique_colors = np.unique(
+                np.concatenate(
+                    [
+                        layer.data[layer.aes["color"]].unique()
+                        for layer in self.layers.values()
+                        if "color" in layer.aes
+                    ]
+                )
+            )
 
             if len(unique_colors) > len(self.palette):
                 raise ValueError(
@@ -144,26 +179,32 @@ class GGManim(object):
                 )
 
             color_scale = pd.DataFrame(
-                {"x": unique_colors, "palette_id": np.arange(len(unique_colors)) % len(self.palette)}
+                {
+                    "x": unique_colors,
+                    "palette_id": np.arange(len(unique_colors)) % len(self.palette),
+                }
             ).set_index("x")
 
-            scales["color"] = lambda x: self.palette[color_scale.loc[x, "palette_id"].values]
+            scales["color"] = lambda x: self.palette[
+                color_scale.loc[x, "palette_id"].values
+            ]
 
             legends["color"] = VGroup(
-                *f.flatten([
-                    [Dot(color=self.palette[row["palette_id"]]), Tex(str(id)).scale(0.8)]
-                    for id, row in color_scale.iterrows()
-                ])
+                *f.flatten(
+                    [
+                        [
+                            Dot(color=self.palette[row["palette_id"]]),
+                            Tex(str(id)).scale(0.8),
+                        ]
+                        for id, row in color_scale.iterrows()
+                    ]
+                )
             ).arrange_in_grid(rows=len(color_scale), buff=0.1, cell_alignment=LEFT)
             legends["color"].add(
                 SurroundingRectangle(
-                    legends["color"],
-                    buff=0.1,
-                    stroke_width=1,
-                    stroke_color=BLACK
+                    legends["color"], buff=0.1, stroke_width=1, stroke_color=BLACK
                 )
             )
-
 
         # build axes
         # -------------------------------------------------------------------------
@@ -205,7 +246,13 @@ class GGManim(object):
         )
         return self.palette[unq_idx]
 
-    def get_aes(self, scales: Dict[str, Callable], data: pd.DataFrame, aes_name: str, aes_val: str):
+    def get_aes(
+        self,
+        scales: Dict[str, Callable],
+        data: pd.DataFrame,
+        aes_name: str,
+        aes_val: str,
+    ):
         return scales.get(aes_name, f.identity)(data[aes_val])
 
     def get_all_aes(self, scales: Dict[str, Callable], data: pd.DataFrame, aes: Dict):
@@ -239,9 +286,32 @@ class GGManim(object):
         curve = axes.plot(fn, **other_kwargs)
         if label is not None:
             label = Tex(label).next_to(curve.get_end(), RIGHT)
+            if "color" in other_kwargs:
+                label.set_color(ManimColor(other_kwargs["color"]))
         else:
             label = VGroup()
         return VGroup(curve, label)
+
+    def build_geom_vline(self, scales, axes: Axes, layer: Layer):
+        x = layer.kwargs["xintercept"]
+        label = layer.kwargs.get("label", None)
+        other_kwargs = f.omit(layer.kwargs, ["xintercept", "label"])
+        poscurve = axes.get_vertical_line(axes.c2p(x, axes.y_range[1]), **other_kwargs)
+        negcurve = axes.get_vertical_line(axes.c2p(x, axes.y_range[0]), **other_kwargs)
+
+        if isinstance(label, str):
+            label = Tex(label)
+
+        if label is not None:
+            label = (
+                label.rotate(PI / 2)
+                .next_to(poscurve.get_end(), LEFT, buff=0.0)
+                .align_to(poscurve, UP)
+            )
+            if "color" in other_kwargs:
+                label.set_color(ManimColor(other_kwargs["color"]))
+
+        return VGroup(poscurve, negcurve, label or VGroup())
 
     def build_geom_smooth(self, scales, axes: Axes, layer: Layer):
         model = layer.kwargs.get("model", LinearRegression())
@@ -253,18 +323,22 @@ class GGManim(object):
             for group, data in aes_vals.groupby(list(grouping_vars)):
                 print(group)
                 model.fit(data[["x"]], data["y"])
-                curves.add(axes.plot(
+                curves.add(
+                    axes.plot(
+                        lambda x: model.predict(x.reshape(-1, 1)).reshape(-1),
+                        use_vectorized=True,
+                        **f.omit(layer.kwargs, ["model"]),
+                        **dict(zip(grouping_vars, group)),
+                    )
+                )
+        else:
+            model.fit(aes_vals[["x"]], aes_vals["y"])
+            curves.add(
+                axes.plot(
                     lambda x: model.predict(x.reshape(-1, 1)).reshape(-1),
                     use_vectorized=True,
                     **f.omit(layer.kwargs, ["model"]),
-                    **dict(zip(grouping_vars, group))
-                ))
-        else:
-            model.fit(aes_vals[["x"]], aes_vals["y"])
-            curves.add(axes.plot(
-                lambda x: model.predict(x.reshape(-1, 1)).reshape(-1),
-                use_vectorized=True,
-                **f.omit(layer.kwargs, ["model"]),
-            ))
+                )
+            )
 
         return curves
