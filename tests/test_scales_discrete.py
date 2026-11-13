@@ -347,11 +347,15 @@ def test_default_scale_for_shape_and_linetype():
     assert list(lt.map(["a"])) == ["solid"]
 
 
-def test_default_scale_for_numeric_colour_raises():
-    with pytest.raises(NotImplementedError, match="continuous colour scale"):
-        default_scale_for("color", pd.Series([1.0, 2.5]))
-    with pytest.raises(NotImplementedError):
-        default_scale_for("fill", np.array([1, 2]))
+def test_default_scale_for_numeric_colour_is_continuous():
+    from ggmanim.scales.colour import ScaleContinuousColour
+
+    s = default_scale_for("color", pd.Series([1.0, 2.5]))
+    assert isinstance(s, ScaleContinuousColour) and s.aesthetics == ("color",)
+    f = default_scale_for("fill", np.array([1, 2]))
+    assert isinstance(f, ScaleContinuousColour) and f.aesthetics == ("fill",)
+    # booleans stay discrete
+    assert isinstance(default_scale_for("color", [True, False]), ScaleDiscrete)
 
 
 def test_default_scale_for_numeric_shape_raises():

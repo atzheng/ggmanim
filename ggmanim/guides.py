@@ -1,5 +1,6 @@
 """Guides: legends for discrete non-position scales (and continuous ones that ask
-for a binned legend, e.g. size / alpha / linewidth).
+for a binned legend, e.g. size / alpha / linewidth); colourbars for continuous
+colour scales live in :mod:`.guides_colourbar`.
 
 :func:`build_legends` turns the trained non-position scales of a plot into
 :class:`Legend` mobjects (title + one row per break: key glyph + label). Key
@@ -34,13 +35,31 @@ from manim import (
 
 from .aes import AfterStat, standardise_aes_name
 from .geoms.base import KEY_SIZE
+from .guides_colourbar import (
+    Colourbar,
+    GuideColourbar,
+    build_colourbar,
+    guide_colorbar,
+    guide_colourbar,
+    is_colourbar_spec,
+)
 from .registry import register
 from .theme import Theme, theme_default
 
-__all__ = ["Legend", "Guides", "build_legends", "place_legends", "guides"]
+__all__ = [
+    "Legend",
+    "Guides",
+    "build_legends",
+    "place_legends",
+    "guides",
+    "Colourbar",
+    "GuideColourbar",
+    "guide_colorbar",
+    "guide_colourbar",
+]
 
 #: Valid guide specs for :func:`guides`.
-GUIDE_TYPES = ("legend", "none")
+GUIDE_TYPES = ("legend", "none", "colourbar", "colorbar")
 
 #: Horizontal gap between a key and its label, and between title and rows.
 _KEY_LABEL_BUFF = 0.15
@@ -195,6 +214,11 @@ def _legend_breaks(scale) -> list:
     return [float(b) for b in scale.trans.inverse(breaks)]
 
 
+def _guide_spec(aes: str, scale, guides_spec: Mapping[str, Any]) -> Any:
+    spec = guides_spec.get(aes)
+    return spec if spec is not None else getattr(scale, "guide", "legend")
+
+
 def _show_legend(params: Mapping[str, Any]) -> bool | None:
     v = params.get("show_legend", params.get("show.legend"))
     return None if v is None else bool(v)
@@ -207,16 +231,20 @@ def build_legends(
     labels: Mapping[str, Any] | None = None,
     guides: Mapping[str, Any] | None = None,
 ) -> list[Legend]:
-    """Build one :class:`Legend` per (merged) discrete non-position scale.
+    """Build one guide per (merged) non-position scale: a :class:`Legend` for
+    discrete scales (and continuous ones whose guide is ``"legend"``: one key per
+    break), a :class:`~ggmanim.guides_colourbar.Colourbar` for continuous scales
+    whose guide is ``"colourbar"`` or a :func:`guide_colorbar`.
 
     Parameters
     ----------
     scales:
         ``aesthetic -> trained scale``. Continuous scales with ``guide="legend"``
         (the size/alpha/linewidth range scales) get keys at ``get_breaks()``;
-        other non-discrete scales, scales whose ``guide`` is ``"none"``, and
-        scales without breaks are skipped. The same scale object may appear
-        under several keys.
+        continuous colour scales with a colourbar guide get a colourbar; other
+        non-discrete scales, scales whose ``guide`` is ``"none"``, and scales
+        without breaks are skipped. The same scale object may appear under
+        several keys.
     layers:
         ``(geom, resolved_mapping, params)`` per layer (``Layer`` objects are
         also accepted; their own, unresolved mapping is used). A layer
@@ -226,7 +254,8 @@ def build_legends(
     labels:
         ``labs()`` labels (aesthetic -> str/Mobject/None).
     guides:
-        ``guides()`` spec (aesthetic -> ``"legend"``/``"none"``); overrides
+        ``guides()`` spec (aesthetic -> ``"legend"``/``"colourbar"``/``"none"``
+        or a :func:`guide_colorbar`); overrides
         ``scale.guide``.
 
     Returns the legends in scale order, each laid out vertically at the origin.
@@ -249,22 +278,35 @@ def build_legends(
         aes = standardise_aes_name(aes)
         if aes in ("x", "y"):
             continue
-        if not getattr(scale, "is_discrete", False) and not _binned_legend(aes, scale, guides_spec):
-            continue
         if _guide_off(aes, scale, guides_spec):
             continue
-        breaks = _legend_breaks(scale)
+        discrete = getattr(scale, "is_discrete", False)
+        spec = _guide_spec(aes, scale, guides_spec)
+        colourbar = not discrete and is_colourbar_spec(spec)
+        if not discrete and not colourbar and not _binned_legend(aes, scale, guides_spec):
+            continue
+        breaks = list(scale.get_breaks()) if colourbar else _legend_breaks(scale)
         if not breaks:
             continue
         blabels = [str(b) for b in scale.get_labels()]
         title = _scale_title(scale, aes, labels, mapping_cols)
-        key = (_title_key(title), tuple(map(repr, breaks)), tuple(blabels))
+        kind = ("colourbar", repr(spec)) if colourbar else ("legend",)
+        key = (kind, _title_key(title), tuple(map(repr, breaks)), tuple(blabels))
         g = groups.setdefault(key, {"title": title, "breaks": breaks, "labels": blabels, "aes": {}})
         g["aes"].setdefault(aes, scale)
+        if colourbar:
+            g["colourbar"] = spec if isinstance(spec, GuideColourbar) else GuideColourbar()
 
-    legends = []
+    legends: list[Any] = []
     for g in groups.values():
-        legends.append(_make_legend(g, layer_tuples, theme))
+        if "colourbar" in g:
+            legends.append(
+                build_colourbar(
+                    g["title"], g["aes"], g["breaks"], g["labels"], theme, g["colourbar"]
+                )
+            )
+        else:
+            legends.append(_make_legend(g, layer_tuples, theme))
     return legends
 
 
@@ -364,10 +406,10 @@ class Guides:
         for k, v in kw.items():
             if v is None or v is False:
                 v = "none"
-            if v not in GUIDE_TYPES:
+            if not isinstance(v, GuideColourbar) and v not in GUIDE_TYPES:
                 raise ValueError(f"guide for {k!r} must be one of {GUIDE_TYPES}, got {v!r}")
             out[standardise_aes_name(k)] = v
-        self.guides: dict[str, str] = out
+        self.guides: dict[str, Any] = out
 
     def add_to(self, plot):
         return plot._with_guides(self.guides)

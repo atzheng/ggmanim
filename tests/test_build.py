@@ -286,9 +286,14 @@ def test_discrete_x_on_continuous_user_scale_errors(df):
         ggplot(df, aes("g", "b")).geom_point().add(xlim(0, 1)).build()
 
 
-def test_numeric_colour_has_helpful_error(df):
-    with pytest.raises(BuildError, match="continuous colour scale"):
-        ggplot(df, aes("a", "b", color="b")).geom_point().build()
+def test_numeric_colour_builds_colourbar(df):
+    from ggmanim.guides import Colourbar
+    from ggmanim.scales.colour import ScaleContinuousColour
+
+    m = ggplot(df, aes("a", "b", color="b")).geom_point().build()
+    assert isinstance(m.scales["color"], ScaleContinuousColour)
+    (cb,) = m.legends
+    assert isinstance(cb, Colourbar)
 
 
 def test_build_plot_theme_override(df):

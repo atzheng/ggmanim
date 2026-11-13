@@ -10,8 +10,9 @@ Mirrors ggplot2's ``ggplot_build`` + ``ggplot_gtable``, one function per step
    on the raw layer data, then x-/y-like columns -> transformed space.
    :func:`compute_stats` -- ``stat.compute_layer`` per layer, then ``after_stat``.
 4. :func:`map_non_position` -- train (on every layer) and map the non-position
-   aesthetics: colour/fill/shape/linetype through discrete scales, size/alpha/
-   linewidth through range scales.
+   aesthetics: colour/fill/shape/linetype through discrete scales (numeric
+   colour/fill through continuous colour gradients), size/alpha/linewidth through
+   range scales.
 5. :func:`apply_positions` -- identity only in Phase 1.
 6. :func:`setup_geom_data` + :func:`train_position_scales` -- ``geom.setup_data``,
    then reset and retrain the position scales on what the geoms will draw
@@ -245,9 +246,9 @@ def _mapped_column(values: Any, index: pd.Index) -> pd.Series:
 def map_non_position(plot, layers: list[LayerData]) -> dict[str, Any]:
     """Train the scale of every mapped non-position aesthetic on every layer, then
     map the columns to manim values. The scale is the user's, else
-    :func:`default_scale_for` (discrete colour/fill/shape/linetype, range scales for
-    size/alpha/linewidth); aesthetics without a default scale are used as is.
-    Returns ``{aes: trained scale}``."""
+    :func:`default_scale_for` (discrete colour/fill/shape/linetype, continuous colour
+    gradients for numeric colour/fill, range scales for size/alpha/linewidth);
+    aesthetics without a default scale are used as is. Returns ``{aes: trained scale}``."""
     scales: dict[str, Any] = {}
     clones: dict[int, Any] = {}  # one clone per user scale object (shared aesthetics)
     for aes_name in _non_position_aesthetics(layers):

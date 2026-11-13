@@ -129,12 +129,20 @@ def test_guides_none_and_scale_guide_none_remove_legend():
     assert build_legends({"color": colour_scale(guide="none")}, layers, Theme()) == []
 
 
-def test_non_discrete_scales_skipped():
+def test_scales_without_breaks_or_guide_skipped():
     class Cont:
         is_discrete = False
         guide = "legend"
 
+        def get_breaks(self):
+            return []
+
+        def get_labels(self):
+            return []
+
     assert build_legends({"color": Cont()}, [], Theme()) == []
+    sc = colour_scale(guide="none")
+    assert build_legends({"color": sc}, [(GeomPoint(), {"color": "grp"}, {})], Theme()) == []
 
 
 def test_labels_use_text_engine_by_default():
@@ -253,4 +261,5 @@ def test_guides_validation():
     assert isinstance(guides(color=False), Guides)
     assert guides(color=False).guides == {"color": "none"}
     with pytest.raises(ValueError):
-        guides(color="colourbar")
+        guides(color="bogus")
+    assert guides(color="colourbar").guides == {"color": "colourbar"}
