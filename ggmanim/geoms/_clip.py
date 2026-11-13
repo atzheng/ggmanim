@@ -73,6 +73,11 @@ def clip_segments(
     Returns ``(t0, t1, visible)``: the visible part of segment ``i`` is the
     parameter interval ``[t0[i], t1[i]]`` (``0 <= t0 <= t1 <= 1``) where
     ``visible[i]``. Segments with a NaN end are invisible.
+
+    An edge only constrains a segment when one of its ends lies beyond that edge
+    by more than the tolerance; the cut is then made at the edge itself. So a
+    segment running along an edge (both ends on it up to rounding, possibly not
+    exactly parallel) is kept whole instead of being cut at an arbitrary point.
     """
     x0, y0, x1, y1 = (np.asarray(v, dtype=float) for v in np.broadcast_arrays(x0, y0, x1, y1))
     xmin, xmax, ymin, ymax = rect
@@ -83,10 +88,12 @@ def clip_segments(
     visible = np.isfinite(x0) & np.isfinite(y0) & np.isfinite(x1) & np.isfinite(y1)
     with np.errstate(divide="ignore", invalid="ignore"):
         for p, q in ((-dx, x0 - xmin), (dx, xmax - x0), (-dy, y0 - ymin), (dy, ymax - y0)):
+            # q / q - p: signed distance inside this edge at t = 0 / t = 1
+            beyond = (q < -tol) | (q - p < -tol)  # an end is (clearly) outside
             visible &= ~((p == 0) & (q < -tol))  # parallel to and outside this edge
             r = q / p
-            t0 = np.where(p < 0, np.maximum(t0, r), t0)
-            t1 = np.where(p > 0, np.minimum(t1, r), t1)
+            t0 = np.where(beyond & (p < 0), np.maximum(t0, r), t0)
+            t1 = np.where(beyond & (p > 0), np.minimum(t1, r), t1)
     visible &= t0 <= t1 + 1e-12
     t1 = np.maximum(t0, t1)
     return t0, t1, visible
@@ -150,13 +157,14 @@ def clip_polygon(x: Any, y: Any, rect: Rect) -> tuple[np.ndarray, np.ndarray]:
     if inside(x, y, rect).all():
         return x.copy(), y.copy()
     xmin, xmax, ymin, ymax = rect
+    tol = _tol(rect)
     pts = np.column_stack([x, y])
     # (axis, bound, keep_greater): keep points with pts[:, axis] >= / <= bound
     for axis, bound, ge in ((0, xmin, True), (0, xmax, False), (1, ymin, True), (1, ymax, False)):
         if len(pts) == 0:
             break
         d = pts[:, axis] - bound
-        ins = d >= 0 if ge else d <= 0
+        ins = d >= -tol if ge else d <= tol  # on the edge up to rounding is inside
         prev = np.roll(pts, 1, axis=0)
         dprev = np.roll(d, 1)
         insprev = np.roll(ins, 1)

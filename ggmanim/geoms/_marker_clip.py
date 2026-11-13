@@ -102,17 +102,6 @@ def _sample_subpath(sub: np.ndarray, n_per_curve: int) -> np.ndarray:
     return np.concatenate(out) if out else np.zeros((0, 2))
 
 
-def _snap(xy: np.ndarray, box: Rect, tol: float) -> np.ndarray:
-    """Move vertices within ``tol`` of a box edge onto it, so outlines running
-    along the border (e.g. a ``plus`` arm, up to rounding) are not mis-clipped."""
-    xy = xy.copy()
-    for axis, bounds in ((0, box[:2]), (1, box[2:])):
-        for b in bounds:
-            near = np.abs(xy[:, axis] - b) <= tol
-            xy[near, axis] = b
-    return xy
-
-
 def _corners_mobject(pieces: list[np.ndarray], z: float, closed: bool) -> VMobject:
     v = VMobject()
     for xy in pieces:
@@ -146,7 +135,7 @@ def clip_marker(marker: VMobject, box: Rect) -> VMobject | None:
         z = float(m.points[0, 2])
         n = int(getattr(m, "n_points_per_cubic_curve", 4))
         subs = [_sample_subpath(np.asarray(s), n) for s in m.get_subpaths()]
-        subs = [_snap(s, box, tol) for s in subs if len(s) >= 2]
+        subs = [s for s in subs if len(s) >= 2]
         fill_pieces: list[np.ndarray] = []
         stroke_pieces: list[np.ndarray] = []
         for s in subs:
