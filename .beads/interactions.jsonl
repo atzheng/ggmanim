@@ -23,3 +23,5 @@
 {"id":"int-e8ac892a","kind":"field_change","created_at":"2026-11-13T23:27:11.006625Z","actor":"Andrew Zheng","issue_id":"ggm-5wa","extra":{"field":"status","new_value":"closed","old_value":"in_progress","reason":"Closed"}}
 {"id":"int-fdee8a34","kind":"field_change","created_at":"2026-11-13T23:28:58.766143Z","actor":"Andrew Zheng","issue_id":"ggm-buo","extra":{"field":"status","new_value":"closed","old_value":"in_progress","reason":"Closed"}}
 {"id":"int-a3ba974b","kind":"field_change","created_at":"2026-11-13T23:29:49.772258Z","actor":"Andrew Zheng","issue_id":"ggm-sxu","extra":{"field":"status","new_value":"closed","old_value":"in_progress","reason":"Closed"}}
+{"id":"int-bc1e5856","kind":"field_change","created_at":"2026-11-13T23:31:19.468492Z","actor":"Andrew Zheng","issue_id":"ggm-sxu","extra":{"field":"status","new_value":"closed","old_value":"in_progress","reason":"Closed"}}
+{"id":"int-6fb3fead","kind":"field_change","created_at":"2026-11-13T23:31:19.640927Z","actor":"Andrew Zheng","issue_id":"ggm-5qg","extra":{"field":"status","new_value":"closed","old_value":"open","reason":"Closed"}}
