@@ -144,8 +144,8 @@ def test_per_axis_switch_overrides_global():
 
 def test_grid_major_per_axis():
     p = _panel(theme_default().merge(theme(panel_grid_major_x=False)))
-    assert len(p.grid) == len(p.panel_params.y_breaks)
-    assert all(abs(line.get_start()[1] - line.get_end()[1]) < 1e-9 for line in p.grid)
+    assert len(p.grid_major) == len(p.panel_params.y_breaks)
+    assert all(abs(line.get_start()[1] - line.get_end()[1]) < 1e-9 for line in p.grid_major)
 
 
 # -- rotated tick labels -------------------------------------------------------------
