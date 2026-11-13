@@ -58,6 +58,16 @@ from .scales.discrete import (
     scale_fill_manual,
 )
 from .scales.discrete_position import scale_x_discrete, scale_y_discrete
+from .scales.range import (
+    scale_alpha,
+    scale_alpha_identity,
+    scale_linewidth,
+    scale_linewidth_identity,
+    scale_radius,
+    scale_size,
+    scale_size_area,
+    scale_size_identity,
+)
 from .scales.shape import (
     scale_linetype,
     scale_linetype_identity,
@@ -120,6 +130,14 @@ __all__ = [
     "scale_shape",
     "scale_shape_identity",
     "scale_shape_manual",
+    "scale_alpha",
+    "scale_alpha_identity",
+    "scale_linewidth",
+    "scale_linewidth_identity",
+    "scale_radius",
+    "scale_size",
+    "scale_size_area",
+    "scale_size_identity",
     "xlim",
     "ylim",
     # coords

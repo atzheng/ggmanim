@@ -1,4 +1,5 @@
-"""Guides: legends for discrete non-position scales.
+"""Guides: legends for discrete non-position scales (and continuous ones that ask
+for a binned legend, e.g. size / alpha / linewidth).
 
 :func:`build_legends` turns the trained non-position scales of a plot into
 :class:`Legend` mobjects (title + one row per break: key glyph + label). Key
@@ -103,11 +104,12 @@ class Legend(VGroup):
     def arrange_rows(self, direction: str = "vertical") -> Legend:
         """Lay out the rows vertically (default; right/left legends) or
         horizontally (top/bottom legends); the title goes above, left-aligned."""
-        cell = KEY_SIZE * 1.2
         x = 0.0
         y = 0.0
         for row in self.rows:
             key, label = row
+            # cells grow for big keys (e.g. scale_size_area(max_size=...))
+            cell = max(KEY_SIZE * 1.2, key.width, key.height)
             row_h = max(cell, label.height)
             if direction == "horizontal":
                 key.move_to((x + cell / 2, 0.0, 0.0))
@@ -177,6 +179,22 @@ def _guide_off(aes: str, scale, guides_spec: Mapping[str, Any]) -> bool:
     return spec in ("none", False)
 
 
+def _binned_legend(aes: str, scale, guides_spec: Mapping[str, Any]) -> bool:
+    """A continuous scale whose guide is ``"legend"`` (the default of the size /
+    alpha / linewidth range scales, or ``guides(aes="legend")``): keys at its breaks."""
+    spec = guides_spec.get(aes, getattr(scale, "guide", None))
+    return spec == "legend" and hasattr(scale, "trans")
+
+
+def _legend_breaks(scale) -> list:
+    """Legend breaks: discrete levels, or a continuous scale's breaks in *data*
+    space (so ``scale.map`` gives the key values)."""
+    breaks = scale.get_breaks()
+    if getattr(scale, "is_discrete", False):
+        return list(breaks)
+    return [float(b) for b in scale.trans.inverse(breaks)]
+
+
 def _show_legend(params: Mapping[str, Any]) -> bool | None:
     v = params.get("show_legend", params.get("show.legend"))
     return None if v is None else bool(v)
@@ -194,9 +212,11 @@ def build_legends(
     Parameters
     ----------
     scales:
-        ``aesthetic -> trained scale``. Scales that are not discrete
-        (``is_discrete`` falsy), whose ``guide`` is ``"none"``, or that have no
-        breaks are skipped. The same scale object may appear under several keys.
+        ``aesthetic -> trained scale``. Continuous scales with ``guide="legend"``
+        (the size/alpha/linewidth range scales) get keys at ``get_breaks()``;
+        other non-discrete scales, scales whose ``guide`` is ``"none"``, and
+        scales without breaks are skipped. The same scale object may appear
+        under several keys.
     layers:
         ``(geom, resolved_mapping, params)`` per layer (``Layer`` objects are
         also accepted; their own, unresolved mapping is used). A layer
@@ -227,11 +247,13 @@ def build_legends(
     groups: dict[Any, dict[str, Any]] = {}
     for aes, scale in scales.items():
         aes = standardise_aes_name(aes)
-        if aes in ("x", "y") or not getattr(scale, "is_discrete", False):
+        if aes in ("x", "y"):
+            continue
+        if not getattr(scale, "is_discrete", False) and not _binned_legend(aes, scale, guides_spec):
             continue
         if _guide_off(aes, scale, guides_spec):
             continue
-        breaks = list(scale.get_breaks())
+        breaks = _legend_breaks(scale)
         if not breaks:
             continue
         blabels = [str(b) for b in scale.get_labels()]

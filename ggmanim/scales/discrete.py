@@ -412,19 +412,21 @@ _DEFAULT_PALETTES: dict[str, Palette] = {
 }
 
 
-def default_scale_for(aesthetic: str, values: Any) -> ScaleDiscrete:
-    """Default (untrained) scale for a categorical ``aesthetic`` mapped to ``values``.
+def default_scale_for(aesthetic: str, values: Any) -> Scale | None:
+    """Default (untrained) scale for a non-position ``aesthetic`` mapped to ``values``.
 
-    Raises ``NotImplementedError`` for numeric colour/fill (continuous gradients are
-    Phase 2), ``TypeError`` for numeric shape/linetype, and ``ValueError`` for
-    aesthetics that have no default discrete scale.
+    ``size`` / ``alpha`` / ``linewidth`` get a range scale (see
+    :func:`.range.default_range_scale`). Returns ``None`` for aesthetics that have
+    no default scale (their values are used as is). Raises ``NotImplementedError``
+    for numeric colour/fill and ``TypeError`` for numeric shape/linetype.
     """
     aes = normalise_aesthetic(aesthetic)
+    from .range import RANGE_AESTHETICS, default_range_scale
+
+    if aes in RANGE_AESTHETICS:
+        return default_range_scale(aes, values)
     if aes not in CATEGORICAL_AESTHETICS:
-        raise ValueError(
-            f"No default discrete scale for aesthetic {aesthetic!r}; "
-            f"categorical aesthetics are {CATEGORICAL_AESTHETICS}."
-        )
+        return None
     if not is_discrete(values):
         if aes in COLOUR_AESTHETICS:
             raise NotImplementedError(

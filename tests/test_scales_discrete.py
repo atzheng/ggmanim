@@ -359,9 +359,15 @@ def test_default_scale_for_numeric_shape_raises():
         default_scale_for("shape", [1, 2])
 
 
-def test_default_scale_for_non_categorical_aes():
-    with pytest.raises(ValueError, match="No default discrete scale"):
-        default_scale_for("size", ["a"])
+def test_default_scale_for_aes_without_default_is_none():
+    assert default_scale_for("weight", [1.0, 2.0]) is None
+    assert default_scale_for("label", ["a"]) is None
+
+
+def test_default_scale_for_discrete_size_warns():
+    with pytest.warns(UserWarning, match="Using size for a discrete variable"):
+        s = default_scale_for("size", ["a"])
+    assert isinstance(s, ScaleDiscrete)
 
 
 def test_scale_base_if_available():
