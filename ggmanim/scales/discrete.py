@@ -416,25 +416,23 @@ def default_scale_for(aesthetic: str, values: Any) -> Scale | None:
     """Default (untrained) scale for a non-position ``aesthetic`` mapped to ``values``.
 
     ``size`` / ``alpha`` / ``linewidth`` get a range scale (see
-    :func:`.range.default_range_scale`). Returns ``None`` for aesthetics that have
-    no default scale (their values are used as is). Raises ``NotImplementedError``
-    for numeric colour/fill and ``TypeError`` for numeric shape/linetype.
+    :func:`.range.default_range_scale`); numeric colour/fill get the ggplot2
+    default gradient (:class:`~.colour.ScaleContinuousColour`). Returns ``None``
+    for aesthetics that have no default scale (their values are used as is).
+    Raises ``TypeError`` for numeric shape/linetype.
     """
     aes = normalise_aesthetic(aesthetic)
     from .range import RANGE_AESTHETICS, default_range_scale
 
     if aes in RANGE_AESTHETICS:
         return default_range_scale(aes, values)
+    if aes in COLOUR_AESTHETICS and not is_discrete(values):
+        from .colour import ScaleContinuousColour
+
+        return ScaleContinuousColour(aes)
     if aes not in CATEGORICAL_AESTHETICS:
         return None
     if not is_discrete(values):
-        if aes in COLOUR_AESTHETICS:
-            raise NotImplementedError(
-                f"Mapping a numeric column to {aes!r} needs a continuous colour scale "
-                "(gradients are not implemented yet). Convert the column to a category, "
-                "e.g. df[col].astype(str) or .astype('category'), or use "
-                f"scale_{aes}_identity() if it already holds colours."
-            )
         raise TypeError(
             f"A continuous (numeric) variable cannot be mapped to {aes!r}; "
             "convert it to a category first, e.g. df[col].astype('category')."

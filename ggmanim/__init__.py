@@ -19,6 +19,7 @@ from .geoms import (
     geom_vline,
 )
 from .guides import guides
+from .guides_colourbar import guide_colorbar, guide_colourbar
 from .palettes import (
     BRIGHT,
     LINETYPES,
@@ -28,10 +29,14 @@ from .palettes import (
     VIBRANT,
     Palette,
     as_manim_color,
+    div_gradient_pal,
+    gradient_n_pal,
     hcl_to_hex,
     hsv_pal,
     hue_pal,
     resolve_palette,
+    seq_gradient_pal,
+    viridis_pal,
 )
 from .plot import GGManim, ggplot, labs, xlab, ylab
 from .scales import (
@@ -45,6 +50,29 @@ from .scales import (
     scale_y_sqrt,
     xlim,
     ylim,
+)
+from .scales.colour import (
+    scale_color_continuous,
+    scale_color_gradient,
+    scale_color_gradient2,
+    scale_color_gradientn,
+    scale_color_hue,
+    scale_color_viridis_c,
+    scale_color_viridis_d,
+    scale_colour_continuous,
+    scale_colour_gradient,
+    scale_colour_gradient2,
+    scale_colour_gradientn,
+    scale_colour_hue,
+    scale_colour_viridis_c,
+    scale_colour_viridis_d,
+    scale_fill_continuous,
+    scale_fill_gradient,
+    scale_fill_gradient2,
+    scale_fill_gradientn,
+    scale_fill_hue,
+    scale_fill_viridis_c,
+    scale_fill_viridis_d,
 )
 from .scales.discrete import (
     scale_color_discrete,
@@ -104,6 +132,8 @@ __all__ = [
     "xlab",
     "ylab",
     "guides",
+    "guide_colorbar",
+    "guide_colourbar",
     # geoms
     "geom_bar",
     "geom_col",
@@ -151,6 +181,27 @@ __all__ = [
     "scale_size",
     "scale_size_area",
     "scale_size_identity",
+    "scale_color_continuous",
+    "scale_color_gradient",
+    "scale_color_gradient2",
+    "scale_color_gradientn",
+    "scale_color_hue",
+    "scale_color_viridis_c",
+    "scale_color_viridis_d",
+    "scale_colour_continuous",
+    "scale_colour_gradient",
+    "scale_colour_gradient2",
+    "scale_colour_gradientn",
+    "scale_colour_hue",
+    "scale_colour_viridis_c",
+    "scale_colour_viridis_d",
+    "scale_fill_continuous",
+    "scale_fill_gradient",
+    "scale_fill_gradient2",
+    "scale_fill_gradientn",
+    "scale_fill_hue",
+    "scale_fill_viridis_c",
+    "scale_fill_viridis_d",
     "xlim",
     "ylim",
     # coords
@@ -183,4 +234,8 @@ __all__ = [
     "hue_pal",
     "hsv_pal",
     "resolve_palette",
+    "div_gradient_pal",
+    "gradient_n_pal",
+    "seq_gradient_pal",
+    "viridis_pal",
 ]
