@@ -46,11 +46,7 @@ from .scales.discrete import CATEGORICAL_AESTHETICS, default_scale_for
 from .stats import add_group, is_discrete
 from .theme import Theme, theme_default
 
-try:  # legends (ggm-s11.7) may not be available yet
-    from .guides import build_legends, place_legends
-except ImportError:  # pragma: no cover - depends on the guides module
-    build_legends = None
-    place_legends = None
+from .guides import build_legends, place_legends  # also registers guides()
 
 __all__ = [
     "BuildError",
@@ -330,12 +326,12 @@ def draw_layers(layers: List[LayerData], panel: CartesianPanel,
 # --------------------------------------------------------------------------- 9
 def make_legends(plot, layers: List[LayerData], scales: Dict[str, Any], theme: Theme,
                  labels: Dict[str, Any]) -> list:
-    """Legend objects for the trained non-position scales (``[]`` without guides)."""
-    if build_legends is None or theme.legend_position == "none" or not scales:
+    """Legend objects for the trained non-position scales (``[]`` if hidden)."""
+    if theme.legend_position == "none" or not scales:
         return []
     specs = [(ld.layer.geom, dict(ld.mapping), dict(ld.layer.params)) for ld in layers]
-    return list(build_legends(scales, specs, theme, labels, getattr(plot, "guides", None))
-                or [])
+    guide_specs = dict(getattr(plot, "guide_specs", None) or {})
+    return list(build_legends(scales, specs, theme, labels, guide_specs) or [])
 
 
 def _text(theme: Theme, content: Any, size: float) -> Optional[Mobject]:
@@ -354,7 +350,7 @@ def assemble(panel: CartesianPanel, drawn, legends: list, theme: Theme,
     from .mobjects import GGPlot
 
     legend = VGroup()
-    if legends and place_legends is not None:
+    if legends:
         legend = place_legends(panel, legends, theme)
     title = _text(theme, labels.get("title"), theme.title_size)
     subtitle = _text(theme, labels.get("subtitle"), theme.axis_title_size)

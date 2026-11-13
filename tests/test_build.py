@@ -273,3 +273,25 @@ def test_build_plot_theme_override(df):
     p = ggplot(df, aes("a", "b")).geom_point()
     m = build_plot(p, theme=theme(panel_width=4.0, panel_height=3.0))
     assert m.axes.x_length == pytest.approx(4.0)
+
+
+# -- legends (guides module) --------------------------------------------------------
+
+
+def test_legend_built_and_placed_right_of_panel(df):
+    from ggmanim.guides import Legend
+
+    m = ggplot(df, aes("a", "b", color="g")).geom_point().geom_line().build()
+    assert len(m.legends) == 1 and isinstance(m.legends[0], Legend)
+    assert m["legends"] is m.legend and len(m.legend) == 1
+    assert m.legend.get_left()[0] > m.panel.get_right()[0]
+    assert m.legends[0].breaks == ["x", "y"]
+    # room was reserved for the legend: the panel is narrower than without one
+    plain = ggplot(df, aes("a", "b")).geom_point().build()
+    assert m.axes.x_length < plain.axes.x_length
+    assert len(plain.legends) == 0
+
+
+def test_guides_none_hides_legend(df):
+    m = ggplot(df, aes("a", "b", color="g")).geom_point().guides(color="none").build()
+    assert m.legends == [] and len(m.legend) == 0
