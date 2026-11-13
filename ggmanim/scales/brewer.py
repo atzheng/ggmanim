@@ -17,7 +17,7 @@
   the scale's breaks into bins, bin ``i`` getting colour ``i`` of
   ``brewer_pal(n_bins)`` (``direction=-1`` by default). Bins are right-closed
   like ggplot2's (a value equal to a break falls in the lower bin). The guide is
-  a colourbar finely sampled enough to show the steps.
+  :func:`~ggmanim.guides_coloursteps.guide_coloursteps` (one step per bin).
 
 All have ``fill`` and ``colour`` variants. No manim imports beyond the palettes.
 """
@@ -64,8 +64,6 @@ _TYPE_ALIASES = {
 _BY_LOWER = {name.lower(): name for name in BREWER}
 #: Number of colours of the scheme interpolated by ``distiller`` (as ggplot2).
 _DISTILLER_N = 7
-#: Colourbar resolution used by ``fermenter`` so the bin steps land close to the breaks.
-_FERMENTER_NBIN = 100
 
 
 def brewer_palette_name(palette: str | int = 1, type: str = "seq") -> str:
@@ -154,9 +152,9 @@ class ScaleBinnedColour(ScaleContinuousColour):
 
     def __init__(self, aesthetics: Any, bin_palette: Callable[[int], list[Any]], **kwargs):
         if "guide" not in kwargs:
-            from ..guides_colourbar import guide_colorbar  # lazy: keeps scales manim-free
+            from ..guides_coloursteps import guide_coloursteps  # lazy: keeps scales manim-free
 
-            kwargs["guide"] = guide_colorbar(nbin=_FERMENTER_NBIN)
+            kwargs["guide"] = guide_coloursteps()
         super().__init__(aesthetics, None, **kwargs)
         self.bin_palette = bin_palette
 
