@@ -42,6 +42,7 @@ class GGPlot(VGroup):
     legend : ``VGroup`` of placed legends (empty when there is none)
     legends : the guide objects returned by the guides module
     title, subtitle, caption : ``Mobject`` or ``None``
+    background : the ``theme.plot_background`` rectangle (first submobject) or ``None``
     scales : ``{aesthetic: trained scale}`` used for this build
     layer_data : ``{layer key: DataFrame}`` the data each geom drew (transformed space)
 
@@ -74,6 +75,7 @@ class GGPlot(VGroup):
         self.caption = caption
         self.scales = dict(scales or {})
         self.layer_data = dict(layer_data or {})
+        self.background: Mobject | None = None  # theme.plot_background (set by build)
         self.add(panel, *self.layers.values(), self.legend)  # type: ignore[arg-type]
         for m in (title, subtitle, caption):
             if m is not None:
