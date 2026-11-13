@@ -6,6 +6,11 @@ Pure numpy; no manim imports.
   1-2-5 "nice" steps, snapping outward to cover the range.
 * :func:`log_breaks` -- port of ``scales::log_breaks()``: integer powers of the base,
   with 1/2/5-style sub-breaks when the range covers too few decades.
+* :func:`extended` -- Wilkinson's extended labelling algorithm (Talbot, Lin & Hanrahan
+  2010), ported from R's ``labeling::extended`` (ggplot2's default via
+  ``scales::extended_breaks``).
+* :func:`width_breaks` -- ``scales::fullseq``-style breaks every ``width``.
+* :func:`regular_minor_breaks` / :func:`log_minor_breaks` -- minor breaks between majors.
 * :func:`format_numbers` -- default tick-label formatter.
 * :func:`expansion` / :func:`expand_range` -- ggplot2-style limit expansion.
 """
@@ -21,6 +26,10 @@ import numpy as np
 __all__ = [
     "pretty",
     "log_breaks",
+    "extended",
+    "width_breaks",
+    "regular_minor_breaks",
+    "log_minor_breaks",
     "format_numbers",
     "expansion",
     "expand_range",
@@ -136,10 +145,12 @@ def log_breaks(lo: float, hi: float, n: int = 5, base: float = 10) -> np.ndarray
         return int(np.sum((b >= lo - tol) & (b <= hi + tol)))
 
     by = (pmax - pmin) // n + 1
-    powers = np.arange(pmin, pmax + 1, by, dtype=float)
-    breaks = float(base) ** powers
-    if n_inside(breaks) >= n - 2:
-        return breaks
+    while by >= 1:  # scales: decrease ``by`` before resorting to sub-breaks
+        powers = np.arange(pmin, pmax + 1, by, dtype=float)
+        breaks = float(base) ** powers
+        if n_inside(breaks) >= n - 2:
+            return breaks
+        by -= 1
 
     if base == 10:
         candidates: list[Sequence[int]] = [(1, 5), (1, 2, 5), tuple(range(1, 10))]
@@ -151,6 +162,186 @@ def log_breaks(lo: float, hi: float, n: int = 5, base: float = 10) -> np.ndarray
         if n_inside(sub) >= n - 2:
             return sub
     return pretty(lo, hi, n)
+
+
+# --------------------------------------------------------------------------- extended
+_EXT_Q = (1, 5, 2, 2.5, 4, 3)
+_EXT_W = (0.25, 0.2, 0.5, 0.05)
+
+
+def _ext_simplicity(i: int, n: int, j: int, lmin: float, lmax: float, lstep: float) -> float:
+    eps = _DBL_EPSILON * 100
+    rem = lmin % lstep  # floored modulo, like R's %%
+    v = 1 if ((rem < eps or lstep - rem < eps) and lmin <= 0 and lmax >= 0) else 0
+    return 1 - (i - 1) / (n - 1) - j + v
+
+
+def _ext_simplicity_max(i: int, n: int, j: int) -> float:
+    return 1 - (i - 1) / (n - 1) - j + 1
+
+
+def _ext_coverage(dmin: float, dmax: float, lmin: float, lmax: float) -> float:
+    r = dmax - dmin
+    return 1 - 0.5 * ((dmax - lmax) ** 2 + (dmin - lmin) ** 2) / ((0.1 * r) ** 2)
+
+
+def _ext_coverage_max(dmin: float, dmax: float, span: float) -> float:
+    r = dmax - dmin
+    if span > r:
+        half = (span - r) / 2
+        return 1 - 0.5 * (2 * half**2) / ((0.1 * r) ** 2)
+    return 1.0
+
+
+def _ext_density(k: int, m: int, dmin: float, dmax: float, lmin: float, lmax: float) -> float:
+    r = (k - 1) / (lmax - lmin)
+    rt = (m - 1) / (max(lmax, dmax) - min(dmin, lmin))
+    return 2 - max(r / rt, rt / r)
+
+
+def _ext_density_max(k: int, m: int) -> float:
+    return 2 - (k - 1) / (m - 1) if k >= m else 1.0
+
+
+def extended(
+    dmin: float,
+    dmax: float,
+    m: int = 5,
+    Q: Sequence[float] = _EXT_Q,
+    only_loose: bool = False,
+    w: Sequence[float] = _EXT_W,
+) -> np.ndarray:
+    """Wilkinson's *extended* labelling algorithm (``labeling::extended``).
+
+    Searches step sizes ``j * q * 10^z`` (``q`` from the "nice" list ``Q``, in order
+    of preference) and label counts ``k`` near ``m``, maximising a weighted sum of
+    simplicity, coverage, density and legibility (weights ``w``). Unlike
+    :func:`pretty`, the labels need not cover the data range (unless
+    ``only_loose``); e.g. ``extended(1, 10)`` gives ``0, 2.5, 5, 7.5, 10``.
+
+    >>> extended(0, 100).tolist()
+    [0.0, 25.0, 50.0, 75.0, 100.0]
+    """
+    dmin, dmax = float(dmin), float(dmax)
+    if not (math.isfinite(dmin) and math.isfinite(dmax)):
+        raise ValueError(f"extended() needs finite bounds, got ({dmin}, {dmax})")
+    if dmin > dmax:
+        dmin, dmax = dmax, dmin
+    m = int(m)
+    if m < 2:
+        raise ValueError(f"extended() needs m >= 2, got {m}")
+    if dmax - dmin < _DBL_EPSILON * 100:
+        return np.linspace(dmin, dmax, m)
+    Q = tuple(float(q) for q in Q)
+    n = len(Q)
+    w1, w2, w3, w4 = (float(v) for v in w)
+    best_score = -2.0
+    best: tuple[float, float, float] | None = None
+
+    j = 1
+    done = False
+    while not done:
+        for i, q in enumerate(Q, start=1):
+            sm = _ext_simplicity_max(i, n, j)
+            if w1 * sm + w2 + w3 + w4 < best_score:
+                done = True
+                break
+            k = 2
+            while True:
+                dm = _ext_density_max(k, m)
+                if w1 * sm + w2 + w3 * dm + w4 < best_score:
+                    break
+                delta = (dmax - dmin) / (k + 1) / j / q
+                z = math.ceil(math.log10(delta))
+                while True:
+                    step = j * q * 10.0**z
+                    cm = _ext_coverage_max(dmin, dmax, step * (k - 1))
+                    if w1 * sm + w2 * cm + w3 * dm + w4 < best_score:
+                        break
+                    min_start = math.floor(dmax / step) * j - (k - 1) * j
+                    max_start = math.ceil(dmin / step) * j
+                    for start in range(min_start, max_start + 1):
+                        lmin = start * (step / j)
+                        lmax = lmin + step * (k - 1)
+                        s = _ext_simplicity(i, n, j, lmin, lmax, step)
+                        c = _ext_coverage(dmin, dmax, lmin, lmax)
+                        g = _ext_density(k, m, dmin, dmax, lmin, lmax)
+                        score = w1 * s + w2 * c + w3 * g + w4 * 1.0  # legibility == 1
+                        if score > best_score and (
+                            not only_loose or (lmin <= dmin and lmax >= dmax)
+                        ):
+                            best_score = score
+                            best = (lmin, lmax, step)
+                    z += 1
+                k += 1
+        j += 1
+    assert best is not None
+    lmin, lmax, step = best
+    count = int(round((lmax - lmin) / step)) + 1
+    out = lmin + step * np.arange(count, dtype=float)
+    return np.round(out, max(0, 2 - math.floor(math.log10(step)))) + 0.0
+
+
+def width_breaks(lo: float, hi: float, width: float, offset: float = 0.0) -> np.ndarray:
+    """Breaks every ``width`` covering ``[lo, hi]`` (``scales::fullseq``), shifted by
+    ``offset``: ``floor(lo / width) * width, ..., ceil(hi / width) * width``."""
+    lo, hi = sorted((float(lo), float(hi)))
+    width = float(width)
+    if not (width > 0 and math.isfinite(width)):
+        raise ValueError(f"width must be positive and finite, got {width}")
+    start = math.floor(lo / width + 1e-10)
+    stop = math.ceil(hi / width - 1e-10)
+    if stop <= start:
+        stop = start + 1
+    out = np.arange(start, stop + 1, dtype=float) * width + float(offset)
+    return _round_sig(out)
+
+
+def regular_minor_breaks(
+    major: Sequence[float] | np.ndarray, limits: Sequence[float], n: int = 2
+) -> np.ndarray:
+    """Minor breaks dividing each gap between (equally spaced) ``major`` breaks into
+    ``n`` parts (``scales::regular_minor_breaks``), extended one major step beyond
+    the first/last major where the ``limits`` reach. Returned *without* the majors,
+    censored to ``limits``; all values in the same (transformed) space."""
+    b = np.asarray(major, dtype=float).ravel()
+    b = np.sort(b[np.isfinite(b)])
+    if len(b) < 2 or n < 2:
+        return np.array([], dtype=float)
+    lo, hi = float(min(limits)), float(max(limits))
+    bd = b[1] - b[0]
+    if lo < b[0]:
+        b = np.concatenate([[b[0] - bd], b])
+    if hi > b[-1]:
+        b = np.concatenate([b, [b[-1] + bd]])
+    frac = np.arange(1, n) / n
+    out = (b[:-1, None] + np.diff(b)[:, None] * frac[None, :]).ravel()
+    return _censor_minor(out, b, lo, hi)
+
+
+def log_minor_breaks(
+    major: Sequence[float] | np.ndarray, limits: Sequence[float], base: float = 10
+) -> np.ndarray:
+    """Minor breaks for a log scale, in *transformed* (log) space: ``k * base^p`` for
+    ``k = 2 .. base - 1`` and every power ``p`` the ``limits`` touch, excluding the
+    ``major`` breaks and censored to ``limits`` (both in log space)."""
+    lo, hi = float(min(limits)), float(max(limits))
+    if not (math.isfinite(lo) and math.isfinite(hi)) or base <= 2:
+        return np.array([], dtype=float)
+    powers = np.arange(math.floor(lo) - 1, math.ceil(hi) + 1, dtype=float)
+    ks = np.arange(2, int(math.ceil(base)), dtype=float)
+    data = np.outer(float(base) ** powers, ks).ravel()
+    out = np.log(data) / math.log(base)
+    return _censor_minor(out, np.asarray(major, dtype=float), lo, hi)
+
+
+def _censor_minor(x: np.ndarray, major: np.ndarray, lo: float, hi: float) -> np.ndarray:
+    tol = 1e-9 * max(hi - lo, 1e-300)
+    x = x[(x >= lo - tol) & (x <= hi + tol)]
+    major = major[np.isfinite(major)]
+    if len(major):
+        x = x[np.min(np.abs(x[:, None] - major[None, :]), axis=1) > tol]
+    return np.unique(x)
 
 
 def _round_sig(x: np.ndarray, digits: int = 12) -> np.ndarray:

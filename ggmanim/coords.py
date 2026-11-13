@@ -10,7 +10,8 @@ The entry point used by the build pipeline is :meth:`CoordCartesian.build`::
     panel.panel_params    # PanelParams(x_range, y_range, x_breaks, y_breaks, x_labels, y_labels)
     panel.x_ticks, panel.y_ticks              # VGroup of tick marks (one per break)
     panel.x_tick_labels, panel.y_tick_labels  # VGroup of labels (one per break, same order)
-    panel.grid                                # VGroup of major grid lines
+    panel.grid                                # VGroup of grid lines (minor, then major)
+    panel.grid_major, panel.grid_minor        # the same lines split by kind
     panel.x_title, panel.y_title              # Mobject or None
 
 Geoms (``ggm-s11.6``) receive data already mapped by the scales (i.e. in
@@ -19,6 +20,13 @@ transformed space: ``log10(x)`` for ``scale_x_log10``) and call
 data-space label strings (``"10"``, ``"100"`` ...) placed at the transformed
 breaks on a *linear* manim axis: we never use manim's ``LogBase`` or its numeric
 labels.
+
+Minor grid lines (``scale.get_minor_breaks``) are drawn when
+``theme.panel_grid_minor`` is true, styled by ``grid_minor_stroke_width`` /
+``grid_minor_opacity``. A position scale's ``position`` (``"top"`` for x,
+``"right"`` for y) moves its axis line, ticks, tick labels and title to that side.
+Tick-label strings go through :func:`ggmanim.labels.render_label` (``"$...$"`` math
+-> Unicode superscripts with the Text engine; LaTeX specials escaped with Tex).
 
 ``panel.transform`` reads the live axes, so it stays correct after the panel (or
 the plot containing it) is moved or scaled.
@@ -41,6 +49,8 @@ from manim import (
     DOWN,
     LEFT,
     PI,
+    RIGHT,
+    UP,
     UR,
     Axes,
     Line,
@@ -51,6 +61,7 @@ from manim import (
     VMobject,
 )
 
+from .labels import render_label
 from .registry import register
 from .scales.breaks import expand_range
 from .theme import Theme, theme_default
@@ -78,7 +89,8 @@ class PanelParams:
 
     ``x_range``/``y_range`` are the drawn axis ranges (limits incl. expansion);
     ``x_breaks``/``y_breaks`` the major tick positions within them and
-    ``x_labels``/``y_labels`` the matching data-space label strings.
+    ``x_labels``/``y_labels`` the matching data-space label strings;
+    ``x_minor_breaks``/``y_minor_breaks`` the minor grid positions.
     """
 
     x_range: tuple[float, float]
@@ -87,6 +99,8 @@ class PanelParams:
     y_breaks: tuple[float, ...]
     x_labels: tuple[str, ...]
     y_labels: tuple[str, ...]
+    x_minor_breaks: tuple[float, ...] = ()
+    y_minor_breaks: tuple[float, ...] = ()
 
 
 class PanelAxes(Axes):
@@ -133,6 +147,8 @@ class CartesianPanel(VGroup):
         self.axes = axes
         self.panel_params = panel_params
         self.grid = grid
+        self.grid_major: VGroup = grid  # build() splits these into major/minor
+        self.grid_minor: VGroup = VGroup()
         self.x_ticks = x_ticks
         self.y_ticks = y_ticks
         self.x_tick_labels = x_tick_labels
@@ -199,6 +215,19 @@ def _breaks_labels(scale, rng) -> tuple[tuple[float, ...], tuple[str, ...]]:
     if len(labels) != len(breaks):
         raise ValueError(f"scale {scale!r} returned {len(labels)} labels for {len(breaks)} breaks")
     return tuple(float(b) for b in breaks), tuple(str(lab) for lab in labels)
+
+
+def _minor_breaks(scale, rng) -> tuple[float, ...]:
+    get = getattr(scale, "get_minor_breaks", None) if scale is not None else None
+    if get is None:
+        return ()
+    mb = np.asarray(get(rng), dtype=float).ravel()
+    lo, hi = rng
+    return tuple(float(b) for b in mb if np.isfinite(b) and lo <= b <= hi)
+
+
+def _side(scale, default: str) -> str:
+    return getattr(scale, "position", None) or default
 
 
 def _title(scale, labels: Mapping[str, Any] | None, aes: str):
@@ -269,7 +298,14 @@ class CoordCartesian:
         xb, xl = _breaks_labels(x_scale, xr)
         yb, yl = _breaks_labels(y_scale, yr)
         return PanelParams(
-            x_range=xr, y_range=yr, x_breaks=xb, y_breaks=yb, x_labels=xl, y_labels=yl
+            x_range=xr,
+            y_range=yr,
+            x_breaks=xb,
+            y_breaks=yb,
+            x_labels=xl,
+            y_labels=yl,
+            x_minor_breaks=_minor_breaks(x_scale, xr),
+            y_minor_breaks=_minor_breaks(y_scale, yr),
         )
 
     def build(
@@ -317,27 +353,38 @@ class CoordCartesian:
         left = _c2p(axes, x0, yb)
         right = _c2p(axes, x1, yb)
 
-        grid = _major_grid(theme, bottom, top, left, right)
+        grid_major = _major_grid(theme, bottom, top, left, right)
+        grid_minor = _minor_grid(theme, axes, pp)
+        grid = VGroup(*grid_minor, *grid_major)
+
+        # axis sides (scale position="top"/"right")
+        # "top"/"right" is the far side; under coord_flip the scales arrive swapped,
+        # so an x scale's "top" puts the axis on the right (as in ggplot2)
+        x_top = _side(x_scale, "bottom") in ("top", "right")
+        y_right = _side(y_scale, "left") in ("right", "top")
+        x_at, x_dir = (top, UP) if x_top else (bottom, DOWN)
+        y_at, y_dir = (right, RIGHT) if y_right else (left, LEFT)
+        _move_axis_lines(axes, theme, x_top, y_right)
 
         tl = theme.tick_length
         x_ticks, y_ticks = VGroup(), VGroup()
         tick_color = theme.color_of("axis_ticks_color")
         if theme.axis_element("axis_ticks", "x"):
-            for p in bottom:
+            for p in x_at:
                 x_ticks.add(
                     Line(
                         p,
-                        p + tl * DOWN,
+                        p + tl * x_dir,
                         stroke_width=theme.axis_stroke_width,
                         stroke_color=tick_color,
                     )
                 )
         if theme.axis_element("axis_ticks", "y"):
-            for p in left:
+            for p in y_at:
                 y_ticks.add(
                     Line(
                         p,
-                        p + tl * LEFT,
+                        p + tl * y_dir,
                         stroke_width=theme.axis_stroke_width,
                         stroke_color=tick_color,
                     )
@@ -347,12 +394,12 @@ class CoordCartesian:
         y_gap = (tl if len(y_ticks) else 0.0) + theme.tick_label_buff
         x_tick_labels, y_tick_labels = VGroup(), VGroup()
         if theme.axis_element("axis_text", "x"):
-            for p, s in zip(bottom, pp.x_labels):
-                lab = _place_tick_label(_label(theme, s), p, DOWN, x_gap, theme, "x")
+            for p, s in zip(x_at, pp.x_labels):
+                lab = _place_tick_label(_label(theme, s), p, x_dir, x_gap, theme, "x")
                 x_tick_labels.add(lab)  # type: ignore[arg-type]
         if theme.axis_element("axis_text", "y"):
-            for p, s in zip(left, pp.y_labels):
-                lab = _place_tick_label(_label(theme, s), p, LEFT, y_gap, theme, "y")
+            for p, s in zip(y_at, pp.y_labels):
+                lab = _place_tick_label(_label(theme, s), p, y_dir, y_gap, theme, "y")
                 y_tick_labels.add(lab)  # type: ignore[arg-type]
 
         x_title = y_title = None
@@ -360,25 +407,30 @@ class CoordCartesian:
             x_title = _make_title(theme, _title(x_scale, labels, "x"))
         if theme.axis_element("axis_title", "y"):
             y_title = _make_title(theme, _title(y_scale, labels, "y"))
-        corner = _c2p(axes, x0, y0)[0]
+        corner = _c2p(axes, x1 if y_right else x0, y1 if x_top else y0)[0]
         centre = _c2p(axes, (x0 + x1) / 2, (y0 + y1) / 2)[0]
         if x_title is not None:
             below = (
-                x_tick_labels if len(x_tick_labels) else VGroup(Line(corner, corner + x_gap * DOWN))
+                x_tick_labels
+                if len(x_tick_labels)
+                else VGroup(Line(corner, corner + x_gap * x_dir))
             )
-            x_title.next_to(below, DOWN, buff=theme.axis_title_buff)
+            x_title.next_to(below, x_dir, buff=theme.axis_title_buff)
             x_title.set_x(centre[0])
         if y_title is not None:
-            y_title.rotate(PI / 2)
+            y_title.rotate(-PI / 2 if y_right else PI / 2)
             beside = (
-                y_tick_labels if len(y_tick_labels) else VGroup(Line(corner, corner + y_gap * LEFT))
+                y_tick_labels
+                if len(y_tick_labels)
+                else VGroup(Line(corner, corner + y_gap * y_dir))
             )
-            y_title.next_to(beside, LEFT, buff=theme.axis_title_buff)
+            y_title.next_to(beside, y_dir, buff=theme.axis_title_buff)
             y_title.set_y(centre[1])
 
         panel = CartesianPanel(
             axes, pp, grid, x_ticks, y_ticks, x_tick_labels, y_tick_labels, x_title, y_title
         )
+        panel.grid_major, panel.grid_minor = grid_major, grid_minor
         _add_panel_decorations(panel, theme)
         panel.clip = self.clip
         return panel
@@ -387,7 +439,7 @@ class CoordCartesian:
 def _label(theme: Theme, s: str) -> Mobject:
     if s == "":
         return VMobject()  # keep one label per break; nothing to draw
-    return theme.make_text(s, **theme.text_style("axis_text"))
+    return theme.make_text(render_label(s, theme.text_engine), **theme.text_style("axis_text"))
 
 
 # -- theme elements (backgrounds, borders, grid, axis lines, rotated labels) ----------
@@ -421,6 +473,53 @@ def _major_grid(theme: Theme, bottom, top, left, right) -> VGroup:
     return grid
 
 
+def _minor_grid(theme: Theme, axes: Axes, pp: PanelParams) -> VGroup:
+    """Minor grid lines at the scales' minor breaks (``theme.panel_grid_minor``)."""
+    grid = VGroup()
+    if not getattr(theme, "panel_grid_minor", True):
+        return grid
+    (x0, x1), (y0, y1) = pp.x_range, pp.y_range
+    xm = np.asarray(pp.x_minor_breaks, dtype=float)
+    ym = np.asarray(pp.y_minor_breaks, dtype=float)
+    pairs = list(zip(_c2p(axes, xm, y0), _c2p(axes, xm, y1)))
+    pairs += list(zip(_c2p(axes, x0, ym), _c2p(axes, x1, ym)))
+    color = theme.color_of("grid_color")
+    for a, b in pairs:
+        grid.add(
+            Line(
+                a,
+                b,
+                stroke_width=theme.grid_minor_stroke_width,
+                stroke_color=color,
+                stroke_opacity=theme.grid_minor_opacity,
+            )
+        )
+    return grid
+
+
+def _move_axis_lines(axes: Axes, theme: Theme, x_top: bool, y_right: bool) -> None:
+    """For ``position="top"``/``"right"`` scales: hide manim's axis line (which must
+    stay put so ``c2p`` is unchanged) and draw one along the opposite panel edge."""
+    (x0, x1), (y0, y1) = axes.x_range[:2], axes.y_range[:2]
+    color = theme.color_of("axis_line_color")
+    for moved, axis, line, a, b in (
+        (x_top, "x", axes.x_axis, (x0, y1), (x1, y1)),
+        (y_right, "y", axes.y_axis, (x1, y0), (x1, y1)),
+    ):
+        if not moved:
+            continue
+        line.set_stroke(opacity=0.0)
+        if theme.axis_element("axis_line", axis):
+            axes.add(
+                Line(
+                    _c2p(axes, *a)[0],
+                    _c2p(axes, *b)[0],
+                    stroke_width=theme.axis_stroke_width,
+                    stroke_color=color,
+                )
+            )
+
+
 def _place_tick_label(
     label: Mobject, point: np.ndarray, direction: np.ndarray, gap: float, theme: Theme, axis: str
 ) -> Mobject:
@@ -434,6 +533,9 @@ def _place_tick_label(
         return label.move_to(target)
     angle = getattr(theme, f"axis_text_{axis}_angle")
     hjust, vjust, auto = theme.axis_text_just(axis)
+    if auto and float(np.dot(direction, UP + RIGHT)) > 0:
+        # automatic justification is for bottom/left axes: mirror it for top/right
+        hjust, vjust = 1.0 - hjust, 1.0 - vjust
     lo, hi = label.get_corner(DL), label.get_corner(UR)
     anchor = np.array([lo[0] + hjust * (hi[0] - lo[0]), lo[1] + vjust * (hi[1] - lo[1]), 0.0])
     if angle:
@@ -538,6 +640,8 @@ class CoordFlip(CoordCartesian):
             y_breaks=pp.x_breaks,
             x_labels=pp.y_labels,
             y_labels=pp.x_labels,
+            x_minor_breaks=pp.y_minor_breaks,
+            y_minor_breaks=pp.x_minor_breaks,
         )
         panel.flipped = True
         return panel

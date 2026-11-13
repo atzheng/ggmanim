@@ -24,6 +24,10 @@ Position-scale API used by the build / coord
                              to ``limits`` (default ``get_limits()``; the coord may pass
                              the expanded limits to get breaks in the padding too).
 ``get_labels(limits=None)``  list[str], one per ``get_breaks(limits)``, data space.
+``get_minor_breaks(limits=None)``  ndarray of minor breaks (transformed space, majors
+                             excluded) for the minor grid.
+``position``                 (position scales) axis side: ``"bottom"``/``"top"`` for x,
+                             ``"left"``/``"right"`` for y.
 """
 
 from __future__ import annotations
@@ -36,7 +40,14 @@ import numpy as np
 
 from ..registry import register
 from .base import Scale
-from .breaks import expand_range, format_numbers, log_breaks, pretty
+from .breaks import (
+    expand_range,
+    format_numbers,
+    log_breaks,
+    log_minor_breaks,
+    pretty,
+    regular_minor_breaks,
+)
 
 __all__ = [
     "Transform",
@@ -239,6 +250,11 @@ class ScaleContinuous(Scale):
         callable ``f(transformed_values, (lo, hi)) -> values``.
     trans : transform name or :class:`Transform`.
     n_breaks : desired number of automatic breaks.
+    minor_breaks : ``None`` (default: one minor break between adjacent majors; for log
+        transforms the ``2 .. base-1`` multiples of each power), ``False`` or ``[]``
+        (none), a sequence of data-space values, or a callable
+        ``f((lo, hi)) -> data-space values`` (e.g. :func:`ggmanim.labels.breaks_width`).
+        Used for the minor grid (see :meth:`get_minor_breaks`).
     """
 
     def __init__(
@@ -252,6 +268,7 @@ class ScaleContinuous(Scale):
         oob: str | Callable = "censor",
         trans: str | Transform | None = "identity",
         n_breaks: int = 5,
+        minor_breaks: Sequence[float] | Callable | bool | None = None,
     ) -> None:
         super().__init__(aesthetics, name)
         self.trans = get_transform(trans)
@@ -277,6 +294,13 @@ class ScaleContinuous(Scale):
             oob = _OOB[oob]
         self.oob = oob
         self.n_breaks = int(n_breaks)
+        if minor_breaks is False:
+            minor_breaks = ()
+        elif minor_breaks is True:
+            minor_breaks = None
+        elif minor_breaks is not None and not callable(minor_breaks):
+            minor_breaks = tuple(float(b) for b in np.asarray(minor_breaks, dtype=float).ravel())
+        self.minor_breaks = minor_breaks
         self._range: tuple[float, float] | None = None
 
     # ------------------------------------------------------------- training
@@ -431,6 +455,30 @@ class ScaleContinuous(Scale):
         """Labels (data-space strings) for ``get_breaks(limits)``."""
         return self._breaks_and_labels(limits)[1]
 
+    def get_minor_breaks(self, limits=None) -> np.ndarray:
+        """Minor breaks in transformed space within ``limits`` (transformed; default
+        ``get_limits()``), excluding the major breaks. See ``minor_breaks``."""
+        if limits is None:
+            limits = self.get_limits()
+        if limits is None or self.minor_breaks == ():
+            return np.array([], dtype=float)
+        limits = (float(min(limits)), float(max(limits)))
+        major = self.get_breaks(limits)
+        if self.minor_breaks is None:
+            if isinstance(self.trans, LogTransform):
+                return log_minor_breaks(major, limits, base=self.trans.base)
+            return regular_minor_breaks(major, limits)
+        if callable(self.minor_breaks):
+            data = np.asarray(self.minor_breaks(self._data_limits(limits)), dtype=float).ravel()
+        else:
+            data = np.asarray(self.minor_breaks, dtype=float)
+        t = self.trans.transform(data)
+        t = t[np.isfinite(t) & np.isfinite(censor(t, limits))]
+        if len(major) and len(t):
+            tol = 1e-9 * max(limits[1] - limits[0], 1e-300)
+            t = t[np.min(np.abs(t[:, None] - major[None, :]), axis=1) > tol]
+        return np.unique(t)
+
     def __repr__(self) -> str:
         return (
             f"<{type(self).__name__} aesthetics={self.aesthetics[0]!r} "
@@ -438,12 +486,42 @@ class ScaleContinuous(Scale):
         )
 
 
+_POSITIONS = {"x": ("bottom", "top"), "y": ("left", "right")}
+
+
 class ScaleContinuousPosition(ScaleContinuous):
-    """Continuous x or y position scale."""
+    """Continuous x or y position scale.
+
+    ``position`` puts the axis (ticks, tick labels, title) on the given side of the
+    panel: ``"bottom"`` (default) or ``"top"`` for x, ``"left"`` (default) or
+    ``"right"`` for y; ``None`` means the default side. A secondary axis (ggplot2's
+    ``sec_axis``/``dup_axis``) is out of scope.
+    """
+
+    def __init__(self, aesthetics, *args, position: str | None = None, **kwargs) -> None:
+        super().__init__(aesthetics, *args, **kwargs)
+        axis = "y" if self.aesthetic in Y_AESTHETICS else "x"
+        if position is not None and position not in _POSITIONS[axis]:
+            raise ValueError(
+                f"position for an {axis} scale must be one of {_POSITIONS[axis]}, got {position!r}"
+            )
+        self.position = position if position is not None else _POSITIONS[axis][0]
 
 
 # --------------------------------------------------------------------------- constructors
-def _position(axis: str, trans, name, breaks, labels, limits, expand, oob, n_breaks):
+def _position(
+    axis: str,
+    trans,
+    name,
+    breaks,
+    labels,
+    limits,
+    expand,
+    oob,
+    n_breaks,
+    minor_breaks=None,
+    position=None,
+):
     aes = X_AESTHETICS if axis == "x" else Y_AESTHETICS
     return ScaleContinuousPosition(
         aes,
@@ -455,6 +533,8 @@ def _position(axis: str, trans, name, breaks, labels, limits, expand, oob, n_bre
         oob=oob,
         trans=trans,
         n_breaks=n_breaks,
+        minor_breaks=minor_breaks,
+        position=position,
     )
 
 
@@ -468,9 +548,14 @@ def scale_x_continuous(
     oob="censor",
     trans="identity",
     n_breaks=5,
+    minor_breaks=None,
+    position=None,
 ):
-    """Continuous x position scale. See :class:`ScaleContinuous` for arguments."""
-    return _position("x", trans, name, breaks, labels, limits, expand, oob, n_breaks)
+    """Continuous x position scale. See :class:`ScaleContinuous` for arguments;
+    ``position`` is "bottom"/"top" (see :class:`ScaleContinuousPosition`)."""
+    return _position(
+        "x", trans, name, breaks, labels, limits, expand, oob, n_breaks, minor_breaks, position
+    )
 
 
 @register
@@ -483,57 +568,122 @@ def scale_y_continuous(
     oob="censor",
     trans="identity",
     n_breaks=5,
+    minor_breaks=None,
+    position=None,
 ):
-    """Continuous y position scale. See :class:`ScaleContinuous` for arguments."""
-    return _position("y", trans, name, breaks, labels, limits, expand, oob, n_breaks)
+    """Continuous y position scale. See :class:`ScaleContinuous` for arguments;
+    ``position`` is "left"/"right" (see :class:`ScaleContinuousPosition`)."""
+    return _position(
+        "y", trans, name, breaks, labels, limits, expand, oob, n_breaks, minor_breaks, position
+    )
 
 
 @register
 def scale_x_log10(
-    name=None, breaks=None, labels=None, limits=None, expand=None, oob="censor", n_breaks=5
+    name=None,
+    breaks=None,
+    labels=None,
+    limits=None,
+    expand=None,
+    oob="censor",
+    n_breaks=5,
+    minor_breaks=None,
+    position=None,
 ):
     """x scale with a log10 transform (breaks at powers of ten)."""
-    return _position("x", "log10", name, breaks, labels, limits, expand, oob, n_breaks)
+    return _position(
+        "x", "log10", name, breaks, labels, limits, expand, oob, n_breaks, minor_breaks, position
+    )
 
 
 @register
 def scale_y_log10(
-    name=None, breaks=None, labels=None, limits=None, expand=None, oob="censor", n_breaks=5
+    name=None,
+    breaks=None,
+    labels=None,
+    limits=None,
+    expand=None,
+    oob="censor",
+    n_breaks=5,
+    minor_breaks=None,
+    position=None,
 ):
     """y scale with a log10 transform (breaks at powers of ten)."""
-    return _position("y", "log10", name, breaks, labels, limits, expand, oob, n_breaks)
+    return _position(
+        "y", "log10", name, breaks, labels, limits, expand, oob, n_breaks, minor_breaks, position
+    )
 
 
 @register
 def scale_x_sqrt(
-    name=None, breaks=None, labels=None, limits=None, expand=None, oob="censor", n_breaks=5
+    name=None,
+    breaks=None,
+    labels=None,
+    limits=None,
+    expand=None,
+    oob="censor",
+    n_breaks=5,
+    minor_breaks=None,
+    position=None,
 ):
     """x scale with a square-root transform."""
-    return _position("x", "sqrt", name, breaks, labels, limits, expand, oob, n_breaks)
+    return _position(
+        "x", "sqrt", name, breaks, labels, limits, expand, oob, n_breaks, minor_breaks, position
+    )
 
 
 @register
 def scale_y_sqrt(
-    name=None, breaks=None, labels=None, limits=None, expand=None, oob="censor", n_breaks=5
+    name=None,
+    breaks=None,
+    labels=None,
+    limits=None,
+    expand=None,
+    oob="censor",
+    n_breaks=5,
+    minor_breaks=None,
+    position=None,
 ):
     """y scale with a square-root transform."""
-    return _position("y", "sqrt", name, breaks, labels, limits, expand, oob, n_breaks)
+    return _position(
+        "y", "sqrt", name, breaks, labels, limits, expand, oob, n_breaks, minor_breaks, position
+    )
 
 
 @register
 def scale_x_reverse(
-    name=None, breaks=None, labels=None, limits=None, expand=None, oob="censor", n_breaks=5
+    name=None,
+    breaks=None,
+    labels=None,
+    limits=None,
+    expand=None,
+    oob="censor",
+    n_breaks=5,
+    minor_breaks=None,
+    position=None,
 ):
     """Reversed x scale (large values on the left)."""
-    return _position("x", "reverse", name, breaks, labels, limits, expand, oob, n_breaks)
+    return _position(
+        "x", "reverse", name, breaks, labels, limits, expand, oob, n_breaks, minor_breaks, position
+    )
 
 
 @register
 def scale_y_reverse(
-    name=None, breaks=None, labels=None, limits=None, expand=None, oob="censor", n_breaks=5
+    name=None,
+    breaks=None,
+    labels=None,
+    limits=None,
+    expand=None,
+    oob="censor",
+    n_breaks=5,
+    minor_breaks=None,
+    position=None,
 ):
     """Reversed y scale (large values at the bottom)."""
-    return _position("y", "reverse", name, breaks, labels, limits, expand, oob, n_breaks)
+    return _position(
+        "y", "reverse", name, breaks, labels, limits, expand, oob, n_breaks, minor_breaks, position
+    )
 
 
 def _lim(axis: str, args) -> ScaleContinuousPosition:

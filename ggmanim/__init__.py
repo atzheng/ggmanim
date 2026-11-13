@@ -20,6 +20,21 @@ from .geoms import (
 )
 from .guides import guides
 from .guides_colourbar import guide_colorbar, guide_colourbar
+from .labels import (
+    breaks_extended,
+    breaks_log,
+    breaks_pretty,
+    breaks_width,
+    label_comma,
+    label_currency,
+    label_date,
+    label_dollar,
+    label_math,
+    label_number,
+    label_percent,
+    label_scientific,
+    label_wrap,
+)
 from .palettes import (
     BRIGHT,
     LINETYPES,
@@ -238,4 +253,18 @@ __all__ = [
     "gradient_n_pal",
     "seq_gradient_pal",
     "viridis_pal",
+    # labels & breaks
+    "breaks_extended",
+    "breaks_log",
+    "breaks_pretty",
+    "breaks_width",
+    "label_comma",
+    "label_currency",
+    "label_date",
+    "label_dollar",
+    "label_math",
+    "label_number",
+    "label_percent",
+    "label_scientific",
+    "label_wrap",
 ]
