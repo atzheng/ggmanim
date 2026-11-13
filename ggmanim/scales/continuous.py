@@ -370,6 +370,24 @@ class ScaleContinuous(Scale):
         return (float(np.min(d)), float(np.max(d)))
 
     # ------------------------------------------------------------- breaks/labels
+    def _default_breaks(self, dlo: float, dhi: float, limits) -> np.ndarray:
+        """``trans.breaks`` asking for more intervals while fewer than
+        ``n_breaks - 1`` breaks fall inside ``limits`` (R's ``pretty`` snaps outward,
+        so e.g. 0..13 would otherwise keep only 0, 5, 10)."""
+        want = max(2, self.n_breaks - 1)
+        # log breaks already pick enough powers/sub-breaks (scales::log_breaks)
+        tries = 1 if isinstance(self.trans, LogTransform) else 4
+        best = None
+        for n in range(self.n_breaks, self.n_breaks + tries):
+            b = np.asarray(self.trans.breaks(dlo, dhi, n), dtype=float)
+            t = self.trans.transform(b)
+            inside = int(np.sum(np.isfinite(t) & np.isfinite(censor(t, limits))))
+            if best is None:
+                best = b
+            if inside >= want:
+                return b
+        return best
+
     def _breaks_and_labels(self, limits=None) -> tuple[np.ndarray, list[str]]:
         if limits is None:
             limits = self.get_limits()
@@ -386,7 +404,7 @@ class ScaleContinuous(Scale):
                 dlo = max(dlo, self.trans.domain[0])
             if not (math.isfinite(dlo) and math.isfinite(dhi)):
                 return np.array([], dtype=float), []
-            data_breaks = np.asarray(self.trans.breaks(dlo, dhi, self.n_breaks), dtype=float)
+            data_breaks = self._default_breaks(dlo, dhi, limits)
         elif callable(self.breaks):
             data_breaks = np.asarray(self.breaks((dlo, dhi)), dtype=float).ravel()
         else:
