@@ -247,7 +247,8 @@ def test_line_legend_keys_dashed_and_fit(df):
     assert isinstance(keys[0], Line)
     for k in keys[1:]:
         assert len(k) >= 2  # at least two pattern repeats inside the key
-        assert k.width <= KEY_SIZE + 1e-6
+        # linetype legends widen line keys (ggm-4a9.4) so dash patterns differ
+        assert KEY_SIZE < k.width <= 2.5 * KEY_SIZE + 1e-6
 
 
 def test_draw_key_direct():

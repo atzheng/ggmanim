@@ -80,14 +80,15 @@ class GeomPath(Geom):
     def draw_key(self, data_row, theme: Theme | None = None) -> VMobject:
         theme = theme if theme is not None else theme_default()
         row = self.key_aes(data_row)
+        w = getattr(theme, "legend_key_width", None) or KEY_SIZE  # wider for linetype legends
         line = Line(
-            LEFT * KEY_SIZE / 2,
-            RIGHT * KEY_SIZE / 2,
+            LEFT * w / 2,
+            RIGHT * w / 2,
             color=resolve_color(row.get("color"), theme.get_foreground()),
             stroke_width=num(row.get("linewidth"), 3.0),
             stroke_opacity=num(row.get("alpha"), 1.0),
         )
-        return apply_linetype(line, row.get("linetype"), max_period=KEY_SIZE / 2)
+        return apply_linetype(line, row.get("linetype"), max_period=w / 2)
 
 
 class GeomLine(GeomPath):

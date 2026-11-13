@@ -86,14 +86,16 @@ class _RefLine(Geom):
         theme = theme if theme is not None else theme_default()
         row = self.key_aes(data_row)
         a, b = (DOWN, UP) if self.vertical else (LEFT, RIGHT)
+        # hline keys widen in linetype legends; vline keys keep the cell height
+        w = KEY_SIZE if self.vertical else getattr(theme, "legend_key_width", None) or KEY_SIZE
         line = Line(
-            a * KEY_SIZE / 2,
-            b * KEY_SIZE / 2,
+            a * w / 2,
+            b * w / 2,
             color=resolve_color(row.get("color"), theme.get_foreground()),
             stroke_width=num(row.get("linewidth"), 2.0),
             stroke_opacity=num(row.get("alpha"), 1.0),
         )
-        return apply_linetype(line, row.get("linetype"), max_period=KEY_SIZE / 2)
+        return apply_linetype(line, row.get("linetype"), max_period=w / 2)
 
 
 class GeomVline(_RefLine):

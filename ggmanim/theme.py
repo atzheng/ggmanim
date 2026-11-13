@@ -71,6 +71,17 @@ _TEXT_ELEMENTS = {
     "title": ("title_size", "title_color", "title_font"),
     "subtitle": ("axis_title_size", "title_color", "title_font"),
     "caption": ("axis_text_size", "axis_text_color", "title_font"),
+    "legend_text": ("legend_text_size", "legend_text_color", "legend_text_font"),
+    "legend_title": ("legend_title_size", "legend_title_color", "legend_title_font"),
+}
+_LEGEND_DIRECTIONS = (None, "horizontal", "vertical")
+_LEGEND_JUST = {
+    "center": (0.5, 0.5),
+    "centre": (0.5, 0.5),
+    "left": (0.0, 0.5),
+    "right": (1.0, 0.5),
+    "top": (0.5, 1.0),
+    "bottom": (0.5, 0.0),
 }
 _COLOR_FIELDS = (
     "foreground",
@@ -83,6 +94,10 @@ _COLOR_FIELDS = (
     "panel_background",
     "panel_border_color",
     "plot_background",
+    "legend_text_color",
+    "legend_title_color",
+    "legend_background",
+    "legend_border_color",
 )
 _UNIT_FIELDS = (
     "grid_opacity",
@@ -93,6 +108,8 @@ _UNIT_FIELDS = (
     "axis_text_x_vjust",
     "axis_text_y_hjust",
     "axis_text_y_vjust",
+    "legend_title_align",
+    "legend_background_opacity",
 )
 # ggplot grey levels used by the complete themes
 _GREY20, _GREY30, _GREY42, _GREY50 = "#333333", "#4D4D4D", "#6B6B6B", "#7F7F7F"
@@ -171,6 +188,33 @@ class Theme:
         ``"bottom"`` or ``"none"``. ``panel_width``/``panel_height``: panel size in
         scene units; ``None`` fits manim's frame leaving ``legend_room`` for a legend
         (see :meth:`panel_size`).
+    Legend
+        ``legend_position`` may also be an ``(x, y)`` tuple: the legend goes
+        *inside* the panel at those normalised panel coordinates (``(0, 0)``
+        bottom-left, ``(1, 1)`` top-right). ``legend_justification``: the point of
+        the legend box placed there, ``"center"``, ``"left"``, ``"right"``,
+        ``"top"``, ``"bottom"`` or an ``(x, y)`` tuple in ``[0, 1]`` (``None``: the
+        position itself for inside legends, so ``(1, 1)`` puts the legend's
+        top-right corner in the panel's top-right corner; ``"center"`` outside,
+        where only the component along the panel side is used, e.g. ``"top"``
+        aligns a right legend with the panel top). ``legend_direction``:
+        ``"vertical"``/``"horizontal"`` layout of the keys of every legend
+        (``None``: horizontal for top/bottom legends, else vertical);
+        ``legend_box``: how several legends are stacked, ``"vertical"`` or
+        ``"horizontal"`` (``None``: side by side for top/bottom, else stacked).
+        ``legend_key_size``: minimum size of a key cell; ``legend_key_width``:
+        length of line-like key glyphs (``None``: ``KEY_SIZE``, widened to
+        ``2.5 * KEY_SIZE`` in legends that show ``linetype``).
+        ``legend_spacing``: gap between legends; ``legend_box_spacing``: gap
+        between legends and the panel. ``legend_title_align``: title alignment
+        over the keys in ``[0, 1]`` (0 = left). ``legend_background``: fill colour
+        behind each legend (``None`` = none) with ``legend_background_opacity``;
+        ``legend_border``: draw a frame round each legend in
+        ``legend_border_color`` (``None`` = foreground) with
+        ``legend_border_width``; ``legend_margin``: padding inside that
+        background/frame. ``legend_text_color``/``legend_title_color`` and
+        ``legend_text_font``/``legend_title_font`` (``None`` = ``foreground`` /
+        ``font``) style the labels and titles.
 
     ``complete`` marks a complete theme (replaces the plot's theme when added);
     ``overrides`` lists the fields a partial :func:`theme` sets explicitly.
@@ -240,8 +284,26 @@ class Theme:
     plot_margin: Any = 0.2
     plot_title_position: str = "panel"
 
-    legend_position: str = "right"
+    legend_position: str | tuple[float, float] = "right"
     legend_room: float = 2.5
+    legend_justification: Any = None
+    legend_direction: str | None = None
+    legend_box: str | None = None
+    legend_key_size: float = 0.36
+    legend_key_width: float | None = None
+    legend_spacing: float = 0.4
+    legend_box_spacing: float = 0.4
+    legend_title_align: float = 0.0
+    legend_background: Any | None = None
+    legend_background_opacity: float = 1.0
+    legend_border: bool = False
+    legend_border_color: Any | None = None
+    legend_border_width: float = 1.0
+    legend_margin: float = 0.15
+    legend_text_color: Any | None = None
+    legend_title_color: Any | None = None
+    legend_text_font: str | None = None
+    legend_title_font: str | None = None
     panel_width: float | None = None
     panel_height: float | None = None
 
@@ -253,7 +315,11 @@ class Theme:
             raise ValueError(
                 f"text_engine must be one of {_TEXT_ENGINES}, got {self.text_engine!r}"
             )
-        if self.legend_position not in _LEGEND_POSITIONS:
+        if not isinstance(self.legend_position, str):
+            object.__setattr__(
+                self, "legend_position", _xy(self.legend_position, "legend_position")
+            )
+        elif self.legend_position not in _LEGEND_POSITIONS:
             raise ValueError(
                 f"legend_position must be one of {_LEGEND_POSITIONS}, got {self.legend_position!r}"
             )
@@ -278,6 +344,21 @@ class Theme:
             if not (_is_number(angle) and np.isfinite(angle)):
                 raise ValueError(f"{name} must be a finite number of degrees, got {angle!r}")
         object.__setattr__(self, "plot_margin", _margin4(self.plot_margin))
+        just = self.legend_justification
+        if just is not None and not (isinstance(just, str) and just in _LEGEND_JUST):
+            object.__setattr__(self, "legend_justification", _xy(just, "legend_justification"))
+        for name in ("legend_direction", "legend_box"):
+            if getattr(self, name) not in _LEGEND_DIRECTIONS:
+                raise ValueError(
+                    f"{name} must be 'horizontal', 'vertical' or None, got {getattr(self, name)!r}"
+                )
+        for name in ("legend_key_size", "legend_spacing", "legend_box_spacing", "legend_margin"):
+            value = getattr(self, name)
+            if not (_is_number(value) and np.isfinite(value) and value >= 0):
+                raise ValueError(f"{name} must be a number >= 0, got {value!r}")
+        kw = self.legend_key_width
+        if kw is not None and not (_is_number(kw) and np.isfinite(kw) and kw > 0):
+            raise ValueError(f"legend_key_width must be a number > 0 or None, got {kw!r}")
 
     # -- backward compatibility ----------------------------------------------
     @property
@@ -344,6 +425,22 @@ class Theme:
             float(auto_v if vj is None else vj),
             hj is None and vj is None,
         )
+
+    @property
+    def legend_inside(self) -> bool:
+        """True when ``legend_position`` is an ``(x, y)`` tuple (legend inside the panel)."""
+        return isinstance(self.legend_position, tuple)
+
+    def legend_just(self) -> tuple[float, float]:
+        """``legend_justification`` as an ``(x, y)`` tuple in normalised legend-box
+        coordinates (see the class docstring for the ``None`` default)."""
+        just = self.legend_justification
+        if just is None:
+            pos = self.legend_position
+            return pos if isinstance(pos, tuple) else (0.5, 0.5)
+        if isinstance(just, str):
+            return _LEGEND_JUST[just]
+        return just
 
     # -- composition ---------------------------------------------------------
     def add_to(self, plot):
@@ -431,6 +528,18 @@ def _alias(elements: dict[str, Any]) -> dict[str, Any]:
 
 def _is_number(value: Any) -> bool:
     return isinstance(value, (int, float, np.integer, np.floating)) and not isinstance(value, bool)
+
+
+def _xy(value: Any, name: str) -> tuple[float, float]:
+    """A 2-sequence of finite numbers as a float tuple (``ValueError`` otherwise)."""
+    if (
+        isinstance(value, Sequence)
+        and not isinstance(value, str)
+        and len(value) == 2
+        and all(_is_number(v) and np.isfinite(v) for v in value)
+    ):
+        return float(value[0]), float(value[1])
+    raise ValueError(f"{name} must be a valid keyword or an (x, y) pair of numbers, got {value!r}")
 
 
 def _norm_angle(angle: float) -> float:

@@ -21,6 +21,7 @@ from .geoms import (
 )
 from .guides import guides
 from .guides_colourbar import guide_colorbar, guide_colourbar
+from .guides_legend import guide_legend
 from .labels import (
     breaks_extended,
     breaks_log,
@@ -162,6 +163,7 @@ __all__ = [
     "guides",
     "guide_colorbar",
     "guide_colourbar",
+    "guide_legend",
     # geoms
     "geom_bar",
     "geom_col",
