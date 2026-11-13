@@ -64,6 +64,7 @@ __all__ = [
     "build_panel",
     "draw_layers",
     "assemble",
+    "fit_to_frame",
 ]
 
 POSITION_AES = {"x": X_AESTHETICS, "y": Y_AESTHETICS}
@@ -346,7 +347,8 @@ def _text(theme: Theme, content: Any, size: float) -> Optional[Mobject]:
 
 def assemble(panel: CartesianPanel, drawn, legends: list, theme: Theme,
              labels: Dict[str, Any], **extra):
-    """Lay out the panel (at the origin), layers, legend and titles in a GGPlot."""
+    """Lay out the panel, layers, legend and titles in a GGPlot, centred in the
+    frame (see :func:`fit_to_frame`)."""
     from .mobjects import GGPlot
 
     legend = VGroup()
@@ -365,8 +367,22 @@ def assemble(panel: CartesianPanel, drawn, legends: list, theme: Theme,
     if caption is not None:
         caption.next_to(panel, DOWN, buff=0.2)
         caption.set_x(panel.get_right()[0], direction=RIGHT)
-    return GGPlot(panel=panel, layers=drawn, legend=legend, legends=legends, title=title,
+    plot = GGPlot(panel=panel, layers=drawn, legend=legend, legends=legends, title=title,
                   subtitle=subtitle, caption=caption, **extra)
+    return fit_to_frame(plot)
+
+
+def fit_to_frame(plot: Mobject, margin: float = 0.2) -> Mobject:
+    """Centre ``plot`` (its whole bounding box: panel, titles, legend) in the
+    frame, shrinking it only if it would not fit inside ``margin``."""
+    from manim import ORIGIN, config
+
+    plot.move_to(ORIGIN)
+    max_w, max_h = config.frame_width - 2 * margin, config.frame_height - 2 * margin
+    factor = min(1.0, max_w / max(plot.width, 1e-9), max_h / max(plot.height, 1e-9))
+    if factor < 1.0:
+        plot.scale(factor, about_point=ORIGIN)
+    return plot
 
 
 # --------------------------------------------------------------------------- all
