@@ -9,6 +9,7 @@ from manim import DOWN, LEFT, PI, RIGHT, UP, Line, VGroup, VMobject
 from ..aes import aes
 from ..registry import register
 from ..theme import Theme, theme_default
+from ._linetype import apply_linetype
 from .base import (
     KEY_SIZE,
     Geom,
@@ -66,7 +67,7 @@ class _RefLine(Geom):
             line = Line(
                 p, q, color=color, stroke_width=num(row.get("linewidth"), 2.0), stroke_opacity=alpha
             )
-            lines.add(line)
+            lines.add(apply_linetype(line, row.get("linetype")))
             lab = make_label(theme, group_label(label, i, i), color)
             if lab is not None:
                 if self.vertical:
@@ -80,13 +81,14 @@ class _RefLine(Geom):
         theme = theme if theme is not None else theme_default()
         row = self.key_aes(data_row)
         a, b = (DOWN, UP) if self.vertical else (LEFT, RIGHT)
-        return Line(
+        line = Line(
             a * KEY_SIZE / 2,
             b * KEY_SIZE / 2,
             color=resolve_color(row.get("color"), theme.get_foreground()),
             stroke_width=num(row.get("linewidth"), 2.0),
             stroke_opacity=num(row.get("alpha"), 1.0),
         )
+        return apply_linetype(line, row.get("linetype"), max_period=KEY_SIZE / 2)
 
 
 class GeomVline(_RefLine):

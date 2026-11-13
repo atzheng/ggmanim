@@ -43,7 +43,10 @@ Aesthetic -> manim translation (Phase 1)
 ----------------------------------------
 ``color`` -> stroke colour (``Dot``: fill colour), ``fill`` -> ``fill_color``,
 ``alpha`` -> ``fill_opacity``/``stroke_opacity``, ``size`` -> point radius (scene
-units), ``linewidth`` -> ``stroke_width`` (manim units), ``linetype`` -> solid only.
+units), ``linewidth`` -> ``stroke_width`` (manim units), ``shape`` -> point marker
+(:mod:`ggmanim.geoms._markers`), ``linetype`` -> dash pattern
+(:mod:`ggmanim.geoms._linetype`). Legend keys reflect ``shape``/``linetype``; line
+keys shrink the dash pattern so at least two repeats fit in :data:`KEY_SIZE`.
 """
 
 from __future__ import annotations
