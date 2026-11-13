@@ -12,3 +12,4 @@
 {"id":"int-3be76fb5","kind":"field_change","created_at":"2026-11-13T21:54:22.454295Z","actor":"Andrew Zheng","issue_id":"ggm-s11.10","extra":{"field":"status","new_value":"closed","old_value":"in_progress","reason":"Closed"}}
 {"id":"int-b003252e","kind":"field_change","created_at":"2026-11-13T21:54:23.217319Z","actor":"Andrew Zheng","issue_id":"ggm-s11","extra":{"field":"status","new_value":"closed","old_value":"open","reason":"All Phase 1 children merged (PRs #1-#10)"}}
 {"id":"int-41a624e3","kind":"field_change","created_at":"2026-11-13T23:00:53.354803Z","actor":"Andrew Zheng","issue_id":"ggm-658","extra":{"field":"priority","new_value":"1","old_value":"2"}}
+{"id":"int-a6887c17","kind":"field_change","created_at":"2026-11-13T23:11:45.949242Z","actor":"Andrew Zheng","issue_id":"ggm-4a9.1","extra":{"field":"status","new_value":"closed","old_value":"in_progress","reason":"Closed"}}
