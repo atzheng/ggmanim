@@ -38,7 +38,14 @@ from typing import Any
 
 import numpy as np
 
-from .scales.breaks import _common_decimals, extended, log_breaks, pretty, width_breaks
+from .scales.breaks import (
+    _common_decimals,
+    _display_decimals,
+    extended,
+    log_breaks,
+    pretty,
+    width_breaks,
+)
 
 __all__ = [
     "label_number",
@@ -85,7 +92,8 @@ def _group(int_digits: str, big_mark: str) -> str:
 
 def _decimals_for(accuracy: float | None, x: np.ndarray) -> int:
     """Decimal places: from ``accuracy`` (e.g. 0.01 -> 2, 5 -> 0) or, if ``None``,
-    the fewest that show every finite value exactly (shared by all labels)."""
+    the fewest that show every finite value exactly, up to 7 significant digits
+    (shared by all labels)."""
     if accuracy is not None:
         accuracy = float(accuracy)
         if not accuracy > 0:
@@ -94,11 +102,7 @@ def _decimals_for(accuracy: float | None, x: np.ndarray) -> int:
     fin = x[np.isfinite(x)]
     if not len(fin) or not np.any(fin):
         return 0
-    return _common_decimals(_round_sig_arr(fin), max_digits=15)
-
-
-def _round_sig_arr(x: np.ndarray, digits: int = 12) -> np.ndarray:
-    return np.array([float(f"{v:.{digits}g}") for v in x])
+    return _display_decimals(fin)
 
 
 def _format_fixed(

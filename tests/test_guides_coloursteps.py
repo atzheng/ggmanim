@@ -119,6 +119,28 @@ def test_show_limits_fixed_labels():
     assert [lab.text for lab in g.labels] == ["1", "lo", "mid", "hi", "10"]
 
 
+@pytest.mark.parametrize(
+    "limits, breaks, expected",
+    [
+        ((0.9999999999, 2.0000000001), (1.5,), ["1.0", "1.5", "2.0"]),
+        ((-1.23456789, 3.3), (0, 2), ["-1.234568", "0.000000", "2.000000", "3.300000"]),
+    ],
+)
+def test_show_limits_unrounded_limits_precision(limits, breaks, expected):
+    s = fermenter(breaks=breaks, limits=limits)
+    g = build_one(s, guides={"color": guide_coloursteps(show_limits=True)})
+    texts = [lab.text for lab in g.labels]
+    assert texts == expected
+    for t in texts:  # never more than 7 significant digits
+        assert len(t.lstrip("-").replace(".", "").lstrip("0")) <= 7
+
+
+def test_show_limits_unrounded_limits_function_labels():
+    s = fermenter(breaks=(1.5,), limits=(0.9999999999, 2.0000000001), labels=ggmanim.label_number())
+    g = build_one(s, guides={"color": guide_coloursteps(show_limits=True)})
+    assert [lab.text for lab in g.labels] == ["1.0", "1.5", "2.0"]
+
+
 def test_coloursteps_on_continuous_scale():
     s = scale_color_gradient(low="black", high="white")
     s.train(pd.Series([0.0, 10.0]))
