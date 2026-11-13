@@ -7,6 +7,7 @@ from manim import LEFT, RIGHT, Line, VGroup, VMobject
 from ..registry import register
 from ..theme import Theme, theme_default
 from ._linetype import apply_linetype
+from ._segments import segmented_path, varies_within
 from .base import (
     KEY_SIZE,
     Geom,
@@ -31,7 +32,9 @@ class GeomPath(Geom):
     ``draw_panel`` returns ``VGroup(*paths, *labels)``: one open polyline per
     group (in ``group`` order; vertex count == number of finite rows in the
     group; a ``VGroup`` of dashes for a non-solid ``linetype``, see
-    :func:`~ggmanim.geoms._linetype.apply_linetype`), then — when ``label=`` is given — one label per group placed right
+    :func:`~ggmanim.geoms._linetype.apply_linetype`; when colour, linewidth or
+    alpha vary within the group, a ``VGroup`` of per-segment strokes, see
+    :func:`~ggmanim.geoms._segments.segmented_path`), then — when ``label=`` is given — one label per group placed right
     of the group's last point in the group's colour. ``.marks`` holds the paths
     and ``.labels`` the labels.
     """
@@ -56,11 +59,14 @@ class GeomPath(Geom):
                 coord, panel_params, gdf["x"].to_numpy(float), gdf["y"].to_numpy(float)
             )
             color = resolve_color(first(gdf, "color"), fg)
-            # clip first, then dash each visible subpath
-            path = multi_path_mobject(
-                pieces, color, num(first(gdf, "linewidth"), 3.0), num(first(gdf, "alpha"), 1.0)
-            )
-            paths.add(apply_linetype(path, first(gdf, "linetype")))
+            if varies_within(gdf):  # ggplot: one segment per vertex pair, styled by its start
+                paths.add(segmented_path(coord, panel_params, gdf, fg))
+            else:
+                # clip first, then dash each visible subpath
+                path = multi_path_mobject(
+                    pieces, color, num(first(gdf, "linewidth"), 3.0), num(first(gdf, "alpha"), 1.0)
+                )
+                paths.add(apply_linetype(path, first(gdf, "linetype")))
             lab = make_label(theme, group_label(label, i, gid), color)
             if lab is not None and pieces:
                 labels.add(lab.next_to(pieces[-1][-1], RIGHT, buff=0.1))
