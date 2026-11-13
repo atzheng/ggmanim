@@ -22,7 +22,7 @@ from .registry import COMPONENTS, register
 
 __all__ = ["ggplot", "GGManim", "Labels", "labs", "xlab", "ylab"]
 
-_FIELDS = ("data", "mapping", "layers", "scales", "coord", "facet", "theme", "labels")
+_FIELDS = ("data", "mapping", "layers", "scales", "coord", "facet", "theme", "labels", "guide_specs")
 
 
 class ggplot:
@@ -38,6 +38,7 @@ class ggplot:
     facet: Any
     theme: Any
     labels: Mapping[str, Any]
+    guide_specs: Mapping[str, Any]
 
     def __init__(self, data: Optional[pd.DataFrame] = None, mapping: Optional[Mapping] = None):
         if isinstance(data, Mapping) and not isinstance(data, pd.DataFrame) and mapping is None:
@@ -52,6 +53,7 @@ class ggplot:
         _set(self, "facet", None)
         _set(self, "theme", None)
         _set(self, "labels", _FrozenDict())
+        _set(self, "guide_specs", _FrozenDict())
 
     # -- immutability ------------------------------------------------------
     def __setattr__(self, name, value):
@@ -143,6 +145,20 @@ class ggplot:
             new[standardise_aes_name(k)] = v
         return self._replace(labels=_FrozenDict(new))
 
+    def _with_guides(self, mapping: Mapping[str, Any]) -> "ggplot":
+        """Merge ``mapping`` (aesthetic -> guide spec, e.g. ``"none"``) into the guides."""
+        new = dict(self.guide_specs)
+        for k, v in mapping.items():
+            new[standardise_aes_name(k)] = v
+        return self._replace(guide_specs=_FrozenDict(new))
+
+    @property
+    def guides(self) -> "_GuidesView":
+        """Read-only mapping aesthetic -> guide (``"legend"``/``"none"``) set by the
+        ``guides()`` component. Also callable as chaining sugar:
+        ``p.guides(color="none") == p.add(guides(color="none"))``."""
+        return _GuidesView(self)
+
     # -- queries -----------------------------------------------------------
     def get_scale(self, aesthetic: str):
         """The user-specified scale for ``aesthetic`` or ``None``."""
@@ -232,6 +248,31 @@ class _FrozenDict(dict):
 
     def __reduce__(self):
         return (_FrozenDict, (dict(self),))
+
+
+class _GuidesView(Mapping):
+    """``plot.guide_specs`` as a mapping that is also the ``guides`` chaining method."""
+
+    __slots__ = ("_plot",)
+
+    def __init__(self, plot: ggplot):
+        self._plot = plot
+
+    def __getitem__(self, key):
+        return self._plot.guide_specs[key]
+
+    def __iter__(self):
+        return iter(self._plot.guide_specs)
+
+    def __len__(self):
+        return len(self._plot.guide_specs)
+
+    def __call__(self, *args, **kwargs) -> ggplot:
+        component = COMPONENTS["guides"]
+        return self._plot.add(component(*args, **kwargs))
+
+    def __repr__(self):
+        return f"guides({dict(self._plot.guide_specs)!r})"
 
 
 # -- label components --------------------------------------------------------
