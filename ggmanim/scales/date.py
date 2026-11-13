@@ -24,8 +24,14 @@ By default the format follows the breaks' resolution: ``"%Y"`` for January-1st
 breaks, ``"%b"``/``"%b %Y"`` for month starts, ``"%b %d"``/``"%Y-%m-%d"`` for days,
 ``"%H:%M"`` for minutes, ``"%H:%M:%S"`` otherwise.
 
-Time zones: naive values are taken as they are; timezone-aware values are
-converted to UTC and the zone dropped. Pure numpy/pandas; no manim imports.
+Time zones
+----------
+The transformed space is always UTC: timezone-aware values are converted to UTC,
+naive ones are taken to be UTC already. Date-time scales take ``timezone=`` (an IANA
+name such as ``"America/New_York"``, via the stdlib :mod:`zoneinfo`): breaks are
+then placed on that zone's calendar (local midnights, month starts ...) and labels
+show local time. Without it, the zone of tz-aware data is used when all such
+columns share one (as ggplot2 does), else UTC. Pure numpy/pandas; no manim imports.
 """
 
 from __future__ import annotations
@@ -39,6 +45,7 @@ from typing import Any
 import numpy as np
 import pandas as pd
 
+from .._tz import local_to_utc, resolve_tz, tz_name, utc_to_local
 from ..registry import register
 from .continuous import X_AESTHETICS, Y_AESTHETICS, ScaleContinuousPosition, Transform
 
@@ -47,6 +54,7 @@ __all__ = [
     "ScaleDatePosition",
     "to_epoch",
     "date_kind",
+    "data_timezone",
     "parse_date_width",
     "date_breaks_auto",
     "date_breaks_width",
@@ -134,6 +142,28 @@ def date_kind(columns: Sequence[pd.Series]) -> str | None:
             return "datetime"
         kind = "date"
     return kind
+
+
+def data_timezone(columns: Sequence[pd.Series]) -> _dt.tzinfo | None:
+    """The time zone shared by all tz-aware date-time ``columns`` (tz-aware
+    ``datetime64`` dtype or aware ``datetime`` objects), else ``None`` (no aware
+    column, or several different zones)."""
+    zones: dict[str | None, Any] = {}
+    for s in columns:
+        if isinstance(s.dtype, pd.DatetimeTZDtype):
+            zones[tz_name(s.dtype.tz)] = s.dtype.tz
+        elif s.dtype == object:
+            for v in s.dropna():
+                tz = getattr(v, "tzinfo", None)
+                if tz is not None:
+                    zones[tz_name(tz)] = tz
+    if len(zones) != 1:
+        return None
+    name, tz = next(iter(zones.items()))
+    try:
+        return resolve_tz(name)  # a ZoneInfo for IANA names (pytz/dateutil zones too)
+    except ValueError:
+        return tz
 
 
 # --------------------------------------------------------------------------- breaks
@@ -274,32 +304,48 @@ def date_breaks_auto(lo: float, hi: float, n: int = 5, unit: str = "D") -> np.nd
     return b / f
 
 
-def date_breaks_width(width: str, unit: str = "D") -> Callable[[Sequence[float]], np.ndarray]:
+def _in_zone(
+    brk: Callable[[float, float], np.ndarray], lo: float, hi: float, tz: _dt.tzinfo | None
+) -> np.ndarray:
+    """``brk(lo, hi)`` (UTC seconds) computed on ``tz``'s wall clock, mapped back to
+    UTC (duplicates from daylight-saving gaps removed)."""
+    if tz is None:
+        return brk(lo, hi)
+    wl, wh = utc_to_local([lo, hi], tz)
+    return np.unique(local_to_utc(brk(wl, wh), tz))
+
+
+def date_breaks_width(
+    width: str, unit: str = "D", tz: Any = None
+) -> Callable[[Sequence[float]], np.ndarray]:
     """Break function (for ``breaks=``/``minor_breaks=`` of a date scale) placing a
     break every ``width`` (see :func:`parse_date_width`); limits and breaks are in
-    ``unit``\\ s since the epoch."""
+    ``unit``\\ s since the epoch. ``tz`` (date-times only) aligns the breaks to
+    that zone's calendar."""
     parsed = parse_date_width(width)
     f = _SECONDS[unit]
+    zone = resolve_tz(tz) if unit == "s" else None
+
+    def raw(lo: float, hi: float) -> np.ndarray:
+        if isinstance(parsed, tuple):
+            return _calendar_breaks(lo, hi, *parsed)
+        return _offset_breaks(lo, hi, parsed)
 
     def brk(limits: Sequence[float]) -> np.ndarray:
         lo, hi = sorted(float(v) * f for v in limits)
         if not (math.isfinite(lo) and math.isfinite(hi)):
             return np.array([], dtype=float)
-        if isinstance(parsed, tuple):
-            b = _calendar_breaks(lo, hi, *parsed)
-        else:
-            b = _offset_breaks(lo, hi, parsed)
-        return b / f
+        return _in_zone(raw, lo, hi, zone) / f
 
     return brk
 
 
 # --------------------------------------------------------------------------- labels
-def _label_date(fmt: str, unit: str) -> Callable[[Any], list[str]]:
+def _label_date(fmt: str, unit: str, tz: Any = None) -> Callable[[Any], list[str]]:
     # imported lazily: ggmanim.labels imports ggmanim.scales (circular at load time)
     from ..labels import label_date
 
-    return label_date(fmt, unit=unit)
+    return label_date(fmt, unit=unit, tz=tz)
 
 
 def date_format_auto(x: Any, unit: str = "D") -> str:
@@ -333,19 +379,25 @@ class DateTransform(Transform):
     """Identity transform on days (``unit="D"``) or seconds (``unit="s"``) since the
     epoch, with calendar breaks (:func:`date_breaks_auto`) and date labels
     (:func:`date_format_auto`). The date -> number conversion happens in
-    :meth:`ScaleDatePosition.transform`."""
+    :meth:`ScaleDatePosition.transform`. ``tz`` (date-times only) places the breaks
+    on that zone's calendar and labels them in local time."""
 
-    def __init__(self, unit: str = "D") -> None:
+    def __init__(self, unit: str = "D", tz: Any = None) -> None:
         if unit not in _SECONDS:
             raise ValueError(f"unit must be 'D' or 's', got {unit!r}")
         self.unit = unit
         self.name = "date" if unit == "D" else "time"
+        self.tz = resolve_tz(tz) if unit == "s" else None
 
     def breaks(self, lo: float, hi: float, n: int = 5) -> np.ndarray:
-        return date_breaks_auto(lo, hi, n, unit=self.unit)
+        def auto(a: float, b: float) -> np.ndarray:
+            return date_breaks_auto(a, b, n, unit=self.unit)
+
+        return _in_zone(auto, lo, hi, self.tz)
 
     def format(self, x: np.ndarray) -> list[str]:
-        return _label_date(date_format_auto(x, self.unit), self.unit)(x)
+        wall = x if self.tz is None else utc_to_local(x, self.tz)
+        return _label_date(date_format_auto(wall, self.unit), self.unit, self.tz)(x)
 
 
 # --------------------------------------------------------------------------- scale
@@ -362,7 +414,8 @@ class ScaleDatePosition(ScaleContinuousPosition):
     Extra parameters over :class:`ScaleContinuousPosition`: ``date_breaks`` and
     ``date_minor_breaks`` (width strings such as ``"1 month"``), ``date_labels`` (a
     strftime format). ``limits``, ``breaks`` and ``minor_breaks`` sequences may hold
-    dates, ``datetime64`` values or ISO strings. ``trans`` is fixed.
+    dates, ``datetime64`` values or ISO strings. ``trans`` is fixed. ``timezone``
+    (date-times only): see the module docstring.
     """
 
     is_date = True
@@ -384,17 +437,23 @@ class ScaleDatePosition(ScaleContinuousPosition):
         date_breaks: str | None = None,
         date_labels: str | None = None,
         date_minor_breaks: str | None = None,
+        timezone: Any = None,
     ) -> None:
-        trans = DateTransform(unit)
+        if timezone is not None and unit != "s":
+            raise ValueError("timezone= applies to date-time scales (scale_*_datetime) only")
+        tz = resolve_tz(timezone)
+        trans = DateTransform(unit, tz)
         self.unit = unit
+        self.timezone = tz
+        self._date_specs = (date_breaks, date_labels, date_minor_breaks)
         if date_breaks is not None:
-            breaks = date_breaks_width(date_breaks, unit)
+            breaks = date_breaks_width(date_breaks, unit, tz)
         elif breaks is not None and not callable(breaks):
             breaks = tuple(to_epoch(list(breaks), unit).tolist())
         if date_labels is not None:
-            labels = _label_date(date_labels, unit)
+            labels = _label_date(date_labels, unit, tz)
         if date_minor_breaks is not None:
-            minor_breaks = date_breaks_width(date_minor_breaks, unit)
+            minor_breaks = date_breaks_width(date_minor_breaks, unit, tz)
         elif minor_breaks is not None and not callable(minor_breaks) and minor_breaks is not False:
             if minor_breaks is not True:
                 minor_breaks = tuple(to_epoch(list(minor_breaks), unit).tolist())
@@ -419,6 +478,24 @@ class ScaleDatePosition(ScaleContinuousPosition):
     def transform(self, values: Any) -> np.ndarray:
         """Dates / date-times / ISO strings / numbers -> days or seconds since epoch."""
         return to_epoch(values, self.unit)
+
+    def set_timezone(self, tz: Any) -> None:
+        """Use time zone ``tz`` for breaks and labels (date-time scales only; call on a
+        :meth:`clone`, as the build does with the zone of tz-aware data). Rebuilds the
+        ``date_breaks``/``date_labels``/``date_minor_breaks`` helpers; user
+        ``breaks``/``labels`` functions are left alone."""
+        if self.unit != "s":
+            return
+        tz = resolve_tz(tz)
+        self.timezone = tz
+        self.trans = DateTransform(self.unit, tz)
+        date_breaks, date_labels, date_minor_breaks = self._date_specs
+        if date_breaks is not None:
+            self.breaks = date_breaks_width(date_breaks, self.unit, tz)
+        if date_labels is not None:
+            self.labels = _label_date(date_labels, self.unit, tz)
+        if date_minor_breaks is not None:
+            self.minor_breaks = date_breaks_width(date_minor_breaks, self.unit, tz)
 
 
 # --------------------------------------------------------------------------- constructors
@@ -491,14 +568,16 @@ def scale_x_datetime(
     oob="censor",
     n_breaks=5,
     position=None,
+    timezone=None,
 ):
     """x scale for date-times (seconds since 1970-01-01 UTC). ``date_breaks="6 hours"``,
-    ``date_labels="%H:%M"``; see :func:`scale_x_date`."""
+    ``date_labels="%H:%M"``; ``timezone="Europe/Paris"`` puts breaks and labels in that
+    zone (default: the zone of tz-aware data, else UTC); see :func:`scale_x_date`."""
     return _date_scale(
         "x", "s", name=name, breaks=breaks, date_breaks=date_breaks, labels=labels,
         date_labels=date_labels, minor_breaks=minor_breaks,
         date_minor_breaks=date_minor_breaks, limits=limits, expand=expand, oob=oob,
-        n_breaks=n_breaks, position=position,
+        n_breaks=n_breaks, position=position, timezone=timezone,
     )  # fmt: skip
 
 
@@ -516,11 +595,12 @@ def scale_y_datetime(
     oob="censor",
     n_breaks=5,
     position=None,
+    timezone=None,
 ):
     """y scale for date-times. See :func:`scale_x_datetime`."""
     return _date_scale(
         "y", "s", name=name, breaks=breaks, date_breaks=date_breaks, labels=labels,
         date_labels=date_labels, minor_breaks=minor_breaks,
         date_minor_breaks=date_minor_breaks, limits=limits, expand=expand, oob=oob,
-        n_breaks=n_breaks, position=position,
+        n_breaks=n_breaks, position=position, timezone=timezone,
     )  # fmt: skip
