@@ -18,6 +18,8 @@ from manim import (
     PI,
     Mobject,
     SurroundingRectangle,
+    Rectangle,
+    LogBase,
 )
 import funcy as f
 import pandas as pd
@@ -38,7 +40,7 @@ def auto_breaks(xmin, xmax):
     break_size = (xmax - xmin) / 5
     oom = 10 ** np.round(np.log10(break_size))
     return oom
-    
+
 
 @dataclass
 class Layer(object):
@@ -60,6 +62,8 @@ class GGManim(object):
         self.y_label = Tex("") if aes is None else Tex(aes.get("y", ""))
         self.x_range = None
         self.y_range = None
+        self.x_log_scale = False
+        self.y_log_scale = False
 
     def add_layer(self, geom, data=None, aes=None, layer_id=None, **kwargs):
         self.layers[layer_id or len(self.layers)] = Layer(
@@ -82,8 +86,14 @@ class GGManim(object):
     def geom_vline(self, **kwargs):
         return self.add_layer("geom_vline", **kwargs)
 
+    def geom_hline(self, **kwargs):
+        return self.add_layer("geom_hline", **kwargs)
+
     def geom_smooth(self, **kwargs):
         return self.add_layer("geom_smooth", **kwargs)
+
+    def geom_bar(self, **kwargs):
+        return self.add_layer("geom_bar", **kwargs)
 
     def xlab(self, x_label):
         if isinstance(x_label, Mobject):
@@ -117,6 +127,14 @@ class GGManim(object):
             raise ValueError("y_range must be length 2 or 3")
         return self
 
+    def scale_x_log10(self):
+        self.x_log_scale = True
+        return self
+
+    def scale_y_log10(self):
+        self.y_log_scale = True
+        return self
+
     def build(self, **kwargs):
         """
         Build the plot
@@ -127,10 +145,16 @@ class GGManim(object):
         # -------------------------------------------------------------------------
         if self.x_range is None:
             x_min = min(
-                (layer.data[layer.aes["x"]].min() for layer in self.layers.values())
+                (
+                    layer.data[layer.aes["x"]].min()
+                    for layer in self.layers.values()
+                )
             )
             x_max = max(
-                (layer.data[layer.aes["x"]].max() for layer in self.layers.values())
+                (
+                    layer.data[layer.aes["x"]].max()
+                    for layer in self.layers.values()
+                )
             )
             x_breaks = auto_breaks(x_min, x_max)
             x_range = [x_min, x_max, x_breaks]
@@ -140,22 +164,40 @@ class GGManim(object):
 
         if self.y_range is None:
             y_min = min(
-                (layer.data[layer.aes["y"]].min() for layer in self.layers.values())
+                (
+                    layer.data[layer.aes["y"]].min()
+                    for layer in self.layers.values()
+                )
             )
             y_max = max(
-                (layer.data[layer.aes["y"]].max() for layer in self.layers.values())
+                (
+                    layer.data[layer.aes["y"]].max()
+                    for layer in self.layers.values()
+                )
             )
             y_breaks = auto_breaks(y_min, y_max)
             y_range = [y_min, y_max, y_breaks]
-            print(y_range)
         else:
             y_range = self.y_range
 
         plot = VDict()
+
+        # Configure log scales if enabled
+        axis_config = {}
+        if self.x_log_scale:
+            axis_config["x_axis_config"] = {
+                "scaling": LogBase(custom_labels=True)
+            }
+        if self.y_log_scale:
+            axis_config["y_axis_config"] = {
+                "scaling": LogBase(custom_labels=True)
+            }
+
         axes = Axes(
             x_range=x_range,
             y_range=y_range,
             **self.axis_kwargs,
+            **axis_config,
             **kwargs,
         ).set_color(BLACK)
 
@@ -181,7 +223,8 @@ class GGManim(object):
             color_scale = pd.DataFrame(
                 {
                     "x": unique_colors,
-                    "palette_id": np.arange(len(unique_colors)) % len(self.palette),
+                    "palette_id": np.arange(len(unique_colors))
+                    % len(self.palette),
                 }
             ).set_index("x")
 
@@ -199,10 +242,15 @@ class GGManim(object):
                         for id, row in color_scale.iterrows()
                     ]
                 )
-            ).arrange_in_grid(rows=len(color_scale), buff=0.1, cell_alignment=LEFT)
+            ).arrange_in_grid(
+                rows=len(color_scale), buff=0.1, cell_alignment=LEFT
+            )
             legends["color"].add(
                 SurroundingRectangle(
-                    legends["color"], buff=0.1, stroke_width=1, stroke_color=BLACK
+                    legends["color"],
+                    buff=0.1,
+                    stroke_width=1,
+                    stroke_color=BLACK,
                 )
             )
 
@@ -220,7 +268,9 @@ class GGManim(object):
         # -------------------------------------------------------------------------
         layers = VDict(
             {
-                layer_id: getattr(self, f"build_{layer.geom}")(scales, axes, layer)
+                layer_id: getattr(self, f"build_{layer.geom}")(
+                    scales, axes, layer
+                )
                 for layer_id, layer in self.layers.items()
             }
         )
@@ -255,7 +305,9 @@ class GGManim(object):
     ):
         return scales.get(aes_name, f.identity)(data[aes_val])
 
-    def get_all_aes(self, scales: Dict[str, Callable], data: pd.DataFrame, aes: Dict):
+    def get_all_aes(
+        self, scales: Dict[str, Callable], data: pd.DataFrame, aes: Dict
+    ):
         return pd.DataFrame.from_dict(
             {k: self.get_aes(scales, data, k, v) for k, v in aes.items()}
         )
@@ -296,8 +348,12 @@ class GGManim(object):
         x = layer.kwargs["xintercept"]
         label = layer.kwargs.get("label", None)
         other_kwargs = f.omit(layer.kwargs, ["xintercept", "label"])
-        poscurve = axes.get_vertical_line(axes.c2p(x, axes.y_range[1]), **other_kwargs)
-        negcurve = axes.get_vertical_line(axes.c2p(x, axes.y_range[0]), **other_kwargs)
+        poscurve = axes.get_vertical_line(
+            axes.c2p(x, axes.y_range[1]), **other_kwargs
+        )
+        negcurve = axes.get_vertical_line(
+            axes.c2p(x, axes.y_range[0]), **other_kwargs
+        )
 
         if isinstance(label, str):
             label = Tex(label)
@@ -313,15 +369,39 @@ class GGManim(object):
 
         return VGroup(poscurve, negcurve, label or VGroup())
 
+    def build_geom_hline(self, scales, axes: Axes, layer: Layer):
+        y = layer.kwargs["yintercept"]
+        label = layer.kwargs.get("label", None)
+        other_kwargs = f.omit(layer.kwargs, ["yintercept", "label"])
+        poscurve = axes.get_horizontal_line(
+            axes.c2p(axes.x_range[1], y), **other_kwargs
+        )
+        negcurve = axes.get_horizontal_line(
+            axes.c2p(axes.x_range[0], y), **other_kwargs
+        )
+
+        if isinstance(label, str):
+            label = Tex(label)
+
+        if label is not None:
+            label = label.next_to(poscurve.get_end(), UP, buff=0.0).align_to(
+                poscurve, RIGHT
+            )
+            if "color" in other_kwargs:
+                label.set_color(ManimColor(other_kwargs["color"]))
+
+        return VGroup(poscurve, negcurve, label or VGroup())
+
     def build_geom_smooth(self, scales, axes: Axes, layer: Layer):
         model = layer.kwargs.get("model", LinearRegression())
         aes_vals = self.get_all_aes(scales, layer.data, layer.aes)
-        grouping_vars = set(["color", "fill_color"]).intersection(layer.aes.keys())
+        grouping_vars = set(["color", "fill_color"]).intersection(
+            layer.aes.keys()
+        )
 
         curves = VGroup()
         if len(grouping_vars) > 0:
             for group, data in aes_vals.groupby(list(grouping_vars)):
-                print(group)
                 model.fit(data[["x"]], data["y"])
                 curves.add(
                     axes.plot(
@@ -342,3 +422,83 @@ class GGManim(object):
             )
 
         return curves
+
+    def build_geom_line(self, scales, axes: Axes, layer: Layer):
+        aes_vals = self.get_all_aes(scales, layer.data, layer.aes)
+        grouping_vars = set(["color", "fill_color"]).intersection(
+            layer.aes.keys()
+        )
+        label = layer.kwargs.get("label", None)
+        color = layer.kwargs.get("color", None)
+        other_kwargs = f.omit(layer.kwargs, ["label", "color"])
+
+        lines = VGroup()
+        if len(grouping_vars) > 0:
+            for group, data in aes_vals.groupby(list(grouping_vars)):
+                sorted_data = data.sort_values("x")
+
+                group_kwargs = dict(zip(grouping_vars, group))
+                line = axes.plot_line_graph(
+                    sorted_data["x"].values,
+                    sorted_data["y"].values,
+                    add_vertex_dots=False,
+                    **other_kwargs,
+                    **f.omit(group_kwargs, ["color"]),
+                )
+                line.set_color(ManimColor(group_kwargs["color"]))
+                lines.add(line)
+        else:
+            sorted_data = aes_vals.sort_values("x")
+            line = axes.plot_line_graph(
+                sorted_data["x"].values,
+                sorted_data["y"].values,
+                add_vertex_dots=False,
+                **other_kwargs,
+            )
+            if color is not None:
+                line.set_color(ManimColor(color))
+            lines.add(line)
+
+        if label is not None:
+            lbl = Tex(label) if isinstance(label, str) else label
+            lbl.next_to(axes.c2p(sorted_data["x"].values[-1], sorted_data["y"].values[-1]), RIGHT)
+            if color is not None:
+                lbl.set_color(ManimColor(color))
+            lines.add(lbl)
+
+        return lines
+
+    def build_geom_bar(self, scales, axes: Axes, layer: Layer):
+        aes_vals = self.get_all_aes(scales, layer.data, layer.aes)
+        fade = 1 - layer.kwargs.get("alpha", 1)
+        width = layer.kwargs.get("width", 0.5)
+
+        bars = VGroup()
+        for row in aes_vals.to_dict("records"):
+            x_val = row["x"]
+            y_val = row["y"]
+
+            # Get the bottom and top points
+            bottom = axes.coords_to_point(x_val, 0)
+            top = axes.coords_to_point(x_val, y_val)
+
+            # Calculate bar dimensions
+            bar_height = np.linalg.norm(top - bottom)
+            bar_width = (
+                width * axes.x_length / (axes.x_range[1] - axes.x_range[0])
+            )
+
+            # Create rectangle
+            bar = Rectangle(
+                width=bar_width,
+                height=bar_height,
+                **f.omit(row, ["x", "y"]),
+                **f.omit(layer.kwargs, ["alpha", "width"]),
+            )
+
+            # Position the bar
+            bar.move_to((bottom + top) / 2)
+            bar.fade(fade)
+            bars.add(bar)
+
+        return bars
