@@ -1,0 +1,57 @@
+"""geom_point: scatter plot (one ``Dot`` per row)."""
+
+from __future__ import annotations
+
+from typing import Optional
+
+from manim import ORIGIN, Dot, VGroup, VMobject
+
+from ..registry import register
+from ..theme import Theme, theme_default
+from .base import Geom, finite_rows, make_layer, num, resolve_color, transform_points
+
+__all__ = ["GeomPoint", "geom_point"]
+
+
+class GeomPoint(Geom):
+    """Points: ``draw_panel`` returns a ``VGroup`` with one ``Dot`` per (finite) row,
+    in data order.
+
+    ``size`` is the dot radius in scene units; ``color=None`` is the theme
+    foreground; ``fill`` (if set) colours the dot instead of ``color``.
+    """
+
+    required_aes = ("x", "y")
+    default_aes = {"color": None, "fill": None, "size": 0.06, "alpha": 1.0, "shape": None}
+
+    def draw_panel(self, data, panel_params, coord, theme: Optional[Theme] = None,
+                   **params) -> VMobject:
+        theme = theme if theme is not None else theme_default()
+        self.check_required_aes(data)
+        data = finite_rows(self.use_defaults(data, params), ("x", "y"))
+        fg = theme.get_foreground()
+        pts = transform_points(coord, data["x"].to_numpy(float), data["y"].to_numpy(float))
+        dots = VGroup()
+        for p, row in zip(pts, data.to_dict("records")):
+            dots.add(self._dot(p, row, fg))
+        return dots
+
+    @staticmethod
+    def _dot(point, row, fg) -> Dot:
+        color = resolve_color(row.get("color"), fg)
+        fill = resolve_color(row.get("fill"), color)
+        return Dot(point, radius=num(row.get("size"), 0.06), color=fill,
+                   fill_opacity=num(row.get("alpha"), 1.0), stroke_width=0)
+
+    def draw_key(self, data_row, theme: Optional[Theme] = None) -> VMobject:
+        theme = theme if theme is not None else theme_default()
+        return self._dot(ORIGIN, self.key_aes(data_row), theme.get_foreground())
+
+
+@register
+def geom_point(mapping=None, data=None, *, stat="identity", position="identity",
+               inherit_aes: bool = True, name: Optional[str] = None, **params):
+    """Scatter plot: one dot per row. Constant aesthetics (``color=RED``,
+    ``size=0.08``, ``alpha=0.5``) go in ``params``."""
+    return make_layer(GeomPoint(), mapping, data, stat=stat, position=position,
+                      inherit_aes=inherit_aes, name=name, params=params)
