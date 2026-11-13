@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from typing import Any, Dict, Iterable, List, Optional, Tuple
+from collections.abc import Iterable
+from typing import Any
 
 from manim import Mobject, VGroup
 
@@ -48,11 +49,19 @@ class GGPlot(VGroup):
     dict-style access; integer/slice indices index the submobjects as usual.
     """
 
-    def __init__(self, panel, layers: Iterable[Tuple[Any, Mobject]], legend: VGroup,
-                 legends: Optional[List[Any]] = None, title: Optional[Mobject] = None,
-                 subtitle: Optional[Mobject] = None, caption: Optional[Mobject] = None,
-                 scales: Optional[Dict[str, Any]] = None,
-                 layer_data: Optional[Dict[Any, Any]] = None, **kwargs):
+    def __init__(
+        self,
+        panel,
+        layers: Iterable[tuple[Any, Mobject]],
+        legend: VGroup,
+        legends: list[Any] | None = None,
+        title: Mobject | None = None,
+        subtitle: Mobject | None = None,
+        caption: Mobject | None = None,
+        scales: dict[str, Any] | None = None,
+        layer_data: dict[Any, Any] | None = None,
+        **kwargs,
+    ):
         super().__init__(**kwargs)
         self.panel = panel
         self.axes = panel.axes
@@ -65,10 +74,10 @@ class GGPlot(VGroup):
         self.caption = caption
         self.scales = dict(scales or {})
         self.layer_data = dict(layer_data or {})
-        self.add(panel, *self.layers.values(), self.legend)
+        self.add(panel, *self.layers.values(), self.legend)  # type: ignore[arg-type]
         for m in (title, subtitle, caption):
             if m is not None:
-                self.add(m)
+                self.add(m)  # type: ignore[arg-type]
 
     _KEYS = {
         "axes": "axes",
@@ -84,9 +93,7 @@ class GGPlot(VGroup):
             try:
                 return getattr(self, self._KEYS[key])
             except KeyError:
-                raise KeyError(
-                    f"unknown key {key!r}; use one of {sorted(self._KEYS)}"
-                ) from None
+                raise KeyError(f"unknown key {key!r}; use one of {sorted(self._KEYS)}") from None
         return super().__getitem__(key)
 
     def __repr__(self):

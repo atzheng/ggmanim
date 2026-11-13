@@ -14,7 +14,7 @@ from __future__ import annotations
 
 import math
 import sys
-from typing import Sequence
+from collections.abc import Sequence
 
 import numpy as np
 
@@ -188,7 +188,9 @@ def format_numbers(values) -> list[str]:
         exps = np.floor(np.log10(np.abs(nz)) + 1e-12)
         sci = bool(np.any(np.abs(exps) >= 5))
     if sci:
-        exps_all = np.where(xf != 0, np.floor(np.log10(np.abs(np.where(xf != 0, xf, 1))) + 1e-12), 0)
+        exps_all = np.where(
+            xf != 0, np.floor(np.log10(np.abs(np.where(xf != 0, xf, 1))) + 1e-12), 0
+        )
         mant = xf / 10.0**exps_all
         d = _common_decimals(np.round(mant, 12), max_digits=14)
         labels = []

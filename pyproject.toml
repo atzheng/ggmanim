@@ -1,0 +1,41 @@
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ggmanim"
+version = "0.1.0"
+description = "A ggplot2-style grammar of graphics for manim"
+readme = "README.md"
+requires-python = ">=3.10"
+authors = [{ name = "Andrew Zheng", email = "azheng92@gmail.com" }]
+dependencies = [
+    "manim>=0.19",
+    "pandas>=2",
+    "numpy",
+]
+
+[project.optional-dependencies]
+stats = ["scipy"]
+dev = ["pytest", "ruff", "mypy", "scipy"]
+
+[tool.setuptools.packages.find]
+include = ["ggmanim*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+extend-exclude = [".beads", ".claude", "*.md"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP"]
+ignore = ["E501", "E741", "B905"]
+
+[tool.mypy]
+python_version = "3.10"
+packages = ["ggmanim"]
+ignore_missing_imports = true
+disable_error_code = ["annotation-unchecked"]

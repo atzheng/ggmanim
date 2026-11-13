@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from typing import Optional
-
 from manim import ORIGIN, Dot, VGroup, VMobject
 
 from ..registry import register
@@ -24,8 +22,9 @@ class GeomPoint(Geom):
     required_aes = ("x", "y")
     default_aes = {"color": None, "fill": None, "size": 0.06, "alpha": 1.0, "shape": None}
 
-    def draw_panel(self, data, panel_params, coord, theme: Optional[Theme] = None,
-                   **params) -> VMobject:
+    def draw_panel(
+        self, data, panel_params, coord, theme: Theme | None = None, **params
+    ) -> VMobject:
         theme = theme if theme is not None else theme_default()
         self.check_required_aes(data)
         data = finite_rows(self.use_defaults(data, params), ("x", "y"))
@@ -40,18 +39,39 @@ class GeomPoint(Geom):
     def _dot(point, row, fg) -> Dot:
         color = resolve_color(row.get("color"), fg)
         fill = resolve_color(row.get("fill"), color)
-        return Dot(point, radius=num(row.get("size"), 0.06), color=fill,
-                   fill_opacity=num(row.get("alpha"), 1.0), stroke_width=0)
+        return Dot(
+            point,
+            radius=num(row.get("size"), 0.06),
+            color=fill if fill is not None else fg,
+            fill_opacity=num(row.get("alpha"), 1.0),
+            stroke_width=0,
+        )
 
-    def draw_key(self, data_row, theme: Optional[Theme] = None) -> VMobject:
+    def draw_key(self, data_row, theme: Theme | None = None) -> VMobject:
         theme = theme if theme is not None else theme_default()
         return self._dot(ORIGIN, self.key_aes(data_row), theme.get_foreground())
 
 
 @register
-def geom_point(mapping=None, data=None, *, stat="identity", position="identity",
-               inherit_aes: bool = True, name: Optional[str] = None, **params):
+def geom_point(
+    mapping=None,
+    data=None,
+    *,
+    stat="identity",
+    position="identity",
+    inherit_aes: bool = True,
+    name: str | None = None,
+    **params,
+):
     """Scatter plot: one dot per row. Constant aesthetics (``color=RED``,
     ``size=0.08``, ``alpha=0.5``) go in ``params``."""
-    return make_layer(GeomPoint(), mapping, data, stat=stat, position=position,
-                      inherit_aes=inherit_aes, name=name, params=params)
+    return make_layer(
+        GeomPoint(),
+        mapping,
+        data,
+        stat=stat,
+        position=position,
+        inherit_aes=inherit_aes,
+        name=name,
+        params=params,
+    )

@@ -12,7 +12,8 @@ time: ``p.geom_point(alpha=.5)`` is ``p.add(geom_point(alpha=.5))``.
 
 from __future__ import annotations
 
-from typing import Any, Dict, Mapping, Optional, Tuple
+from collections.abc import Mapping
+from typing import Any
 
 import pandas as pd
 
@@ -22,7 +23,17 @@ from .registry import COMPONENTS, register
 
 __all__ = ["ggplot", "GGManim", "Labels", "labs", "xlab", "ylab"]
 
-_FIELDS = ("data", "mapping", "layers", "scales", "coord", "facet", "theme", "labels", "guide_specs")
+_FIELDS = (
+    "data",
+    "mapping",
+    "layers",
+    "scales",
+    "coord",
+    "facet",
+    "theme",
+    "labels",
+    "guide_specs",
+)
 
 
 class ggplot:
@@ -30,17 +41,17 @@ class ggplot:
 
     __slots__ = _FIELDS
 
-    data: Optional[pd.DataFrame]
+    data: pd.DataFrame | None
     mapping: Aes
-    layers: Tuple[Layer, ...]
-    scales: Tuple[Any, ...]
+    layers: tuple[Layer, ...]
+    scales: tuple[Any, ...]
     coord: Any
     facet: Any
     theme: Any
     labels: Mapping[str, Any]
     guide_specs: Mapping[str, Any]
 
-    def __init__(self, data: Optional[pd.DataFrame] = None, mapping: Optional[Mapping] = None):
+    def __init__(self, data: pd.DataFrame | None = None, mapping: Mapping | None = None):
         if isinstance(data, Mapping) and not isinstance(data, pd.DataFrame) and mapping is None:
             # ggplot(mapping=...) written positionally as ggplot(aes(...))
             data, mapping = None, data
@@ -57,14 +68,12 @@ class ggplot:
 
     # -- immutability ------------------------------------------------------
     def __setattr__(self, name, value):
-        raise AttributeError(
-            f"ggplot is immutable; use .add(...) or a component to get a new plot"
-        )
+        raise AttributeError("ggplot is immutable; use .add(...) or a component to get a new plot")
 
     def __delattr__(self, name):
         raise AttributeError("ggplot is immutable")
 
-    def _replace(self, **changes) -> "ggplot":
+    def _replace(self, **changes) -> ggplot:
         new = object.__new__(type(self))
         for f in _FIELDS:
             object.__setattr__(new, f, changes.pop(f) if f in changes else getattr(self, f))
@@ -79,7 +88,7 @@ class ggplot:
         return (_rebuild, (type(self), {f: getattr(self, f) for f in _FIELDS}))
 
     # -- composition -------------------------------------------------------
-    def add(self, *components, name: Optional[str] = None) -> "ggplot":
+    def add(self, *components, name: str | None = None) -> ggplot:
         """Return a new plot with ``components`` added in order.
 
         ``name`` names the (single) layer added by these components.
@@ -91,9 +100,7 @@ class ggplot:
                 continue
             add_to = getattr(c, "add_to", None)
             if add_to is None:
-                raise TypeError(
-                    f"cannot add {c!r} to a ggplot: it has no add_to(plot) method"
-                )
+                raise TypeError(f"cannot add {c!r} to a ggplot: it has no add_to(plot) method")
             new = add_to(plot)
             if not isinstance(new, ggplot):
                 raise TypeError(
@@ -112,24 +119,24 @@ class ggplot:
         return plot
 
     # -- helpers used by components ---------------------------------------
-    def _with_layer(self, layer: Layer) -> "ggplot":
+    def _with_layer(self, layer: Layer) -> ggplot:
         if layer.name is not None and any(l.name == layer.name for l in self.layers):
             raise ValueError(f"a layer named {layer.name!r} already exists")
         return self._replace(layers=self.layers + (layer,))
 
-    def _with_scale(self, scale) -> "ggplot":
+    def _with_scale(self, scale) -> ggplot:
         """Add a scale; any earlier scale sharing an aesthetic is replaced."""
         new_aes = set(_scale_aesthetics(scale))
         kept = tuple(s for s in self.scales if not (set(_scale_aesthetics(s)) & new_aes))
         return self._replace(scales=kept + (scale,))
 
-    def _with_coord(self, coord) -> "ggplot":
+    def _with_coord(self, coord) -> ggplot:
         return self._replace(coord=coord)
 
-    def _with_facet(self, facet) -> "ggplot":
+    def _with_facet(self, facet) -> ggplot:
         return self._replace(facet=facet)
 
-    def _with_theme(self, theme) -> "ggplot":
+    def _with_theme(self, theme) -> ggplot:
         """Replace the theme if ``theme`` is complete or none is set, else merge.
 
         Merging uses ``old.merge(new)`` when the current theme provides it.
@@ -139,13 +146,13 @@ class ggplot:
             return self._replace(theme=theme)
         return self._replace(theme=old.merge(theme))
 
-    def _with_labels(self, **labels) -> "ggplot":
+    def _with_labels(self, **labels) -> ggplot:
         new = dict(self.labels)
         for k, v in labels.items():
             new[standardise_aes_name(k)] = v
         return self._replace(labels=_FrozenDict(new))
 
-    def _with_guides(self, mapping: Mapping[str, Any]) -> "ggplot":
+    def _with_guides(self, mapping: Mapping[str, Any]) -> ggplot:
         """Merge ``mapping`` (aesthetic -> guide spec, e.g. ``"none"``) into the guides."""
         new = dict(self.guide_specs)
         for k, v in mapping.items():
@@ -153,7 +160,7 @@ class ggplot:
         return self._replace(guide_specs=_FrozenDict(new))
 
     @property
-    def guides(self) -> "_GuidesView":
+    def guides(self) -> _GuidesView:
         """Read-only mapping aesthetic -> guide (``"legend"``/``"none"``) set by the
         ``guides()`` component. Also callable as chaining sugar:
         ``p.guides(color="none") == p.add(guides(color="none"))``."""
@@ -217,8 +224,9 @@ class ggplot:
         data = "None" if self.data is None else f"DataFrame{getattr(self.data, 'shape', '')}"
         parts = [f"data={data}", f"mapping={self.mapping!r}"]
         if self.layers:
-            parts.append("layers=[" + ", ".join(
-                (l.name or type(l.geom).__name__) for l in self.layers) + "]")
+            parts.append(
+                "layers=[" + ", ".join((l.name or type(l.geom).__name__) for l in self.layers) + "]"
+            )
         if self.scales:
             parts.append("scales=[" + ", ".join(type(s).__name__ for s in self.scales) + "]")
         for f in ("coord", "facet", "theme"):
@@ -240,10 +248,7 @@ def _load_components() -> None:
     import importlib
 
     for mod in ("geoms", "scales", "scales.discrete", "stats", "coords", "theme", "guides"):
-        try:
-            importlib.import_module(f"{__package__}.{mod}")
-        except ImportError:  # optional / not yet available (guides)
-            pass
+        importlib.import_module(f"{__package__}.{mod}")
 
 
 def _rebuild(cls, state):
@@ -307,7 +312,7 @@ class Labels:
     __slots__ = ("labels",)
 
     def __init__(self, **labels):
-        self.labels: Dict[str, Any] = {standardise_aes_name(k): v for k, v in labels.items()}
+        self.labels: dict[str, Any] = {standardise_aes_name(k): v for k, v in labels.items()}
 
     def add_to(self, plot: ggplot) -> ggplot:
         return plot._with_labels(**self.labels)

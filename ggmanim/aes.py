@@ -12,8 +12,8 @@ merged over the plot mapping, ``aes(color=None)`` removes an inherited
 
 from __future__ import annotations
 
-from collections.abc import Mapping
-from typing import Any, Callable, Dict, Iterator, Optional, Union
+from collections.abc import Callable, Iterator, Mapping
+from typing import Any
 
 import numpy as np
 import pandas as pd
@@ -30,7 +30,7 @@ __all__ = [
 ]
 
 #: ggplot2 / R / manim spellings -> canonical aesthetic name.
-AES_ALIASES: Dict[str, str] = {
+AES_ALIASES: dict[str, str] = {
     "colour": "color",
     "col": "color",
     "fill_colour": "fill",
@@ -51,9 +51,9 @@ def standardise_aes_name(name: str) -> str:
     return AES_ALIASES.get(name, name)
 
 
-def standardise_aes_names(d: Mapping) -> Dict[str, Any]:
+def standardise_aes_names(d: Mapping) -> dict[str, Any]:
     """Normalise every key of ``d``; raise if two spellings collide."""
-    out: Dict[str, Any] = {}
+    out: dict[str, Any] = {}
     for k, v in d.items():
         canon = standardise_aes_name(k)
         if canon in out:
@@ -67,7 +67,7 @@ class AfterStat:
 
     __slots__ = ("expr",)
 
-    def __init__(self, expr: Union[str, Callable]):
+    def __init__(self, expr: str | Callable):
         self.expr = expr
 
     def evaluate(self, data: pd.DataFrame):
@@ -83,7 +83,7 @@ class AfterStat:
         return f"after_stat({self.expr!r})"
 
 
-def after_stat(expr: Union[str, Callable]) -> AfterStat:
+def after_stat(expr: str | Callable) -> AfterStat:
     """Map an aesthetic to a stat-computed variable."""
     return AfterStat(expr)
 
@@ -92,8 +92,9 @@ class Aes(Mapping):
     """Immutable mapping aesthetic -> column name / callable / after_stat."""
 
     __slots__ = ("_d",)
+    _d: dict[str, Any]
 
-    def __init__(self, mapping: Optional[Mapping] = None, **kwargs):
+    def __init__(self, mapping: Mapping | None = None, **kwargs):
         d = standardise_aes_names(dict(mapping or {}))
         for k, v in standardise_aes_names(kwargs).items():
             if k in d:
@@ -132,7 +133,7 @@ class Aes(Mapping):
         inner = ", ".join(f"{k}={v!r}" for k, v in self._d.items())
         return f"aes({inner})"
 
-    def merge(self, other: Optional[Mapping]) -> "Aes":
+    def merge(self, other: Mapping | None) -> Aes:
         """Return ``self`` updated with ``other`` (``other`` wins).
 
         A ``None`` value in ``other`` removes the aesthetic.
@@ -148,18 +149,18 @@ class Aes(Mapping):
                 d[k] = v
         return Aes(d)
 
-    def __or__(self, other: Mapping) -> "Aes":
+    def __or__(self, other: Mapping) -> Aes:
         return self.merge(other)
 
-    def defined(self) -> "Aes":
+    def defined(self) -> Aes:
         """Drop explicitly-unset (``None``) aesthetics."""
         return Aes({k: v for k, v in self._d.items() if v is not None})
 
-    def after_stat(self) -> "Aes":
+    def after_stat(self) -> Aes:
         """Only the :class:`AfterStat` aesthetics."""
         return Aes({k: v for k, v in self._d.items() if isinstance(v, AfterStat)})
 
-    def before_stat(self) -> "Aes":
+    def before_stat(self) -> Aes:
         """Aesthetics evaluated on the layer data (not after_stat, not None)."""
         return Aes(
             {k: v for k, v in self._d.items() if v is not None and not isinstance(v, AfterStat)}
@@ -178,7 +179,7 @@ def aes(x: Any = _MISSING, y: Any = _MISSING, **kwargs) -> Aes:
     >>> aes("wt", "mpg", colour="cyl")
     aes(x='wt', y='mpg', color='cyl')
     """
-    d: Dict[str, Any] = {}
+    d: dict[str, Any] = {}
     if x is not _MISSING:
         d["x"] = x
     if y is not _MISSING:
@@ -189,9 +190,7 @@ def aes(x: Any = _MISSING, y: Any = _MISSING, **kwargs) -> Aes:
 def _eval_one(value: Any, data: pd.DataFrame):
     if isinstance(value, str):
         if value not in data.columns:
-            raise KeyError(
-                f"column {value!r} not found in data (columns: {list(data.columns)})"
-            )
+            raise KeyError(f"column {value!r} not found in data (columns: {list(data.columns)})")
         return data[value]
     if isinstance(value, AfterStat):
         return value.evaluate(data)
@@ -200,7 +199,7 @@ def _eval_one(value: Any, data: pd.DataFrame):
     return value
 
 
-def evaluate_aes(mapping: Mapping, data: Optional[pd.DataFrame]) -> pd.DataFrame:
+def evaluate_aes(mapping: Mapping, data: pd.DataFrame | None) -> pd.DataFrame:
     """Evaluate the non-after_stat aesthetics of ``mapping`` against ``data``.
 
     Column names select columns, callables are called with the DataFrame and
@@ -211,7 +210,7 @@ def evaluate_aes(mapping: Mapping, data: Optional[pd.DataFrame]) -> pd.DataFrame
     mapping = mapping if isinstance(mapping, Aes) else Aes(mapping)
     if data is None:
         data = pd.DataFrame()
-    out: Dict[str, Any] = {}
+    out: dict[str, Any] = {}
     for k, v in mapping.before_stat().items():
         val = _eval_one(v, data)
         if isinstance(val, pd.Series):

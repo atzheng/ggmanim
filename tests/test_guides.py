@@ -14,7 +14,6 @@ from ggmanim.registry import COMPONENTS
 from ggmanim.scales.discrete import ScaleDiscrete, scale_color_discrete, scale_fill_discrete
 from ggmanim.theme import Theme
 
-
 LEVELS = ["a", "b", "c"]
 
 
@@ -68,24 +67,28 @@ def test_line_glyph_colour():
 
 def test_several_layers_overlay_glyphs():
     sc = colour_scale()
-    layers = [(GeomLine(), {"color": "grp"}, {}), (GeomPoint(), {"color": "grp"}, {}),
-              (GeomPoint(), {"x": "x"}, {})]  # last layer does not map colour
+    layers = [
+        (GeomLine(), {"color": "grp"}, {}),
+        (GeomPoint(), {"color": "grp"}, {}),
+        (GeomPoint(), {"x": "x"}, {}),
+    ]  # last layer does not map colour
     (leg,) = build_legends({"color": sc}, layers, Theme())
     assert all(len(k) == 2 for k in leg.keys)
 
 
 def test_show_legend_false_skips_layer():
     sc = colour_scale()
-    layers = [(GeomLine(), {"color": "grp"}, {"show_legend": False}),
-              (GeomPoint(), {"color": "grp"}, {})]
+    layers = [
+        (GeomLine(), {"color": "grp"}, {"show_legend": False}),
+        (GeomPoint(), {"color": "grp"}, {}),
+    ]
     (leg,) = build_legends({"color": sc}, layers, Theme())
     assert all(len(k) == 1 for k in leg.keys)
 
 
 def test_constant_params_reach_glyph():
     sc = colour_scale()
-    (leg,) = build_legends({"color": sc}, [(GeomPoint(), {"color": "grp"}, {"size": 0.1})],
-                           Theme())
+    (leg,) = build_legends({"color": sc}, [(GeomPoint(), {"color": "grp"}, {"size": 0.1})], Theme())
     assert leg.keys[0][0].width == pytest.approx(0.2, abs=1e-6)
 
 
@@ -112,8 +115,9 @@ def test_different_columns_give_two_legends():
 
 def test_shared_scale_object_under_two_keys_is_one_legend():
     sc = trained(ScaleDiscrete(("color", "fill")))
-    legs = build_legends({"color": sc, "fill": sc},
-                         [(GeomPoint(), {"color": "g", "fill": "g"}, {})], Theme())
+    legs = build_legends(
+        {"color": sc, "fill": sc}, [(GeomPoint(), {"color": "g", "fill": "g"}, {})], Theme()
+    )
     assert len(legs) == 1 and legs[0].aesthetics == ("color", "fill")
 
 
@@ -142,8 +146,9 @@ def test_labels_use_text_engine_by_default():
 
 def test_title_priority():
     layers = [(GeomPoint(), {"color": "grp"}, {})]
-    (leg,) = build_legends({"color": colour_scale(name="Scale")}, layers, Theme(),
-                           labels={"color": "Lab"})
+    (leg,) = build_legends(
+        {"color": colour_scale(name="Scale")}, layers, Theme(), labels={"color": "Lab"}
+    )
     assert leg.title.text == "Scale"
     (leg,) = build_legends({"color": colour_scale()}, layers, Theme(), labels={"colour": "Lab"})
     assert leg.title.text == "Lab"
@@ -185,8 +190,11 @@ def _panel():
 def test_place_legends_positions(pos):
     panel = _panel()
     before = panel.get_center().copy()
-    legs = build_legends({"color": colour_scale(), "fill": trained(scale_fill_discrete(), ["x"])},
-                         [(GeomCol(), {"color": "grp", "fill": "kind"}, {})], Theme())
+    legs = build_legends(
+        {"color": colour_scale(), "fill": trained(scale_fill_discrete(), ["x"])},
+        [(GeomCol(), {"color": "grp", "fill": "kind"}, {})],
+        Theme(),
+    )
     placed = place_legends(panel, legs, Theme(legend_position=pos))
     assert isinstance(placed, VGroup) and len(placed) == 2
     assert (panel.get_center() == before).all()
@@ -233,8 +241,12 @@ def test_guides_component_on_plot():
         s.guides["x"] = "none"
     with pytest.raises(TypeError):
         s.guide_specs["x"] = "none"
-    assert build_legends({"color": colour_scale()}, [(GeomPoint(), {"color": "g"}, {})],
-                         Theme(), guides=q.guides) == []
+    assert (
+        build_legends(
+            {"color": colour_scale()}, [(GeomPoint(), {"color": "g"}, {})], Theme(), guides=q.guides
+        )
+        == []
+    )
 
 
 def test_guides_validation():

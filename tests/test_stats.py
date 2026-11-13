@@ -38,6 +38,7 @@ class Log10:
 
 # -- add_group ---------------------------------------------------------------
 
+
 def test_add_group_no_grouping_aes():
     df = pd.DataFrame({"x": [1, 2, 3], "y": [1.0, 2.0, 3.0]})
     out = add_group(df)
@@ -46,11 +47,13 @@ def test_add_group_no_grouping_aes():
 
 
 def test_add_group_discrete_aes_interaction():
-    df = pd.DataFrame({
-        "x": range(6),
-        "color": ["b", "a", "b", "a", "b", "a"],
-        "shape": ["u", "u", "v", "v", "u", "u"],
-    })
+    df = pd.DataFrame(
+        {
+            "x": range(6),
+            "color": ["b", "a", "b", "a", "b", "a"],
+            "shape": ["u", "u", "v", "v", "u", "u"],
+        }
+    )
     out = add_group(df)
     # sorted interaction: (a,u)=1, (a,v)=2, (b,u)=3, (b,v)=4
     assert out["group"].tolist() == [3, 1, 4, 2, 3, 1]
@@ -70,6 +73,7 @@ def test_add_group_existing_group_column():
 
 # -- stat_identity -----------------------------------------------------------
 
+
 def test_identity_passthrough():
     df = pd.DataFrame({"x": [1, 2], "y": [3, 4], "color": ["a", "b"]})
     out = stat_identity().compute(df)
@@ -78,6 +82,7 @@ def test_identity_passthrough():
 
 
 # -- stat_smooth -------------------------------------------------------------
+
 
 def test_smooth_exact_line_recovers_fit_and_zero_band():
     x = np.linspace(0, 10, 25)
@@ -107,6 +112,7 @@ def test_smooth_band_matches_textbook_lm():
     np.testing.assert_allclose(out["y"], b0 + b1 * x0)
     np.testing.assert_allclose(out["se"], se)
     from scipy import stats as st
+
     q = st.t.ppf(0.95, 28)
     np.testing.assert_allclose(out["ymax"] - out["y"], q * se)
 
@@ -159,11 +165,13 @@ def test_smooth_fullrange_uses_scale_limits():
 
 
 def test_smooth_drops_degenerate_groups_and_na():
-    df = pd.DataFrame({
-        "x": [1.0, 1.0, 1.0, 2.0, np.nan],
-        "y": [1.0, 2.0, 3.0, 4.0, 9.0],
-        "color": ["a", "a", "b", "b", "b"],
-    })
+    df = pd.DataFrame(
+        {
+            "x": [1.0, 1.0, 1.0, 2.0, np.nan],
+            "y": [1.0, 2.0, 3.0, 4.0, 9.0],
+            "color": ["a", "a", "b", "b", "b"],
+        }
+    )
     out = stat_smooth(n=3).compute(df)
     assert out["color"].unique().tolist() == ["b"]
     assert out["se"].isna().all()  # 2 points: no residual dof
@@ -183,6 +191,7 @@ def test_compute_layer_ignores_unknown_params():
 
 
 # -- stat_function -----------------------------------------------------------
+
 
 def test_function_vectorised_with_xlim():
     out = stat_function(np.sin, n=11, xlim=(0, np.pi)).compute(pd.DataFrame())
@@ -230,6 +239,7 @@ def test_function_requires_callable():
 
 
 # -- API / misc ----------------------------------------------------------------
+
 
 def test_params_and_get_stat():
     s = stat_smooth(method="lm", se=False, n=10)

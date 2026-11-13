@@ -155,8 +155,12 @@ def test_build_is_pure_and_deterministic():
     labels = {"x": "Dose", "y": "Response"}
     a = coord_cartesian().build(sx, sy, th, labels)
     b = coord_cartesian().build(sx, sy, th, labels)
-    for ga, gb in [(a.x_tick_labels, b.x_tick_labels), (a.y_tick_labels, b.y_tick_labels),
-                   (a.x_ticks, b.x_ticks), (a.grid, b.grid)]:
+    for ga, gb in [
+        (a.x_tick_labels, b.x_tick_labels),
+        (a.y_tick_labels, b.y_tick_labels),
+        (a.x_ticks, b.x_ticks),
+        (a.grid, b.grid),
+    ]:
         np.testing.assert_array_equal(_centres(ga), _centres(gb))
     np.testing.assert_array_equal(a.x_title.get_center(), b.x_title.get_center())
     np.testing.assert_array_equal(a.y_title.get_center(), b.y_title.get_center())
@@ -232,7 +236,8 @@ def test_zoom_does_not_censor():
     lo, hi = panel.panel_params.x_range
     assert lo < 20 and hi > 40 and hi - lo < 25
     assert all(20 <= b <= 40 for b in panel.panel_params.x_breaks) or all(
-        lo <= b <= hi for b in panel.panel_params.x_breaks)
+        lo <= b <= hi for b in panel.panel_params.x_breaks
+    )
     # scale untouched; data outside the zoom still maps (no NaN)
     assert sx.get_limits() == (0.0, 100.0)
     assert np.isfinite(sx.map([0, 100])).all()

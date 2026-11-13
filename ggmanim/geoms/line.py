@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from typing import Optional
-
 from manim import LEFT, RIGHT, Line, VGroup, VMobject
 
 from ..registry import register
@@ -38,11 +36,12 @@ class GeomPath(Geom):
 
     required_aes = ("x", "y")
     default_aes = {"color": None, "linewidth": 3.0, "alpha": 1.0, "linetype": "solid"}
-    extra_params = ("label",)
+    extra_params: tuple[str, ...] = ("label",)
     sort_by_x = False
 
-    def draw_panel(self, data, panel_params, coord, theme: Optional[Theme] = None,
-                   label=None, **params) -> VMobject:
+    def draw_panel(
+        self, data, panel_params, coord, theme: Theme | None = None, label=None, **params
+    ) -> VMobject:
         theme = theme if theme is not None else theme_default()
         self.check_required_aes(data)
         data = finite_rows(self.use_defaults(data, params), ("x", "y"))
@@ -53,20 +52,26 @@ class GeomPath(Geom):
                 gdf = gdf.sort_values("x", kind="stable")
             pts = transform_points(coord, gdf["x"].to_numpy(float), gdf["y"].to_numpy(float))
             color = resolve_color(first(gdf, "color"), fg)
-            paths.add(path_mobject(pts, color, num(first(gdf, "linewidth"), 3.0),
-                                   num(first(gdf, "alpha"), 1.0)))
+            paths.add(
+                path_mobject(
+                    pts, color, num(first(gdf, "linewidth"), 3.0), num(first(gdf, "alpha"), 1.0)
+                )
+            )
             lab = make_label(theme, group_label(label, i, gid), color)
             if lab is not None and len(pts):
                 labels.add(lab.next_to(pts[-1], RIGHT, buff=0.1))
         return assemble(paths, labels)
 
-    def draw_key(self, data_row, theme: Optional[Theme] = None) -> VMobject:
+    def draw_key(self, data_row, theme: Theme | None = None) -> VMobject:
         theme = theme if theme is not None else theme_default()
         row = self.key_aes(data_row)
-        return Line(LEFT * KEY_SIZE / 2, RIGHT * KEY_SIZE / 2,
-                    color=resolve_color(row.get("color"), theme.get_foreground()),
-                    stroke_width=num(row.get("linewidth"), 3.0),
-                    stroke_opacity=num(row.get("alpha"), 1.0))
+        return Line(
+            LEFT * KEY_SIZE / 2,
+            RIGHT * KEY_SIZE / 2,
+            color=resolve_color(row.get("color"), theme.get_foreground()),
+            stroke_width=num(row.get("linewidth"), 3.0),
+            stroke_opacity=num(row.get("alpha"), 1.0),
+        )
 
 
 class GeomLine(GeomPath):
@@ -76,12 +81,28 @@ class GeomLine(GeomPath):
 
 
 @register
-def geom_line(mapping=None, data=None, *, stat="identity", position="identity",
-              inherit_aes: bool = True, name: Optional[str] = None, **params):
+def geom_line(
+    mapping=None,
+    data=None,
+    *,
+    stat="identity",
+    position="identity",
+    inherit_aes: bool = True,
+    name: str | None = None,
+    **params,
+):
     """Lines connecting observations in order of x, one per group.
 
     ``label=`` (str or Mobject for every group, a list in group order, or a dict
     group id -> label) is drawn at each group's last point in the group's colour.
     """
-    return make_layer(GeomLine(), mapping, data, stat=stat, position=position,
-                      inherit_aes=inherit_aes, name=name, params=params)
+    return make_layer(
+        GeomLine(),
+        mapping,
+        data,
+        stat=stat,
+        position=position,
+        inherit_aes=inherit_aes,
+        name=name,
+        params=params,
+    )

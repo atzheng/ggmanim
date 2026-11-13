@@ -29,20 +29,14 @@ Position-scale API used by the build / coord
 from __future__ import annotations
 
 import math
-from typing import Any, Callable, Sequence
+from collections.abc import Callable, Sequence
+from typing import Any
 
 import numpy as np
 
+from ..registry import register
 from .base import Scale
 from .breaks import expand_range, format_numbers, log_breaks, pretty
-
-try:  # provided by ggm-s11.1; keep this module importable without it
-    from ..registry import register
-except ImportError:  # pragma: no cover - depends on sibling work
-
-    def register(fn):
-        return fn
-
 
 __all__ = [
     "Transform",
@@ -191,7 +185,9 @@ def get_transform(trans: str | Transform | None) -> Transform:
     try:
         return _TRANSFORMS[trans]()
     except KeyError:
-        raise ValueError(f"unknown transform {trans!r}; choose from {sorted(_TRANSFORMS)}") from None
+        raise ValueError(
+            f"unknown transform {trans!r}; choose from {sorted(_TRANSFORMS)}"
+        ) from None
 
 
 # --------------------------------------------------------------------------- oob
@@ -263,8 +259,7 @@ class ScaleContinuous(Scale):
             limits = tuple(limits)
             if len(limits) != 2:
                 raise ValueError(
-                    f"limits must be (lo, hi), got {limits!r}; "
-                    "use breaks= to set tick positions"
+                    f"limits must be (lo, hi), got {limits!r}; use breaks= to set tick positions"
                 )
         self.limits = limits
         if breaks is not None and not callable(breaks):
@@ -348,7 +343,7 @@ class ScaleContinuous(Scale):
                 for i, v in enumerate(user)
             ]
         lo, hi = sorted(user)  # type: ignore[type-var]
-        return (lo, hi)
+        return (float(lo), float(hi))  # type: ignore[arg-type]  # Nones filled above
 
     def _is_increasing(self) -> bool:
         a, b = self.trans.transform(np.array([1.0, 2.0]))
@@ -386,6 +381,7 @@ class ScaleContinuous(Scale):
                 best = b
             if inside >= want:
                 return b
+        assert best is not None
         return best
 
     def _breaks_and_labels(self, limits=None) -> tuple[np.ndarray, list[str]]:
@@ -450,63 +446,92 @@ class ScaleContinuousPosition(ScaleContinuous):
 def _position(axis: str, trans, name, breaks, labels, limits, expand, oob, n_breaks):
     aes = X_AESTHETICS if axis == "x" else Y_AESTHETICS
     return ScaleContinuousPosition(
-        aes, name=name, breaks=breaks, labels=labels, limits=limits,
-        expand=expand, oob=oob, trans=trans, n_breaks=n_breaks,
+        aes,
+        name=name,
+        breaks=breaks,
+        labels=labels,
+        limits=limits,
+        expand=expand,
+        oob=oob,
+        trans=trans,
+        n_breaks=n_breaks,
     )
 
 
 @register
-def scale_x_continuous(name=None, breaks=None, labels=None, limits=None, expand=None,
-                       oob="censor", trans="identity", n_breaks=5):
+def scale_x_continuous(
+    name=None,
+    breaks=None,
+    labels=None,
+    limits=None,
+    expand=None,
+    oob="censor",
+    trans="identity",
+    n_breaks=5,
+):
     """Continuous x position scale. See :class:`ScaleContinuous` for arguments."""
     return _position("x", trans, name, breaks, labels, limits, expand, oob, n_breaks)
 
 
 @register
-def scale_y_continuous(name=None, breaks=None, labels=None, limits=None, expand=None,
-                       oob="censor", trans="identity", n_breaks=5):
+def scale_y_continuous(
+    name=None,
+    breaks=None,
+    labels=None,
+    limits=None,
+    expand=None,
+    oob="censor",
+    trans="identity",
+    n_breaks=5,
+):
     """Continuous y position scale. See :class:`ScaleContinuous` for arguments."""
     return _position("y", trans, name, breaks, labels, limits, expand, oob, n_breaks)
 
 
 @register
-def scale_x_log10(name=None, breaks=None, labels=None, limits=None, expand=None,
-                  oob="censor", n_breaks=5):
+def scale_x_log10(
+    name=None, breaks=None, labels=None, limits=None, expand=None, oob="censor", n_breaks=5
+):
     """x scale with a log10 transform (breaks at powers of ten)."""
     return _position("x", "log10", name, breaks, labels, limits, expand, oob, n_breaks)
 
 
 @register
-def scale_y_log10(name=None, breaks=None, labels=None, limits=None, expand=None,
-                  oob="censor", n_breaks=5):
+def scale_y_log10(
+    name=None, breaks=None, labels=None, limits=None, expand=None, oob="censor", n_breaks=5
+):
     """y scale with a log10 transform (breaks at powers of ten)."""
     return _position("y", "log10", name, breaks, labels, limits, expand, oob, n_breaks)
 
 
 @register
-def scale_x_sqrt(name=None, breaks=None, labels=None, limits=None, expand=None,
-                 oob="censor", n_breaks=5):
+def scale_x_sqrt(
+    name=None, breaks=None, labels=None, limits=None, expand=None, oob="censor", n_breaks=5
+):
     """x scale with a square-root transform."""
     return _position("x", "sqrt", name, breaks, labels, limits, expand, oob, n_breaks)
 
 
 @register
-def scale_y_sqrt(name=None, breaks=None, labels=None, limits=None, expand=None,
-                 oob="censor", n_breaks=5):
+def scale_y_sqrt(
+    name=None, breaks=None, labels=None, limits=None, expand=None, oob="censor", n_breaks=5
+):
     """y scale with a square-root transform."""
     return _position("y", "sqrt", name, breaks, labels, limits, expand, oob, n_breaks)
 
 
 @register
-def scale_x_reverse(name=None, breaks=None, labels=None, limits=None, expand=None,
-                    oob="censor", n_breaks=5):
+def scale_x_reverse(
+    name=None, breaks=None, labels=None, limits=None, expand=None, oob="censor", n_breaks=5
+):
     """Reversed x scale (large values on the left)."""
     return _position("x", "reverse", name, breaks, labels, limits, expand, oob, n_breaks)
 
 
 @register
-def scale_y_reverse(name=None, breaks=None, labels=None, limits=None, expand=None,
-                    oob="censor", n_breaks=5):
+def scale_y_reverse(
+    name=None, breaks=None, labels=None, limits=None, expand=None, oob="censor", n_breaks=5
+):
     """Reversed y scale (large values at the bottom)."""
     return _position("y", "reverse", name, breaks, labels, limits, expand, oob, n_breaks)
 

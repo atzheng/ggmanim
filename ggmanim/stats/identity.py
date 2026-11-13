@@ -4,15 +4,8 @@ from __future__ import annotations
 
 import pandas as pd
 
+from ..registry import register
 from .base import Stat
-
-try:
-    from ..registry import register
-except ImportError:  # registry not available yet
-
-    def register(f):
-        return f
-
 
 __all__ = ["StatIdentity", "stat_identity"]
 
@@ -26,7 +19,7 @@ class StatIdentity(Stat):
     def compute_panel(self, df: pd.DataFrame, scales=None, **params) -> pd.DataFrame:
         return df.copy()
 
-    def compute_group(self, df: pd.DataFrame, scales=None) -> pd.DataFrame:
+    def compute_group(self, df: pd.DataFrame, scales=None) -> pd.DataFrame:  # type: ignore[override]
         return df.copy()
 
 

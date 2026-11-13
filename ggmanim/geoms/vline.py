@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from typing import Optional
-
 import numpy as np
 import pandas as pd
 from manim import DOWN, LEFT, PI, RIGHT, UP, Line, VGroup, VMobject
@@ -38,15 +36,16 @@ class _RefLine(Geom):
     """
 
     default_aes = {"color": None, "linewidth": 2.0, "alpha": 1.0, "linetype": "solid"}
-    extra_params = ("label",)
+    extra_params: tuple[str, ...] = ("label",)
     vertical = True
 
     @property
     def _col(self):
         return "xintercept" if self.vertical else "yintercept"
 
-    def draw_panel(self, data, panel_params, coord, theme: Optional[Theme] = None,
-                   label=None, **params) -> VMobject:
+    def draw_panel(
+        self, data, panel_params, coord, theme: Theme | None = None, label=None, **params
+    ) -> VMobject:
         theme = theme if theme is not None else theme_default()
         self.check_required_aes(data)
         data = finite_rows(self.use_defaults(data, params), (self._col,))
@@ -64,8 +63,9 @@ class _RefLine(Geom):
         for i, (p, q, row) in enumerate(zip(a, b, data.to_dict("records"))):
             color = resolve_color(row.get("color"), fg)
             alpha = num(row.get("alpha"), 1.0)
-            line = Line(p, q, color=color, stroke_width=num(row.get("linewidth"), 2.0),
-                        stroke_opacity=alpha)
+            line = Line(
+                p, q, color=color, stroke_width=num(row.get("linewidth"), 2.0), stroke_opacity=alpha
+            )
             lines.add(line)
             lab = make_label(theme, group_label(label, i, i), color)
             if lab is not None:
@@ -73,17 +73,20 @@ class _RefLine(Geom):
                     lab.rotate(PI / 2).next_to(q, LEFT, buff=0.05).align_to(q, UP)
                 else:
                     lab.next_to(q, UP, buff=0.05).align_to(q, RIGHT)
-                labels.add(lab)
+                labels.add(lab)  # type: ignore[arg-type]
         return assemble(lines, labels)
 
-    def draw_key(self, data_row, theme: Optional[Theme] = None) -> VMobject:
+    def draw_key(self, data_row, theme: Theme | None = None) -> VMobject:
         theme = theme if theme is not None else theme_default()
         row = self.key_aes(data_row)
         a, b = (DOWN, UP) if self.vertical else (LEFT, RIGHT)
-        return Line(a * KEY_SIZE / 2, b * KEY_SIZE / 2,
-                    color=resolve_color(row.get("color"), theme.get_foreground()),
-                    stroke_width=num(row.get("linewidth"), 2.0),
-                    stroke_opacity=num(row.get("alpha"), 1.0))
+        return Line(
+            a * KEY_SIZE / 2,
+            b * KEY_SIZE / 2,
+            color=resolve_color(row.get("color"), theme.get_foreground()),
+            stroke_width=num(row.get("linewidth"), 2.0),
+            stroke_opacity=num(row.get("alpha"), 1.0),
+        )
 
 
 class GeomVline(_RefLine):
@@ -111,13 +114,28 @@ def _ref_layer(geom, col, value, mapping, data, position, name, params):
         data = pd.DataFrame({col: np.atleast_1d(np.asarray(value, dtype=float))})
         mapping = aes(**{col: col})
     # ggplot2: reference lines never inherit the plot's aesthetics.
-    return make_layer(geom, mapping, data, stat="identity", position=position,
-                      inherit_aes=False, name=name, params=params)
+    return make_layer(
+        geom,
+        mapping,
+        data,
+        stat="identity",
+        position=position,
+        inherit_aes=False,
+        name=name,
+        params=params,
+    )
 
 
 @register
-def geom_vline(mapping=None, data=None, *, xintercept=None, position="identity",
-               name: Optional[str] = None, **params):
+def geom_vline(
+    mapping=None,
+    data=None,
+    *,
+    xintercept=None,
+    position="identity",
+    name: str | None = None,
+    **params,
+):
     """Vertical line(s) at ``xintercept`` (a number or list, in data space).
 
     With ``xintercept=`` the layer carries its own data
@@ -126,13 +144,18 @@ def geom_vline(mapping=None, data=None, *, xintercept=None, position="identity",
     ``aes(xintercept=column)``. ``label=`` and constant ``color``/``linewidth``/
     ``alpha`` go in ``params``.
     """
-    return _ref_layer(GeomVline(), "xintercept", xintercept, mapping, data, position,
-                      name, params)
+    return _ref_layer(GeomVline(), "xintercept", xintercept, mapping, data, position, name, params)
 
 
 @register
-def geom_hline(mapping=None, data=None, *, yintercept=None, position="identity",
-               name: Optional[str] = None, **params):
+def geom_hline(
+    mapping=None,
+    data=None,
+    *,
+    yintercept=None,
+    position="identity",
+    name: str | None = None,
+    **params,
+):
     """Horizontal line(s) at ``yintercept``; see :func:`geom_vline`."""
-    return _ref_layer(GeomHline(), "yintercept", yintercept, mapping, data, position,
-                      name, params)
+    return _ref_layer(GeomHline(), "yintercept", yintercept, mapping, data, position, name, params)

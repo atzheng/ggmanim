@@ -7,20 +7,13 @@ from statistics import NormalDist
 import numpy as np
 import pandas as pd
 
+from ..registry import register
 from .base import Stat, scale_limits
 
 try:  # optional dependency: exact t quantiles
     from scipy import stats as _scipy_stats
 except ImportError:  # pragma: no cover - exercised via monkeypatch in tests
     _scipy_stats = None
-
-try:
-    from ..registry import register
-except ImportError:  # registry not available yet
-
-    def register(f):
-        return f
-
 
 __all__ = ["StatSmooth", "stat_smooth", "t_quantile"]
 
@@ -49,13 +42,22 @@ class StatSmooth(Stat):
     required_aes = ("x", "y")
     default_aes = {}
 
-    def __init__(self, method="lm", degree=1, n=80, se=True, level=0.95,
-                 fullrange=False, **params):
-        super().__init__(method=method, degree=degree, n=n, se=se, level=level,
-                         fullrange=fullrange, **params)
+    def __init__(self, method="lm", degree=1, n=80, se=True, level=0.95, fullrange=False, **params):
+        super().__init__(
+            method=method, degree=degree, n=n, se=se, level=level, fullrange=fullrange, **params
+        )
 
-    def compute_group(self, df: pd.DataFrame, scales=None, method="lm", degree=1,
-                      n=80, se=True, level=0.95, fullrange=False) -> pd.DataFrame:
+    def compute_group(  # type: ignore[override]
+        self,
+        df: pd.DataFrame,
+        scales=None,
+        method="lm",
+        degree=1,
+        n=80,
+        se=True,
+        level=0.95,
+        fullrange=False,
+    ) -> pd.DataFrame:
         if method not in _METHODS:
             raise NotImplementedError(
                 f"stat_smooth method={method!r} is not supported (available: 'lm')"
@@ -104,12 +106,14 @@ class StatSmooth(Stat):
 
 
 @register
-def stat_smooth(method="lm", degree=1, n=80, se=True, level=0.95, fullrange=False,
-                **params) -> StatSmooth:
+def stat_smooth(
+    method="lm", degree=1, n=80, se=True, level=0.95, fullrange=False, **params
+) -> StatSmooth:
     """Smoothed conditional mean (``lm``: polynomial of ``degree`` in x).
 
     ``fullrange=True`` evaluates over the x scale's limits
     (``scales["x"].get_limits()``) instead of the group's data range.
     """
-    return StatSmooth(method=method, degree=degree, n=n, se=se, level=level,
-                      fullrange=fullrange, **params)
+    return StatSmooth(
+        method=method, degree=degree, n=n, se=se, level=level, fullrange=fullrange, **params
+    )

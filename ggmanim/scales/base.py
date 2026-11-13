@@ -22,7 +22,8 @@ from __future__ import annotations
 
 import copy
 from abc import ABC, abstractmethod
-from typing import Any, Iterable
+from collections.abc import Iterable
+from typing import Any
 
 __all__ = ["Scale"]
 
@@ -95,7 +96,7 @@ class Scale(ABC):
         """True if the scale has no limits (not trained and none given)."""
         return self.get_limits() is None
 
-    def clone(self) -> "Scale":
+    def clone(self) -> Scale:
         """Untrained copy with the same configuration (shallow copy + reset)."""
         new = copy.copy(self)
         new.reset()

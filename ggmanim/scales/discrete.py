@@ -13,26 +13,16 @@ see :data:`AES_TO_MANIM`.
 from __future__ import annotations
 
 import copy
-from typing import Any, Callable, Iterable, Mapping, Sequence
+from collections.abc import Callable, Iterable, Mapping, Sequence
+from typing import Any
 
 import numpy as np
 import pandas as pd
 from manim import ManimColor
 
 from ..palettes import LINETYPES, SHAPES, Palette, as_manim_color, hue_pal, resolve_palette
-
-try:  # Scale ABC from ggm-s11.2
-    from .base import Scale
-except ImportError:  # pragma: no cover - base not available yet
-    Scale = object  # type: ignore[misc,assignment]
-
-try:  # component registry from ggm-s11.1
-    from ..registry import register
-except ImportError:  # pragma: no cover - registry not available yet
-
-    def register(f):  # type: ignore[no-redef]
-        return f
-
+from ..registry import register
+from .base import Scale
 
 __all__ = [
     "AES_TO_MANIM",
@@ -81,7 +71,7 @@ def is_discrete(values: Any) -> bool:
         values = [values]
     s = values if isinstance(values, (pd.Series, pd.Index)) else pd.Series(list(values))
     dtype = s.dtype
-    if dtype == object:
+    if dtype == np.dtype(object):
         dtype = pd.Series(list(s.dropna())).infer_objects().dtype
     if isinstance(dtype, pd.CategoricalDtype) or pd.api.types.is_bool_dtype(dtype):
         return True
@@ -184,7 +174,9 @@ class ScaleDiscrete(Scale):
         sorted unless a Categorical has fixed the order.
         """
         self._lookup = None
-        if isinstance(values, (pd.Series, pd.Index)) and isinstance(values.dtype, pd.CategoricalDtype):
+        if isinstance(values, (pd.Series, pd.Index)) and isinstance(
+            values.dtype, pd.CategoricalDtype
+        ):
             values = values.array if isinstance(values, pd.Series) else values.values
         if isinstance(values, pd.Categorical):
             cats = values.categories
@@ -197,7 +189,9 @@ class ScaleDiscrete(Scale):
 
         if isinstance(values, (str, bytes)) or np.ndim(values) == 0:
             values = [values]
-        uniq = pd.unique(pd.Series(list(values) if not isinstance(values, pd.Series) else values, dtype=object))
+        uniq = pd.unique(
+            pd.Series(list(values) if not isinstance(values, pd.Series) else values, dtype=object)
+        )
         self._extend(_to_python(v) for v in uniq if not _is_na(v))
         if not self._ordered:
             self._levels = _sorted_levels(self._levels)
@@ -280,7 +274,7 @@ class ScaleDiscrete(Scale):
         return out
 
     # -- plumbing ----------------------------------------------------------
-    def clone(self) -> "ScaleDiscrete":
+    def clone(self) -> ScaleDiscrete:
         """An untrained copy with the same configuration."""
         new = copy.copy(self)
         new.reset()
@@ -290,7 +284,9 @@ class ScaleDiscrete(Scale):
         return plot._with_scale(self)
 
     def __repr__(self) -> str:
-        return f"{type(self).__name__}(aesthetics={self.aesthetics!r}, levels={self.get_limits()!r})"
+        return (
+            f"{type(self).__name__}(aesthetics={self.aesthetics!r}, levels={self.get_limits()!r})"
+        )
 
 
 class ScaleDiscreteManual(ScaleDiscrete):
@@ -298,11 +294,11 @@ class ScaleDiscreteManual(ScaleDiscrete):
 
     def __init__(self, aesthetics, values: Mapping[Any, Any] | Sequence[Any], **kwargs):
         if isinstance(values, Mapping):
-            self.values: Mapping[Any, Any] | list[Any] = dict(values)
+            self.values: dict[Any, Any] | list[Any] = dict(values)
         else:
             self.values = list(values)
         super().__init__(aesthetics, palette=None, **kwargs)
-        self.palette = self.values
+        self.palette = self.values  # type: ignore[assignment]  # dict palettes handled in _palette_for
 
     def _palette_for(self, levels: list[Any]) -> list[Any]:
         if isinstance(self.values, dict):
@@ -360,13 +356,17 @@ def _alias(fn: Callable, name: str) -> Callable:
 
 
 @register
-def scale_color_discrete(palette: Palette | str | None = None, *, aesthetics="color", **kwargs) -> ScaleDiscrete:
+def scale_color_discrete(
+    palette: Palette | str | None = None, *, aesthetics="color", **kwargs
+) -> ScaleDiscrete:
     """Discrete colour scale. ``palette``: name, list, or callable ``n -> colours`` (default hue)."""
     return ScaleDiscrete(aesthetics, palette=palette, **kwargs)
 
 
 @register
-def scale_fill_discrete(palette: Palette | str | None = None, *, aesthetics="fill", **kwargs) -> ScaleDiscrete:
+def scale_fill_discrete(
+    palette: Palette | str | None = None, *, aesthetics="fill", **kwargs
+) -> ScaleDiscrete:
     """Discrete fill scale. ``palette``: name, list, or callable ``n -> colours`` (default hue)."""
     return ScaleDiscrete(aesthetics, palette=palette, **kwargs)
 

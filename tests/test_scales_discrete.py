@@ -24,7 +24,6 @@ from ggmanim.scales.discrete import (
     scale_fill_manual,
 )
 
-
 # -- levels ------------------------------------------------------------------
 
 

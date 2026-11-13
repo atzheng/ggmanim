@@ -37,8 +37,16 @@ from ggmanim.scales.discrete import ScaleDiscrete
 from ggmanim.stats import StatFunction, StatIdentity, StatSmooth, add_group
 from ggmanim.theme import theme_default
 
-GEOMS = ["geom_point", "geom_line", "geom_col", "geom_bar", "geom_vline", "geom_hline",
-         "geom_function", "geom_smooth"]
+GEOMS = [
+    "geom_point",
+    "geom_line",
+    "geom_col",
+    "geom_bar",
+    "geom_vline",
+    "geom_hline",
+    "geom_function",
+    "geom_smooth",
+]
 
 
 def _panel(x, y, xs=scale_x_continuous, ys=scale_y_continuous):
@@ -66,19 +74,27 @@ def test_registered(name):
 
 def test_constructors_return_layers_and_chain():
     df = pd.DataFrame({"a": [1, 2, 3], "b": [3, 1, 2]})
-    p = (ggplot(df, aes("a", "b"))
-         .geom_point(color=RED, name="pts")
-         .geom_line()
-         .geom_col(width=0.5)
-         .geom_vline(xintercept=2)
-         .geom_function(np.sin)
-         .geom_smooth(se=False))
+    p = (
+        ggplot(df, aes("a", "b"))
+        .geom_point(color=RED, name="pts")
+        .geom_line()
+        .geom_col(width=0.5)
+        .geom_vline(xintercept=2)
+        .geom_function(np.sin)
+        .geom_smooth(se=False)
+    )
     assert all(isinstance(lyr, Layer) for lyr in p.layers)
     kinds = [type(lyr.geom) for lyr in p.layers]
     assert kinds == [GeomPoint, GeomLine, GeomCol, GeomVline, GeomFunction, GeomSmooth]
     stats = [type(lyr.stat) for lyr in p.layers]
-    assert stats == [StatIdentity, StatIdentity, StatIdentity, StatIdentity, StatFunction,
-                     StatSmooth]
+    assert stats == [
+        StatIdentity,
+        StatIdentity,
+        StatIdentity,
+        StatIdentity,
+        StatFunction,
+        StatSmooth,
+    ]
     assert p.layer("pts").params == {"color": RED}
     assert p.layers[5].stat.params["se"] is False and p.layers[5].params["se"] is False
     assert p.layers[4].stat.params["fun"] is np.sin and not p.layers[4].inherit_aes
@@ -147,14 +163,16 @@ def test_point_centres_equal_transform_log_x():
 def test_point_mapped_colours_and_constant_override():
     cs = ScaleDiscrete("color", palette=[RED, BLUE])
     cs.train(pd.Series(["a", "b", "a"]))
-    data = pd.DataFrame({"x": [0.0, 1.0, 2.0], "y": [0.0, 1.0, 2.0],
-                         "color": cs.map(pd.Series(["a", "b", "a"]))})
+    data = pd.DataFrame(
+        {"x": [0.0, 1.0, 2.0], "y": [0.0, 1.0, 2.0], "color": cs.map(pd.Series(["a", "b", "a"]))}
+    )
     _, _, panel = _panel([0, 2], [0, 2])
     dots = GeomPoint().draw_panel(data, panel.panel_params, panel)
     cols = [d.get_fill_color().to_hex().upper() for d in dots]
     assert cols == [RED.to_hex().upper(), BLUE.to_hex().upper(), RED.to_hex().upper()]
-    dots = GeomPoint().draw_panel(data, panel.panel_params, panel, color="#00FF00", size=0.2,
-                                  alpha=0.5)
+    dots = GeomPoint().draw_panel(
+        data, panel.panel_params, panel, color="#00FF00", size=0.2, alpha=0.5
+    )
     assert {d.get_fill_color().to_hex().upper() for d in dots} == {"#00FF00"}
     assert all(np.isclose(d.width, 0.4) for d in dots)
     assert all(np.isclose(d.get_fill_opacity(), 0.5) for d in dots)
@@ -173,12 +191,14 @@ def test_point_drops_censored_rows_and_default_foreground():
 
 
 def test_line_vertices_sorted_by_x_per_group():
-    data = pd.DataFrame({
-        "x": [3.0, 1.0, 2.0, 0.0, 5.0, 4.0, 1.0],
-        "y": [1.0, 2.0, 0.0, 3.0, 1.0, 2.0, 0.5],
-        "group": [1, 1, 1, 1, 2, 2, 2],
-        "color": [RED] * 4 + [BLUE] * 3,
-    })
+    data = pd.DataFrame(
+        {
+            "x": [3.0, 1.0, 2.0, 0.0, 5.0, 4.0, 1.0],
+            "y": [1.0, 2.0, 0.0, 3.0, 1.0, 2.0, 0.5],
+            "group": [1, 1, 1, 1, 2, 2, 2],
+            "color": [RED] * 4 + [BLUE] * 3,
+        }
+    )
     _, _, panel = _panel(data.x, data.y)
     out = GeomLine().draw_panel(data, panel.panel_params, panel)
     assert len(out) == 2 and len(out.marks) == 2 and len(out.labels) == 0
@@ -192,8 +212,14 @@ def test_line_vertices_sorted_by_x_per_group():
 
 
 def test_line_label_at_each_group_end_in_group_colour():
-    data = pd.DataFrame({"x": [0.0, 1.0, 0.0, 2.0], "y": [0.0, 1.0, 2.0, 3.0],
-                         "group": [1, 1, 2, 2], "color": [RED, RED, BLUE, BLUE]})
+    data = pd.DataFrame(
+        {
+            "x": [0.0, 1.0, 0.0, 2.0],
+            "y": [0.0, 1.0, 2.0, 3.0],
+            "group": [1, 1, 2, 2],
+            "color": [RED, RED, BLUE, BLUE],
+        }
+    )
     _, _, panel = _panel(data.x, data.y)
     out = GeomLine().draw_panel(data, panel.panel_params, panel, label=["a", "b"])
     assert len(out.labels) == 2 and len(out) == 4
@@ -226,8 +252,9 @@ def _col_panel(x_data, y, xs):
     return data, panel
 
 
-@pytest.mark.parametrize("xs,x", [(scale_x_continuous, [1.0, 2.0, 4.0]),
-                                  (scale_x_log10, [1.0, 10.0, 100.0])])
+@pytest.mark.parametrize(
+    "xs,x", [(scale_x_continuous, [1.0, 2.0, 4.0]), (scale_x_log10, [1.0, 10.0, 100.0])]
+)
 def test_col_rectangles_width_height(xs, x):
     y = [2.0, 5.0, 3.0]
     data, panel = _col_panel(x, y, xs)
@@ -265,8 +292,9 @@ def test_col_width_param_negative_values_and_clipping():
 
 def test_col_draws_without_setup_data():
     _, _, panel = _panel([0, 3], [0, 3])
-    bars = GeomCol().draw_panel(pd.DataFrame({"x": [1.0, 2.0], "y": [1.0, 2.0]}),
-                                panel.panel_params, panel)
+    bars = GeomCol().draw_panel(
+        pd.DataFrame({"x": [1.0, 2.0], "y": [1.0, 2.0]}), panel.panel_params, panel
+    )
     assert len(bars) == 2
 
 
@@ -276,8 +304,9 @@ def test_col_draws_without_setup_data():
 def test_vline_hline_span_panel_and_constant_colour():
     _, _, panel = _panel([0, 10], [-5, 5])
     pp = panel.panel_params
-    v = GeomVline().draw_panel(pd.DataFrame({"xintercept": [2.0, 7.0]}), pp, panel,
-                               color=RED, label="v")
+    v = GeomVline().draw_panel(
+        pd.DataFrame({"xintercept": [2.0, 7.0]}), pp, panel, color=RED, label="v"
+    )
     assert len(v.marks) == 2 and len(v.labels) == 2
     for line, xi in zip(v.marks, (2.0, 7.0)):
         np.testing.assert_allclose(line.get_start(), panel.transform(xi, pp.y_range[0])[0])
@@ -297,16 +326,16 @@ def test_function_one_vmobject_per_group_with_label():
     sx, sy, _ = _panel([0, 2], [0, 4])
     df = GeomFunction().default_stat  # "function"
     assert df == "function"
-    layer = geom_function(lambda x: x ** 2, color=RED, label="f")
-    out = layer.stat.compute_layer(add_group(pd.DataFrame(index=[0])), {"x": sx, "y": sy},
-                                   **layer.stat.params)
+    layer = geom_function(lambda x: x**2, color=RED, label="f")
+    out = layer.stat.compute_layer(
+        add_group(pd.DataFrame(index=[0])), {"x": sx, "y": sy}, **layer.stat.params
+    )
     panel = CoordCartesian().build(sx, sy, theme_default())
     mob = layer.geom.draw_panel(out, panel.panel_params, panel, **layer.params)
     assert len(mob.marks) == 1 and len(mob.labels) == 1
     assert len(_vertices(mob.marks[0])) == 101
     assert _color(mob.marks[0]) == RED.to_hex().upper()
-    np.testing.assert_allclose(_vertices(mob.marks[0])[-1], panel.transform(2.0, 4.0)[0],
-                               atol=1e-9)
+    np.testing.assert_allclose(_vertices(mob.marks[0])[-1], panel.transform(2.0, 4.0)[0], atol=1e-9)
 
 
 @pytest.mark.parametrize("se", [True, False])
@@ -344,17 +373,24 @@ def test_smooth_one_mobject_per_group(se):
 # -- legend keys --------------------------------------------------------------------
 
 
-@pytest.mark.parametrize("geom", [GeomPoint(), GeomLine(), GeomCol(), GeomVline(),
-                                  GeomHline(), GeomFunction(), GeomSmooth()])
+@pytest.mark.parametrize(
+    "geom",
+    [GeomPoint(), GeomLine(), GeomCol(), GeomVline(), GeomHline(), GeomFunction(), GeomSmooth()],
+)
 def test_draw_key(geom):
     key = geom.draw_key({"color": RED}, theme_default())
     assert isinstance(key, VMobject)
     assert max(key.width, key.height) <= KEY_SIZE + 1e-9
     np.testing.assert_allclose(key.get_center(), 0, atol=1e-9)
-    hexes = {m.get_stroke_color().to_hex().upper() for m in key.family_members_with_points()
-             if m.get_stroke_width() > 0} | {
-        m.get_fill_color().to_hex().upper() for m in key.family_members_with_points()
-        if m.get_fill_opacity() > 0}
+    hexes = {
+        m.get_stroke_color().to_hex().upper()
+        for m in key.family_members_with_points()
+        if m.get_stroke_width() > 0
+    } | {
+        m.get_fill_color().to_hex().upper()
+        for m in key.family_members_with_points()
+        if m.get_fill_opacity() > 0
+    }
     if isinstance(geom, GeomCol):
         assert "#595959" in hexes  # default grey fill; color is the outline
     else:
@@ -398,22 +434,26 @@ def _mini_build(plot):
             for c in cols:
                 scale[ax].train_transformed(df[c])
     panel = CoordCartesian().build(sx, sy, theme_default())
-    mobs = [layer.geom.draw_panel(df, panel.panel_params, panel, **layer.params)
-            for layer, df in zip(plot.layers, out)]
+    mobs = [
+        layer.geom.draw_panel(df, panel.panel_params, panel, **layer.params)
+        for layer, df in zip(plot.layers, out)
+    ]
     return panel, mobs
 
 
 def test_mixed_function_vline_and_data_layers_auto_limits():
     df = pd.DataFrame({"a": [0.0, 2.0, 4.0], "b": [1.0, 3.0, 2.0]})
-    p = (ggplot(df, aes("a", "b"))
-         .geom_point()
-         .geom_function(lambda x: x ** 2)
-         .geom_vline(xintercept=6)
-         .geom_hline(yintercept=-1))
+    p = (
+        ggplot(df, aes("a", "b"))
+        .geom_point()
+        .geom_function(lambda x: x**2)
+        .geom_vline(xintercept=6)
+        .geom_hline(yintercept=-1)
+    )
     panel, mobs = _mini_build(p)
     (x0, x1), (y0, y1) = panel.panel_params.x_range, panel.panel_params.y_range
-    assert x0 < 0 and x1 > 6           # data + vline intercept
-    assert y0 < -1 and y1 > 36         # hline + function evaluated over x in [0, 6]
+    assert x0 < 0 and x1 > 6  # data + vline intercept
+    assert y0 < -1 and y1 > 36  # hline + function evaluated over x in [0, 6]
     assert [len(m) for m in mobs] == [3, 1, 1, 1]
     # the function spans the x range trained by the other layers
     v = _vertices(mobs[1][0])
@@ -428,8 +468,9 @@ def test_geom_base_draw_panel_requires_aes():
 
 
 def test_groups_inferred_from_mapped_colours_when_group_missing():
-    data = pd.DataFrame({"x": [0.0, 1.0, 0.0, 1.0], "y": [0.0, 1.0, 1.0, 0.0],
-                         "color": [RED, RED, BLUE, BLUE]})
+    data = pd.DataFrame(
+        {"x": [0.0, 1.0, 0.0, 1.0], "y": [0.0, 1.0, 1.0, 0.0], "color": [RED, RED, BLUE, BLUE]}
+    )
     _, _, panel = _panel(data.x, data.y)
     out = GeomLine().draw_panel(data, panel.panel_params, panel)
     assert len(out) == 2
