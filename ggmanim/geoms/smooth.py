@@ -9,6 +9,7 @@ from ..registry import register
 from ..theme import Theme, theme_default
 from ._clip import clip_polygon, panel_rect
 from ._linetype import apply_linetype
+from ._segments import segmented_path, varies_within
 from .base import (
     KEY_SIZE,
     assemble,
@@ -35,7 +36,8 @@ class GeomSmooth(GeomLine):
     true and the data has ``ymin``/``ymax``, ``VGroup(ribbon, line)`` with the
     ribbon (``Polygon``) filled with ``fill`` at opacity ``alpha`` behind the line.
     ``alpha`` applies to the ribbon only (as in ggplot2). ``ymin``/``ymax`` train
-    the y scale.
+    the y scale. When ``color``/``linewidth`` vary along a group (e.g. mapped with
+    ``after_stat``), the line is drawn per segment like :class:`GeomPath`.
     """
 
     default_stat = "smooth"
@@ -60,10 +62,17 @@ class GeomSmooth(GeomLine):
             gdf = gdf.sort_values("x", kind="stable")
             x = gdf["x"].to_numpy(float)
             pieces = clipped_path_points(coord, panel_params, x, gdf["y"].to_numpy(float))
-            color = resolve_color(first(gdf, "color"), fg)
-            # clip first, then dash each visible subpath
-            line = multi_path_mobject(pieces, color, num(first(gdf, "linewidth"), 3.0), 1.0)
-            line = apply_linetype(line, first(gdf, "linetype"))
+            color = label_color = resolve_color(first(gdf, "color"), fg)
+            line: VMobject
+            if varies_within(gdf, ("color", "linewidth")):
+                # per-segment fit line (alpha is the ribbon's, the line stays opaque)
+                line = segmented_path(coord, panel_params, gdf.assign(alpha=1.0), fg)
+                if len(line):
+                    label_color = line[-1].get_stroke_color()
+            else:
+                # clip first, then dash each visible subpath
+                line = multi_path_mobject(pieces, color, num(first(gdf, "linewidth"), 3.0), 1.0)
+                line = apply_linetype(line, first(gdf, "linetype"))
             mob = line
             if se and {"ymin", "ymax"} <= set(gdf.columns):
                 ymin = gdf["ymin"].to_numpy(float)
@@ -83,7 +92,7 @@ class GeomSmooth(GeomLine):
                     ribbon.set_stroke(width=0, opacity=0)
                     mob = VGroup(ribbon, line)
             groups.add(mob)
-            lab = make_label(theme, group_label(label, i, gid), color)
+            lab = make_label(theme, group_label(label, i, gid), label_color)
             if lab is not None and pieces:
                 labels.add(lab.next_to(pieces[-1][-1], RIGHT, buff=0.1))
         return assemble(groups, labels)

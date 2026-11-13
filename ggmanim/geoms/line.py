@@ -1,4 +1,5 @@
-"""geom_line: connect observations in order of x, one path per group."""
+"""geom_path / geom_line: connect observations (in data order / in order of x),
+one path per group."""
 
 from __future__ import annotations
 
@@ -23,7 +24,7 @@ from .base import (
     resolve_color,
 )
 
-__all__ = ["GeomPath", "GeomLine", "geom_line"]
+__all__ = ["GeomPath", "GeomLine", "geom_path", "geom_line"]
 
 
 class GeomPath(Geom):
@@ -34,9 +35,10 @@ class GeomPath(Geom):
     group; a ``VGroup`` of dashes for a non-solid ``linetype``, see
     :func:`~ggmanim.geoms._linetype.apply_linetype`; when colour, linewidth or
     alpha vary within the group, a ``VGroup`` of per-segment strokes, see
-    :func:`~ggmanim.geoms._segments.segmented_path`), then — when ``label=`` is given — one label per group placed right
-    of the group's last point in the group's colour. ``.marks`` holds the paths
-    and ``.labels`` the labels.
+    :func:`~ggmanim.geoms._segments.segmented_path`), then — when ``label=`` is
+    given — one label per group placed right of the group's last visible point
+    in the group's colour (for a per-segment group, the colour of its last
+    visible segment). ``.marks`` holds the paths and ``.labels`` the labels.
     """
 
     required_aes = ("x", "y")
@@ -60,7 +62,10 @@ class GeomPath(Geom):
             )
             color = resolve_color(first(gdf, "color"), fg)
             if varies_within(gdf):  # ggplot: one segment per vertex pair, styled by its start
-                paths.add(segmented_path(coord, panel_params, gdf, fg))
+                segs = segmented_path(coord, panel_params, gdf, fg)
+                if len(segs):  # label in the colour of the last visible segment
+                    color = segs[-1].get_stroke_color()
+                paths.add(segs)
             else:
                 # clip first, then dash each visible subpath
                 path = multi_path_mobject(
@@ -89,6 +94,35 @@ class GeomLine(GeomPath):
     """Like :class:`GeomPath` but each group is sorted by x first."""
 
     sort_by_x = True
+
+
+@register
+def geom_path(
+    mapping=None,
+    data=None,
+    *,
+    stat="identity",
+    position="identity",
+    inherit_aes: bool = True,
+    name: str | None = None,
+    **params,
+):
+    """Paths connecting observations in the order they appear in the data, one
+    per group (unlike :func:`geom_line`, which sorts each group by x first).
+
+    ``label=`` (str or Mobject for every group, a list in group order, or a dict
+    group id -> label) is drawn at each group's last point in the group's colour.
+    """
+    return make_layer(
+        GeomPath(),
+        mapping,
+        data,
+        stat=stat,
+        position=position,
+        inherit_aes=inherit_aes,
+        name=name,
+        params=params,
+    )
 
 
 @register
