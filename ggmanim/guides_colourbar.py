@@ -22,7 +22,7 @@ import numpy as np
 from manim import LEFT, UP, Line, Mobject, Rectangle, VGroup
 
 from .geoms.base import KEY_SIZE
-from .guides_legend import legend_frame
+from .guides_legend import legend_frame, place_legend_title
 from .labels import render_label
 from .theme import Theme, theme_default
 
@@ -247,6 +247,9 @@ class Colourbar(VGroup):
             t.set_stroke(color="#FFFFFF", width=1.5)
         self.ticks = VGroup(*ticks)
 
+        # vertical bars: labels justified in their column by legend_text_hjust
+        hjust = self.theme.legend_text_hjust_value()
+        label_w = max((lab.width for lab in self.labels), default=0.0)
         for b, lab in zip(self.breaks, self.labels):
             p = self._fraction(b) * length
             if horizontal:
@@ -254,14 +257,12 @@ class Colourbar(VGroup):
                 lab.align_to((0.0, -thick / 2 - _LABEL_BUFF, 0.0), UP)
             else:
                 lab.move_to((0.0, p, 0.0))
-                lab.align_to((thick / 2 + _LABEL_BUFF, 0.0, 0.0), LEFT)
+                x = thick / 2 + _LABEL_BUFF + hjust * (label_w - lab.width)
+                lab.align_to((x, 0.0, 0.0), LEFT)
 
         if self.title is not None:
-            self.title.next_to(self.bar, UP, buff=_TITLE_BUFF, aligned_edge=LEFT)
             content = VGroup(self.bar, *self.labels)  # type: ignore[arg-type]
-            align = float(getattr(self.theme, "legend_title_align", 0.0))
-            left = content.get_left()[0] + align * (content.width - self.title.width)
-            self.title.set_x(left, direction=LEFT)
+            place_legend_title(self.title, content, self.theme, _TITLE_BUFF)
 
         parts: list[Any] = [self.title] if self.title is not None else []
         parts += [self.bar, self.ticks, *self.labels]

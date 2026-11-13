@@ -7,7 +7,9 @@
 :mod:`ggmanim.guides`.
 
 :func:`legend_frame` builds the optional background / border rectangle drawn
-behind a legend or colourbar (``theme(legend_background=..., legend_border=True)``).
+behind a legend or colourbar (``theme(legend_background=..., legend_border=True)``);
+:func:`place_legend_title` puts a legend's or colourbar's title beside its body
+(``theme(legend_title_position=..., legend_title_hjust=...)``).
 """
 
 from __future__ import annotations
@@ -15,12 +17,18 @@ from __future__ import annotations
 from collections.abc import Mapping
 from typing import Any
 
-from manim import Mobject, SurroundingRectangle
+from manim import DOWN, LEFT, RIGHT, UP, Mobject, SurroundingRectangle
 
 from .aes import standardise_aes_name
 from .theme import Theme
 
-__all__ = ["GuideLegend", "guide_legend", "is_legend_spec", "legend_frame"]
+__all__ = [
+    "GuideLegend",
+    "guide_legend",
+    "is_legend_spec",
+    "legend_frame",
+    "place_legend_title",
+]
 
 _DIRECTIONS = (None, "horizontal", "vertical")
 
@@ -157,3 +165,23 @@ def legend_frame(content: Mobject, theme: Theme) -> Mobject | None:
     else:
         rect.set_stroke(width=0, opacity=0)
     return rect
+
+
+_TITLE_SIDES = {"top": UP, "bottom": DOWN, "left": LEFT, "right": RIGHT}
+
+
+def place_legend_title(title: Mobject, body: Mobject, theme: Theme, buff: float) -> Mobject:
+    """Put ``title`` ``buff`` away from ``body`` on the side given by
+    ``theme.legend_title_position`` (default ``"top"``). Above or below, it is
+    justified horizontally over the body by ``theme.legend_title_hjust`` (else
+    ``legend_title_align``; 0 = left edges aligned); left or right, it is centred
+    vertically on the body."""
+    position = getattr(theme, "legend_title_position", "top") or "top"
+    title.next_to(body, _TITLE_SIDES[position], buff=buff)
+    if position in ("left", "right"):
+        title.set_y(body.get_center()[1])
+    else:
+        hjust = theme.legend_title_hjust_value()
+        left = body.get_left()[0] + hjust * (body.width - title.width)
+        title.set_x(left, direction=LEFT)
+    return title

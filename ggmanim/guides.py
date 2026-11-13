@@ -57,7 +57,13 @@ from .guides_coloursteps import (
     guide_coloursteps,
     is_coloursteps_spec,
 )
-from .guides_legend import GuideLegend, guide_legend, is_legend_spec, legend_frame
+from .guides_legend import (
+    GuideLegend,
+    guide_legend,
+    is_legend_spec,
+    legend_frame,
+    place_legend_title,
+)
 from .labels import render_label
 from .registry import register
 from .theme import Theme, theme_default
@@ -151,41 +157,54 @@ class Legend(VGroup):
         super().__init__()
         self.arrange_rows(direction)
 
-    def arrange_rows(self, direction: str = "vertical") -> Legend:
+    def arrange_rows(self, direction: str = "vertical", nrow: int | None = None) -> Legend:
         """Lay out the keys in a grid (``guide_legend(nrow=, ncol=, byrow=)``;
         default one column for ``"vertical"``, one row for ``"horizontal"``), the
-        title above aligned by ``theme.legend_title_align``, and the optional
-        background / border behind."""
+        title beside them (``theme.legend_title_position``, see
+        :func:`~ggmanim.guides_legend.place_legend_title`), and the optional
+        background / border behind.
+
+        ``nrow`` wraps a legend whose guide fixes neither ``nrow`` nor ``ncol``
+        onto that many rows, filled row by row (used by :func:`place_legends`
+        for horizontal legends wider than the space available); it is ignored
+        when the guide fixes the grid."""
         self.direction = "horizontal" if direction == "horizontal" else "vertical"
         theme = self.theme
         n = len(self.rows)
-        nrow, ncol = self.options.grid(n, self.direction)
+        opts = self.options
+        byrow = opts.byrow
+        if nrow is not None and opts.nrow is None and opts.ncol is None:
+            nrow = max(1, min(int(nrow), max(n, 1)))
+            ncol = -(-max(n, 1) // nrow)
+            byrow = True
+        else:
+            nrow, ncol = opts.grid(n, self.direction)
         self.nrow, self.ncol = nrow, ncol
-        cells = [divmod(i, ncol) if self.options.byrow else divmod(i, nrow)[::-1] for i in range(n)]
+        cells = [divmod(i, ncol) if byrow else divmod(i, nrow)[::-1] for i in range(n)]
         key_size = float(getattr(theme, "legend_key_size", KEY_SIZE * 1.2))
         # uniform key cells; they grow for big keys (e.g. scale_size_area(max_size=...))
         key_w = max([key_size] + [k.width for k in self.keys])
         key_h = max([key_size] + [k.height for k in self.keys])
         col_w = [key_w] * ncol
         row_h = [key_h] * nrow
+        label_w = [0.0] * ncol
         for (r, c), label in zip(cells, self.labels):
             col_w[c] = max(col_w[c], key_w + _KEY_LABEL_BUFF + label.width)
+            label_w[c] = max(label_w[c], label.width)
             row_h[r] = max(row_h[r], label.height)
+        hjust = theme.legend_text_hjust_value()
         col_x = [sum(col_w[:c]) + c * _COL_GAP for c in range(ncol)]
         row_y = [-(sum(row_h[:r]) + r * _ROW_GAP) for r in range(nrow)]
         for (r, c), key, label in zip(cells, self.keys, self.labels):
             x, y = col_x[c], row_y[r] - row_h[r] / 2
             key.move_to((x + key_w / 2, y, 0.0))
             label.move_to((0.0, y, 0.0))
-            label.align_to((x + key_w + _KEY_LABEL_BUFF, 0.0, 0.0), LEFT)
+            offset = hjust * (label_w[c] - label.width)
+            label.align_to((x + key_w + _KEY_LABEL_BUFF + offset, 0.0, 0.0), LEFT)
         parts: list[Any] = list(self.rows)
         if self.title is not None:
             if self.rows:
-                rows = VGroup(*self.rows)
-                self.title.next_to(rows, UP, buff=_TITLE_BUFF)
-                align = float(getattr(theme, "legend_title_align", 0.0))
-                left = rows.get_left()[0] + align * (rows.width - self.title.width)
-                self.title.set_x(left, direction=LEFT)
+                place_legend_title(self.title, VGroup(*self.rows), theme, _TITLE_BUFF)
             parts.insert(0, self.title)
         self.box = legend_frame(VGroup(*parts), theme) if parts else None
         if self.box is not None:
@@ -506,7 +525,12 @@ def place_legends(
     ``theme.legend_direction``, else horizontal for ``"top"``/``"bottom"``
     positions and vertical otherwise. Several legends are stacked per
     ``theme.legend_box`` (default: side by side for top/bottom, else one above
-    the other) with ``theme.legend_spacing`` between them.
+    the other) with ``theme.legend_spacing`` between them, lined up by
+    ``theme.legend_box_just``. Horizontal key legends whose guide fixes neither
+    ``nrow`` nor ``ncol`` wrap onto more rows (filled row by row) while wider
+    than the panel (top/bottom) or its plotting area (inside); if several
+    legends still do not fit side by side and ``theme.legend_box`` is unset,
+    they are stacked vertically instead.
 
     ``theme.legend_position`` ``"right"``/``"left"``/``"top"``/``"bottom"``: the
     box goes ``theme.legend_box_spacing`` outside that side of the panel, aligned
@@ -527,13 +551,23 @@ def place_legends(
     for leg in legends:
         own = getattr(getattr(leg, "options", None), "direction", None)
         leg.arrange_rows(own or default_dir)
+    available = _available_width(panel_mobject, position)
+    if available is not None:
+        for leg in legends:
+            _wrap_legend(leg, available)
     box = getattr(theme, "legend_box", None) or ("horizontal" if side_horizontal else "vertical")
     spacing = float(getattr(theme, "legend_spacing", _LEGEND_SPACING))
     group = VGroup(*legends)
-    if box == "horizontal":
-        group.arrange(RIGHT, buff=spacing, aligned_edge=UP)
-    else:
-        group.arrange(DOWN, buff=spacing, aligned_edge=LEFT)
+    _stack_legends(group, box, spacing, theme)
+    if (
+        available is not None
+        and box == "horizontal"
+        and getattr(theme, "legend_box", None) is None
+        and len(legends) > 1
+        and group.width > available + 1e-9
+    ):
+        box = "vertical"  # side by side does not fit: stack them
+        _stack_legends(group, box, spacing, theme)
     jx, jy = theme.legend_just() if hasattr(theme, "legend_just") else (0.5, 0.5)
     if isinstance(position, tuple):
         area = getattr(panel_mobject, "axes", panel_mobject)
@@ -553,6 +587,48 @@ def place_legends(
     else:
         group.shift((0.0, (py0 + jy * (py1 - py0)) - (gy0 + jy * group.height), 0.0))
     return group
+
+
+def _available_width(panel_mobject: Mobject, position: Any) -> float | None:
+    """Width horizontal legends must fit in: the panel's for top/bottom legends,
+    its plotting area's for inside ones; ``None`` (no wrapping) at the sides."""
+    if isinstance(position, tuple):
+        return float(getattr(panel_mobject, "axes", panel_mobject).width)
+    if position in ("top", "bottom"):
+        return float(panel_mobject.width)
+    return None
+
+
+def _wrap_legend(leg: Any, available: float) -> None:
+    """Re-lay a horizontal key legend on more rows until it fits ``available``
+    (unless its guide fixes ``nrow``/``ncol``); colourbars are left alone."""
+    if not isinstance(leg, Legend) or leg.direction != "horizontal":
+        return
+    if leg.options.nrow is not None or leg.options.ncol is not None:
+        return
+    n = len(leg.rows)
+    nrow = leg.nrow
+    while leg.width > available + 1e-9 and nrow < n:
+        nrow += 1
+        leg.arrange_rows("horizontal", nrow=nrow)
+
+
+def _stack_legends(group: VGroup, box: str, spacing: float, theme: Theme) -> None:
+    """Stack the legends in ``group`` side by side (``box="horizontal"``) or one
+    above the other, lined up across the stack by ``theme.legend_box_just``."""
+    if box == "horizontal":
+        group.arrange(RIGHT, buff=spacing)
+    else:
+        group.arrange(DOWN, buff=spacing)
+    j = theme.legend_box_justification(box)
+    if box == "horizontal":
+        y0, h = group.get_bottom()[1], group.height
+        for leg in group:
+            leg.shift((0.0, y0 + j * (h - leg.height) - leg.get_bottom()[1], 0.0))
+    else:
+        x0, w = group.get_left()[0], group.width
+        for leg in group:
+            leg.shift((x0 + j * (w - leg.width) - leg.get_left()[0], 0.0, 0.0))
 
 
 # ---------------------------------------------------------------------------

@@ -75,6 +75,7 @@ _TEXT_ELEMENTS = {
     "legend_title": ("legend_title_size", "legend_title_color", "legend_title_font"),
 }
 _LEGEND_DIRECTIONS = (None, "horizontal", "vertical")
+_LEGEND_TITLE_POSITIONS = ("top", "left", "bottom", "right")
 _LEGEND_JUST = {
     "center": (0.5, 0.5),
     "centre": (0.5, 0.5),
@@ -110,6 +111,8 @@ _UNIT_FIELDS = (
     "axis_text_y_vjust",
     "legend_title_align",
     "legend_background_opacity",
+    "legend_text_hjust",
+    "legend_title_hjust",
 )
 # ggplot grey levels used by the complete themes
 _GREY20, _GREY30, _GREY42, _GREY50 = "#333333", "#4D4D4D", "#6B6B6B", "#7F7F7F"
@@ -207,7 +210,24 @@ class Theme:
         ``2.5 * KEY_SIZE`` in legends that show ``linetype``).
         ``legend_spacing``: gap between legends; ``legend_box_spacing``: gap
         between legends and the panel. ``legend_title_align``: title alignment
-        over the keys in ``[0, 1]`` (0 = left). ``legend_background``: fill colour
+        over the keys in ``[0, 1]`` (0 = left). ``legend_title_position``: where
+        the title goes relative to the keys / bar, ``"top"`` (default),
+        ``"left"``, ``"bottom"`` or ``"right"`` (left/right titles are centred
+        vertically). ``legend_title_hjust``: horizontal justification of the
+        title in ``[0, 1]``, both its placement (overriding
+        ``legend_title_align``) and the line alignment of a multi-line title
+        (``None``: ``legend_title_align``). ``legend_text_hjust``: justification
+        of the key labels within their column and of the lines of multi-line
+        labels (``None`` = 0, left). ``legend_box_just``: how legends of
+        different sizes line up when several are stacked, ``"left"``,
+        ``"right"``, ``"top"``, ``"bottom"``, ``"center"`` or an ``(x, y)`` tuple;
+        only the component across the stacking direction is used (``None``:
+        left for a vertical ``legend_box``, top for a horizontal one).
+        Horizontal legends without a fixed ``nrow``/``ncol`` wrap onto more rows
+        (filled row by row) when wider than the space available (the panel's
+        width for top/bottom legends, the plotting area inside the panel), and
+        several such legends then stack vertically unless ``legend_box`` is set.
+        ``legend_background``: fill colour
         behind each legend (``None`` = none) with ``legend_background_opacity``;
         ``legend_border``: draw a frame round each legend in
         ``legend_border_color`` (``None`` = foreground) with
@@ -294,6 +314,10 @@ class Theme:
     legend_spacing: float = 0.4
     legend_box_spacing: float = 0.4
     legend_title_align: float = 0.0
+    legend_title_position: str = "top"
+    legend_title_hjust: float | None = None
+    legend_text_hjust: float | None = None
+    legend_box_just: Any = None
     legend_background: Any | None = None
     legend_background_opacity: float = 1.0
     legend_border: bool = False
@@ -347,6 +371,14 @@ class Theme:
         just = self.legend_justification
         if just is not None and not (isinstance(just, str) and just in _LEGEND_JUST):
             object.__setattr__(self, "legend_justification", _xy(just, "legend_justification"))
+        just = self.legend_box_just
+        if just is not None and not (isinstance(just, str) and just in _LEGEND_JUST):
+            object.__setattr__(self, "legend_box_just", _xy(just, "legend_box_just"))
+        if self.legend_title_position not in _LEGEND_TITLE_POSITIONS:
+            raise ValueError(
+                f"legend_title_position must be one of {_LEGEND_TITLE_POSITIONS}, "
+                f"got {self.legend_title_position!r}"
+            )
         for name in ("legend_direction", "legend_box"):
             if getattr(self, name) not in _LEGEND_DIRECTIONS:
                 raise ValueError(
@@ -390,14 +422,45 @@ class Theme:
         return ManimColor(value) if value is not None else self.get_foreground()
 
     def text_style(self, element: str) -> dict[str, Any]:
-        """``{"font_size", "color"[, "font"]}`` for a text element: ``"axis_text"``,
-        ``"axis_title"``, ``"title"``, ``"subtitle"`` or ``"caption"``."""
+        """``{"font_size", "color"[, "font"][, "align"]}`` for a text element:
+        ``"axis_text"``, ``"axis_title"``, ``"title"``, ``"subtitle"``,
+        ``"caption"``, ``"legend_text"`` or ``"legend_title"``. Axis titles and the
+        legend elements carry the multi-line ``align`` for :meth:`make_text`
+        (axis titles centred; legends from :meth:`legend_text_hjust_value` /
+        :meth:`legend_title_hjust_value`)."""
         size, color, font = _TEXT_ELEMENTS[element]
         style: dict[str, Any] = {"font_size": getattr(self, size), "color": self.color_of(color)}
         family = getattr(self, font)
         if family is not None:
             style["font"] = family
+        if element == "axis_title":
+            style["align"] = "center"
+        elif element == "legend_text":
+            style["align"] = hjust_align(self.legend_text_hjust_value())
+        elif element == "legend_title":
+            style["align"] = hjust_align(self.legend_title_hjust_value())
         return style
+
+    def legend_text_hjust_value(self) -> float:
+        """Effective ``legend_text_hjust`` (``None`` -> 0, left)."""
+        hj = getattr(self, "legend_text_hjust", None)
+        return float(hj) if hj is not None else 0.0
+
+    def legend_title_hjust_value(self) -> float:
+        """Effective ``legend_title_hjust`` (``None`` -> ``legend_title_align``)."""
+        hj = getattr(self, "legend_title_hjust", None)
+        return float(hj) if hj is not None else float(self.legend_title_align)
+
+    def legend_box_justification(self, box: str) -> float:
+        """The ``legend_box_just`` component across a ``box`` (``"vertical"`` /
+        ``"horizontal"``) stack, in ``[0, 1]``: x for a vertical stack (0 = left),
+        y for a horizontal one (1 = top). ``None``: left / top."""
+        just = getattr(self, "legend_box_just", None)
+        if just is None:
+            return 0.0 if box == "vertical" else 1.0
+        if isinstance(just, str):
+            just = _LEGEND_JUST[just]
+        return float(just[0] if box == "vertical" else just[1])
 
     def axis_text_just(self, axis: str) -> tuple[float, float, bool]:
         """``(hjust, vjust, auto)`` for the ``axis`` (``"x"``/``"y"``) tick labels.
