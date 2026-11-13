@@ -49,6 +49,7 @@ __all__ = [
     "label_scientific",
     "label_math",
     "label_date",
+    "label_date_short",
     "label_wrap",
     "breaks_pretty",
     "breaks_extended",
@@ -290,33 +291,118 @@ _DATE_UNITS = {"D": "days", "h": "hours", "m": "minutes", "s": "seconds", "ms": 
 _EPOCH = _dt.datetime(1970, 1, 1)
 
 
-def label_date(format: str = "%Y-%m-%d", unit: str = "D") -> Formatter:
+def _to_datetime(v: Any, unit: str, tz: _dt.tzinfo | None) -> _dt.date | None:
+    """One break value -> ``date``/``datetime`` (``None`` for missing), shown in
+    ``tz`` when given (numbers, naive datetimes and ``datetime64`` are UTC)."""
+    if v is None:
+        return None
+    if isinstance(v, np.datetime64):
+        if np.isnat(v):
+            return None
+        v = v.astype("datetime64[us]").astype(_dt.datetime)
+    if isinstance(v, _dt.datetime):
+        if tz is None:
+            return v
+        return (v if v.tzinfo else v.replace(tzinfo=_dt.timezone.utc)).astimezone(tz)
+    if isinstance(v, _dt.date):
+        return v
+    f = float(v)
+    if not math.isfinite(f):
+        return None
+    d = _EPOCH + _dt.timedelta(**{_DATE_UNITS[unit]: f})
+    return d if tz is None else d.replace(tzinfo=_dt.timezone.utc).astimezone(tz)
+
+
+def _check_unit(unit: str) -> None:
+    if unit not in _DATE_UNITS:
+        raise ValueError(f"unit must be one of {sorted(_DATE_UNITS)}, got {unit!r}")
+
+
+def label_date(format: str = "%Y-%m-%d", unit: str = "D", tz: Any = None) -> Formatter:
     """Dates/times with :meth:`~datetime.datetime.strftime` ``format``.
 
     Accepts ``datetime``/``date`` objects, ``numpy.datetime64`` values, or numbers
     counted in ``unit`` since 1970-01-01 (``"D"`` days, as for date scales; ``"s"``
     seconds for date-times; also ``"h"``, ``"m"``, ``"ms"``). Date position scales
     (S8, ggm-4a9.7) choose the breaks; this only formats them.
+
+    ``tz`` (an IANA name such as ``"America/New_York"`` or a ``tzinfo``) shows the
+    times in that zone: numbers, ``datetime64`` values and naive datetimes are taken
+    as UTC, aware datetimes are converted. ``None`` formats them as they are.
     """
-    if unit not in _DATE_UNITS:
-        raise ValueError(f"unit must be one of {sorted(_DATE_UNITS)}, got {unit!r}")
+    from ._tz import resolve_tz
+
+    _check_unit(unit)
+    zone = resolve_tz(tz)
 
     def one(v: Any) -> str:
-        if v is None:
-            return ""
-        if isinstance(v, (_dt.datetime, _dt.date)):
-            return v.strftime(format)
-        if isinstance(v, np.datetime64):
-            if np.isnat(v):
-                return ""
-            return v.astype("datetime64[us]").astype(_dt.datetime).strftime(format)
-        f = float(v)
-        if not math.isfinite(f):
-            return _nonfinite(f)
-        return (_EPOCH + _dt.timedelta(**{_DATE_UNITS[unit]: f})).strftime(format)
+        if v is not None and not isinstance(v, (_dt.date, np.datetime64)):
+            f = float(v)
+            if not math.isfinite(f) and not math.isnan(f):
+                return _nonfinite(f)
+        d = _to_datetime(v, unit, zone)
+        return "" if d is None else d.strftime(format)
 
     def fmt(x: Any) -> list[str]:
         return [one(v) for v in np.atleast_1d(np.asarray(x)).ravel()]
+
+    return fmt
+
+
+def label_date_short(
+    format: Sequence[str] = ("%Y", "%b", "%d", "%H:%M"),
+    sep: str = "\n",
+    unit: str = "D",
+    tz: Any = None,
+) -> Formatter:
+    """Compact date labels (like ``scales::label_date_short``): each label shows only
+    the components that changed since the previous break, finest first, joined by
+    ``sep`` -- e.g. ``["Jan\\n2021", "Apr", "Jul", "Oct", "Jan\\n2022"]`` for
+    quarterly breaks. The year/month/day formats are ``format[0:3]``; the time
+    ``format[3]`` is shown on every label unless all breaks fall at midnight (then
+    days are dropped too when all are 1st of the month, and months when all are
+    January). A change in a coarse component (a new year) brings in all finer ones.
+    ``unit`` and ``tz`` are as for :func:`label_date` (``unit="s"`` on date-time
+    scales). Labels containing ``"\\n"`` are drawn over several lines.
+    """
+    from ._tz import resolve_tz
+
+    _check_unit(unit)
+    zone = resolve_tz(tz)
+    if len(format) != 4:
+        raise ValueError("format must give 4 strftime formats: year, month, day, time")
+    fy, fm, fd, ft = format
+
+    def fmt(x: Any) -> list[str]:
+        dts = [_to_datetime(v, unit, zone) for v in np.atleast_1d(np.asarray(x)).ravel()]
+        ok = [d for d in dts if d is not None]
+        midnight = all(getattr(d, "hour", 0) == 0 and getattr(d, "minute", 0) == 0 for d in ok)
+        f_time: str | None = None if midnight else ft
+        f_day: str | None = fd
+        f_month: str | None = fm
+        if midnight and all(d.day == 1 for d in ok):
+            f_day = None
+            if all(d.month == 1 for d in ok):
+                f_month = None
+        out: list[str] = []
+        prev: _dt.date | None = None
+        for d in dts:
+            if d is None:
+                out.append("")
+                prev = None
+                continue
+            new_y = prev is None or d.year != prev.year
+            new_m = new_y or d.month != prev.month  # type: ignore[union-attr]
+            new_d = new_m or d.day != prev.day  # type: ignore[union-attr]
+            parts = [
+                f_time,
+                f_day if new_d else None,
+                f_month if new_m else None,
+                fy if new_y else None,
+            ]
+            out.append(sep.join(d.strftime(p) for p in parts if p))
+            prev = d
+        return out
 
     return fmt
 
