@@ -204,18 +204,23 @@ class Colourbar(VGroup):
         f = 0.5 if hi == lo else (value - lo) / (hi - lo)
         return 1.0 - f if self.options.reverse else f
 
+    def _cell_spans(self) -> list[tuple[float, float]]:
+        """``(start, end)`` of each cell along the bar as fractions of its length,
+        low to high values (before ``reverse``): equal cells here."""
+        n = max(len(self.rects), 1)
+        return [(i / n, (i + 1) / n) for i in range(len(self.rects))]
+
     def arrange_rows(self, direction: str = "vertical") -> Colourbar:
         """(Re)lay out the bar vertically (low values at the bottom) or
         horizontally (low values on the left), with ticks, labels and title."""
         self.direction = "horizontal" if direction == "horizontal" else "vertical"
         horizontal = self.direction == "horizontal"
         thick, length = self.bar_thickness, self.bar_length
-        n = max(len(self.rects), 1)
-        cell = length / n
-        for i, rect in enumerate(self.rects):
-            pos = (i + 0.5) / n
+        for rect, (f0, f1) in zip(self.rects, self._cell_spans()):
+            pos = (f0 + f1) / 2
             if self.options.reverse:
                 pos = 1.0 - pos
+            cell = (f1 - f0) * length
             if horizontal:
                 rect.stretch_to_fit_width(cell).stretch_to_fit_height(thick)
                 rect.move_to((pos * length, 0.0, 0.0))

@@ -49,6 +49,14 @@ from .guides_colourbar import (
     guide_colourbar,
     is_colourbar_spec,
 )
+from .guides_coloursteps import (
+    Coloursteps,
+    GuideColoursteps,
+    build_coloursteps,
+    guide_colorsteps,
+    guide_coloursteps,
+    is_coloursteps_spec,
+)
 from .guides_legend import GuideLegend, guide_legend, is_legend_spec, legend_frame
 from .labels import render_label
 from .registry import register
@@ -64,14 +72,18 @@ __all__ = [
     "GuideColourbar",
     "guide_colorbar",
     "guide_colourbar",
+    "Coloursteps",
+    "GuideColoursteps",
+    "guide_colorsteps",
+    "guide_coloursteps",
     "GuideLegend",
     "guide_legend",
 ]
 
 #: Valid guide specs for :func:`guides`.
-GUIDE_TYPES = ("legend", "none", "colourbar", "colorbar")
+GUIDE_TYPES = ("legend", "none", "colourbar", "colorbar", "coloursteps", "colorsteps")
 #: Guide objects accepted alongside :data:`GUIDE_TYPES`.
-GUIDE_CLASSES = (GuideLegend, GuideColourbar)
+GUIDE_CLASSES = (GuideLegend, GuideColourbar, GuideColoursteps)
 
 #: Horizontal gap between a key and its label, and between title and rows.
 _KEY_LABEL_BUFF = 0.15
@@ -345,7 +357,8 @@ def build_legends(
             continue
         discrete = getattr(scale, "is_discrete", False)
         spec = _guide_spec(aes, scale, guides_spec)
-        colourbar = not discrete and is_colourbar_spec(spec)
+        steps = not discrete and is_coloursteps_spec(spec)
+        colourbar = steps or (not discrete and is_colourbar_spec(spec))
         if not discrete and not colourbar and not _binned_legend(aes, scale, guides_spec):
             continue
         breaks = list(scale.get_breaks()) if colourbar else _legend_breaks(scale)
@@ -360,21 +373,30 @@ def build_legends(
             title = opts.title
         kind: tuple[Any, ...]
         if colourbar:
-            kind = ("colourbar", repr(spec))
+            kind = ("coloursteps" if steps else "colourbar", repr(spec))
         else:
             kind = ("legend", getattr(opts, "direction", None))
         key = (kind, _title_key(title), tuple(map(repr, breaks)), tuple(blabels))
         g = groups.setdefault(key, {"title": title, "breaks": breaks, "labels": blabels, "aes": {}})
         g["aes"].setdefault(aes, scale)
         if colourbar:
-            g["colourbar"] = spec if isinstance(spec, GuideColourbar) else GuideColourbar()
+            if steps:
+                g["colourbar"] = spec if isinstance(spec, GuideColoursteps) else GuideColoursteps()
+            else:
+                g["colourbar"] = spec if isinstance(spec, GuideColourbar) else GuideColourbar()
         else:
             legend_opts = opts if isinstance(opts, GuideLegend) else None
             g["options"] = _merge_options(g.get("options"), legend_opts)
 
     legends: list[Any] = []
     for g in groups.values():
-        if "colourbar" in g:
+        if isinstance(g.get("colourbar"), GuideColoursteps):
+            legends.append(
+                build_coloursteps(
+                    g["title"], g["aes"], g["breaks"], g["labels"], theme, g["colourbar"]
+                )
+            )
+        elif "colourbar" in g:
             legends.append(
                 build_colourbar(
                     g["title"], g["aes"], g["breaks"], g["labels"], theme, g["colourbar"]
