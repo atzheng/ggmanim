@@ -26,6 +26,7 @@ data is copied, user Mobjects (titles) are copied, and the spec is never mutated
 
 from __future__ import annotations
 
+import warnings
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -188,9 +189,47 @@ def setup_position_scales(plot, layers: list[LayerData]) -> dict[str, Any]:
                 if c in df.columns:
                     _check_numeric(ld, c, scales[axis])
                     with np.errstate(all="ignore"):
-                        df[c] = scales[axis].transform(df[c])
+                        df[c] = _pre_stat_map(scales[axis], df[c])
         ld.data = df
     return scales
+
+
+def _pre_stat_map(scale, values):
+    """Data -> transformed space before the stat. With user ``limits`` the scale's
+    ``oob`` applies here (ggplot2: ``xlim()`` censors *before* the stat, so a smooth
+    is fitted to in-range data only); trained limits cover all data anyway.
+
+    A discrete scale's own "Removed n value(s) outside the limits" warning is
+    silenced here: the dropped rows are reported once per layer (with the layer's
+    name) by the stat pre-filter or ``geom.handle_na``."""
+    with warnings.catch_warnings():
+        warnings.filterwarnings(
+            "ignore", message=r"Removed \d+ value\(s\) outside the limits", category=UserWarning
+        )
+        if getattr(scale, "limits", None) is not None:
+            return scale.map(values)
+        return scale.transform(values)
+
+
+def _remove_missing_for_stat(ld: LayerData, stat) -> None:
+    """Drop rows whose positional ``stat.required_aes`` are non-finite (missing or
+    censored by scale limits) before a computing stat, with one warning."""
+    pos = set(X_AESTHETICS) | set(Y_AESTHETICS)
+    cols = [c for c in getattr(stat, "required_aes", ()) if c in pos and c in ld.data.columns]
+    if not cols or not len(ld.data):
+        return
+    ok = np.ones(len(ld.data), dtype=bool)
+    for c in cols:
+        ok &= np.isfinite(pd.to_numeric(ld.data[c], errors="coerce").to_numpy(dtype=float))
+    n = int((~ok).sum())
+    if n:
+        if not ld.layer.params.get("na_rm", False):
+            warnings.warn(
+                f"{ld.label}: removed {n} row{'s' if n != 1 else ''} containing missing "
+                f"values or values outside the scale range ({type(stat).__name__})",
+                stacklevel=3,
+            )
+        ld.data = ld.data[ok].reset_index(drop=True)
 
 
 def compute_stats(layers: list[LayerData], scales: dict[str, Any]) -> None:
@@ -198,6 +237,7 @@ def compute_stats(layers: list[LayerData], scales: dict[str, Any]) -> None:
     for ld in layers:
         stat = ld.layer.stat
         if stat is not None:
+            _remove_missing_for_stat(ld, stat)
             try:
                 df = stat.compute_layer(ld.data, scales, **stat.params)
             except BuildError:
@@ -364,10 +404,15 @@ def build_panel(
 def draw_layers(
     layers: list[LayerData], panel: CartesianPanel, theme: Theme
 ) -> list[tuple[Any, Mobject]]:
-    """``geom.draw_panel`` per layer -> ``[(key, mobject), ...]`` in layer order."""
+    """``geom.draw_panel`` per layer -> ``[(key, mobject), ...]`` in layer order.
+
+    Rows with missing / oob-censored positions are dropped first
+    (``geom.handle_na``: one "removed n rows" warning per layer unless ``na_rm``)."""
     out = []
     for ld in layers:
-        mob = ld.layer.geom.draw_panel(ld.data, panel.panel_params, panel, theme, **ld.layer.params)
+        geom, params = ld.layer.geom, ld.layer.params
+        data = geom.handle_na(ld.data, params, ld.label) if hasattr(geom, "handle_na") else ld.data
+        mob = geom.draw_panel(data, panel.panel_params, panel, theme, **params)
         out.append((ld.key, mob))
     return out
 

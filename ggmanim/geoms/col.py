@@ -8,6 +8,7 @@ from manim import Polygon, Square, VGroup, VMobject
 
 from ..registry import register
 from ..theme import Theme, theme_default
+from ._clip import clip_rects, panel_rect
 from .base import KEY_SIZE, Geom, finite_rows, make_layer, num, resolve_color, transform_points
 
 __all__ = ["GeomCol", "geom_col", "geom_bar", "resolution"]
@@ -35,7 +36,7 @@ class GeomCol(Geom):
     levels sit at ``1..n``); so on ``scale_x_log10`` bars have equal
     widths on screen, as in ggplot2. The base ``0`` is in transformed space (data
     value 1 on a log10 y scale, like ggplot2), and both ends are clipped to the
-    panel's y range so bars never extend past the axes.
+    panel (``clip="on"``) so bars never extend past the axes.
 
     The four corners go through ``coord.transform``, so bars are correct under
     any scale transform. ``color`` (outline) defaults to ``None`` = no outline.
@@ -50,6 +51,7 @@ class GeomCol(Geom):
         "linetype": "solid",
     }
     extra_params: tuple[str, ...] = ("width",)
+    na_aes: tuple[str, ...] | None = ("xmin", "xmax", "ymin", "ymax")
 
     def setup_data(self, data: pd.DataFrame, params) -> pd.DataFrame:
         data = data.copy()
@@ -84,9 +86,10 @@ class GeomCol(Geom):
         xmax = data["xmax"].to_numpy(float)
         ymin = data["ymin"].to_numpy(float)
         ymax = data["ymax"].to_numpy(float)
-        if panel_params is not None:
-            lo, hi = panel_params.y_range
-            ymin, ymax = np.clip(ymin, lo, hi), np.clip(ymax, lo, hi)
+        rect = panel_rect(coord, panel_params)
+        if rect is not None:  # clip="on": clamp bars to the panel, drop invisible ones
+            xmin, xmax, ymin, ymax, vis = clip_rects(xmin, xmax, ymin, ymax, rect)
+            xmin, xmax, ymin, ymax, data = xmin[vis], xmax[vis], ymin[vis], ymax[vis], data[vis]
         # one vectorised transform for all corners: (n, 4, 3)
         cx = np.stack([xmin, xmax, xmax, xmin], axis=1)
         cy = np.stack([ymin, ymin, ymax, ymax], axis=1)

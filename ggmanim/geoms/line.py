@@ -11,15 +11,15 @@ from .base import (
     KEY_SIZE,
     Geom,
     assemble,
+    clipped_path_points,
     finite_rows,
     first,
     group_label,
     make_label,
     make_layer,
+    multi_path_mobject,
     num,
-    path_mobject,
     resolve_color,
-    transform_points,
 )
 
 __all__ = ["GeomPath", "GeomLine", "geom_line"]
@@ -52,15 +52,18 @@ class GeomPath(Geom):
         for i, (gid, gdf) in enumerate(data.groupby("group", sort=True)):
             if self.sort_by_x:
                 gdf = gdf.sort_values("x", kind="stable")
-            pts = transform_points(coord, gdf["x"].to_numpy(float), gdf["y"].to_numpy(float))
+            pieces = clipped_path_points(
+                coord, panel_params, gdf["x"].to_numpy(float), gdf["y"].to_numpy(float)
+            )
             color = resolve_color(first(gdf, "color"), fg)
-            path = path_mobject(
-                pts, color, num(first(gdf, "linewidth"), 3.0), num(first(gdf, "alpha"), 1.0)
+            # clip first, then dash each visible subpath
+            path = multi_path_mobject(
+                pieces, color, num(first(gdf, "linewidth"), 3.0), num(first(gdf, "alpha"), 1.0)
             )
             paths.add(apply_linetype(path, first(gdf, "linetype")))
             lab = make_label(theme, group_label(label, i, gid), color)
-            if lab is not None and len(pts):
-                labels.add(lab.next_to(pts[-1], RIGHT, buff=0.1))
+            if lab is not None and pieces:
+                labels.add(lab.next_to(pieces[-1][-1], RIGHT, buff=0.1))
         return assemble(paths, labels)
 
     def draw_key(self, data_row, theme: Theme | None = None) -> VMobject:

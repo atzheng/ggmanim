@@ -6,6 +6,7 @@ from manim import ORIGIN, VGroup, VMobject
 
 from ..registry import register
 from ..theme import Theme, theme_default
+from ._clip import inside, panel_rect
 from ._markers import make_marker
 from .base import Geom, finite_rows, make_layer, num, resolve_color, transform_points
 
@@ -32,6 +33,9 @@ class GeomPoint(Geom):
         theme = theme if theme is not None else theme_default()
         self.check_required_aes(data)
         data = finite_rows(self.use_defaults(data, params), ("x", "y"))
+        rect = panel_rect(coord, panel_params)
+        if rect is not None:  # clip="on": points outside the panel are not drawn
+            data = data[inside(data["x"].to_numpy(float), data["y"].to_numpy(float), rect)]
         fg = theme.get_foreground()
         pts = transform_points(coord, data["x"].to_numpy(float), data["y"].to_numpy(float))
         dots = VGroup()

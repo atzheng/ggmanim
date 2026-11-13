@@ -9,6 +9,7 @@ from manim import DOWN, LEFT, PI, RIGHT, UP, Line, VGroup, VMobject
 from ..aes import aes
 from ..registry import register
 from ..theme import Theme, theme_default
+from ._clip import inside
 from ._linetype import apply_linetype
 from .base import (
     KEY_SIZE,
@@ -52,6 +53,10 @@ class _RefLine(Geom):
         data = finite_rows(self.use_defaults(data, params), (self._col,))
         fg = theme.get_foreground()
         v = data[self._col].to_numpy(float)
+        if panel_params is not None and getattr(coord, "clip", "on") != "off":
+            lo, hi = sorted(panel_params.x_range if self.vertical else panel_params.y_range)
+            vis = inside(v, 0.0, (lo, hi, -1.0, 1.0))  # drop lines outside the panel
+            v, data = v[vis], data[vis]
         if self.vertical:
             lo, hi = panel_params.y_range
             a = transform_points(coord, v, lo)

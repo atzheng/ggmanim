@@ -181,8 +181,11 @@ def test_discrete_y(bars):
 
 def test_limits_subsetting_drops_rows_and_warns(bars):
     p = ggplot(bars, aes("category", "value")).geom_point().scale_x_discrete(limits=["c", "a"])
-    with pytest.warns(UserWarning, match="outside the limits"):
+    with pytest.warns(UserWarning) as rec:
         m = p.build()
+    # one warning for the dropped row, naming the layer (no duplicate from the scale)
+    msgs = [str(w.message) for w in rec]
+    assert len(msgs) == 1 and "layer 0 (GeomPoint): removed 1 row" in msgs[0]
     assert m.panel_params.x_labels == ("c", "a")
     assert np.isnan(m.layer_data[0]["x"][0])  # "b" removed
     assert len(m.layers[0]) == 2
