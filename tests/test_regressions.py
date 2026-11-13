@@ -180,10 +180,28 @@ def test_mapped_non_colour_aesthetics_build(df, geom, mapping):
 
 
 def test_numeric_size_and_alpha_reach_dots(df):
-    m = ggplot(df, aes("x", "y", size="s", alpha="w")).geom_point().build()
+    # identity scales pass scene-unit radii / opacities through unchanged
+    m = (
+        ggplot(df, aes("x", "y", size="s", alpha="w"))
+        .geom_point()
+        .scale_size_identity()
+        .scale_alpha_identity()
+        .build()
+    )
     dots = m.layers[0]
     np.testing.assert_allclose([d.radius for d in dots], df["s"])
     np.testing.assert_allclose([d.get_fill_opacity() for d in dots], df["w"])
+    assert m.legends == []
+
+
+def test_numeric_size_is_scaled_not_raw():
+    # huge-dot regression: size=population used to become the radius directly
+    big = pd.DataFrame({"x": [1.0, 2.0, 3.0], "y": [1.0, 2.0, 3.0], "pop": [10, 500, 2000]})
+    m = ggplot(big, aes("x", "y", size="pop", alpha="pop")).geom_point().build()
+    radii = np.array([d.radius for d in m.layers[0]])
+    assert radii.min() == pytest.approx(0.03) and radii.max() == pytest.approx(0.15)
+    alphas = np.array([d.get_fill_opacity() for d in m.layers[0]])
+    assert alphas.min() == pytest.approx(0.1) and alphas.max() == pytest.approx(1.0)
 
 
 # -- palettes.HashableManimColor: palettes must be plain sequences ----------------

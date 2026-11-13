@@ -9,8 +9,9 @@ Mirrors ggplot2's ``ggplot_build`` + ``ggplot_gtable``, one function per step
 3. :func:`setup_position_scales` -- per-build position scales, *pre-stat* training
    on the raw layer data, then x-/y-like columns -> transformed space.
    :func:`compute_stats` -- ``stat.compute_layer`` per layer, then ``after_stat``.
-4. :func:`map_non_position` -- train (on every layer) and map colour/fill/shape/
-   linetype through discrete scales.
+4. :func:`map_non_position` -- train (on every layer) and map the non-position
+   aesthetics: colour/fill/shape/linetype through discrete scales, size/alpha/
+   linewidth through range scales.
 5. :func:`apply_positions` -- identity only in Phase 1.
 6. :func:`setup_geom_data` + :func:`train_position_scales` -- ``geom.setup_data``,
    then reset and retrain the position scales on what the geoms will draw
@@ -223,16 +224,34 @@ def compute_stats(layers: list[LayerData], scales: dict[str, Any]) -> None:
 
 
 # --------------------------------------------------------------------------- 4
+def _non_position_aesthetics(layers: list[LayerData]) -> list[str]:
+    """Mapped non-position aesthetics present in some layer's data: the categorical
+    ones first (stable legend order), then the others in mapping order."""
+    skip = {"group", "PANEL", *X_AESTHETICS, *Y_AESTHETICS}
+    out = list(CATEGORICAL_AESTHETICS)
+    for ld in layers:
+        for aes_name in ld.mapping:
+            if aes_name not in skip and aes_name not in out:
+                out.append(aes_name)
+    return [a for a in out if any(a in ld.data.columns and len(ld.data) for ld in layers)]
+
+
+def _mapped_column(values: Any, index: pd.Index) -> pd.Series:
+    """Scale output as a column: numeric dtype when every value is a number,
+    else ``object`` (colours, shape names ...)."""
+    return pd.Series(list(values), index=index, dtype=object).infer_objects()
+
+
 def map_non_position(plot, layers: list[LayerData]) -> dict[str, Any]:
-    """Train discrete scales for colour/fill/shape/linetype on every layer, then
-    map the columns to manim values. Other non-position aesthetics (size, alpha,
-    linewidth) are used as is in Phase 1. Returns ``{aes: trained scale}``."""
+    """Train the scale of every mapped non-position aesthetic on every layer, then
+    map the columns to manim values. The scale is the user's, else
+    :func:`default_scale_for` (discrete colour/fill/shape/linetype, range scales for
+    size/alpha/linewidth); aesthetics without a default scale are used as is.
+    Returns ``{aes: trained scale}``."""
     scales: dict[str, Any] = {}
     clones: dict[int, Any] = {}  # one clone per user scale object (shared aesthetics)
-    for aes_name in CATEGORICAL_AESTHETICS:
+    for aes_name in _non_position_aesthetics(layers):
         present = [ld for ld in layers if aes_name in ld.data.columns and len(ld.data)]
-        if not present:
-            continue
         user = plot.get_scale(aes_name)
         if user is not None:
             scale = clones.get(id(user))
@@ -245,16 +264,19 @@ def map_non_position(plot, layers: list[LayerData]) -> dict[str, Any]:
             except (NotImplementedError, TypeError, ValueError) as e:
                 names = ", ".join(ld.label for ld in present)
                 raise BuildError(f"{names}: {e}") from e
+            if scale is None:
+                continue
         for ld in present:
-            scale.train(ld.data[aes_name])
+            try:
+                scale.train(ld.data[aes_name])
+            except TypeError as e:
+                raise BuildError(f"{ld.label}: aesthetic {aes_name!r}: {e}") from e
         scales[aes_name] = scale
     for aes_name, scale in scales.items():
         for ld in layers:
             if aes_name in ld.data.columns and len(ld.data):
                 df = ld.data.copy()
-                df[aes_name] = pd.Series(
-                    np.asarray(scale.map(df[aes_name]), dtype=object), index=df.index, dtype=object
-                )
+                df[aes_name] = _mapped_column(scale.map(df[aes_name]), df.index)
                 ld.data = df
     return scales
 
