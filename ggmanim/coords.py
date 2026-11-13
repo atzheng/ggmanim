@@ -56,7 +56,6 @@ from manim import (
     Line,
     ManimColor,
     Mobject,
-    Paragraph,
     Polygon,
     VGroup,
     VMobject,
@@ -65,7 +64,7 @@ from manim import (
 from .labels import render_label
 from .registry import register
 from .scales.breaks import expand_range
-from .theme import Theme, theme_default
+from .theme import Theme, hjust_align, theme_default
 
 __all__ = [
     "CoordCartesian",
@@ -448,12 +447,12 @@ def _label(theme: Theme, s: str, axis: str = "x") -> Mobject:
 
 def _multiline_label(theme: Theme, text: str, axis: str) -> Mobject:
     """A multi-line tick label (e.g. from :func:`~ggmanim.labels.label_date_short`):
-    a Pango :class:`~manim.Paragraph` whose lines are justified by the axis text
-    ``hjust`` (x labels centred, y labels right-aligned by default), as in ggplot2."""
+    a Pango :class:`~manim.Paragraph` (via :meth:`Theme.make_text`) whose lines are
+    justified by the axis text ``hjust`` (x labels centred, y labels right-aligned by
+    default), as in ggplot2."""
     style = theme.text_style("axis_text")
     hjust = theme.axis_text_just(axis)[0]
-    align = "left" if hjust < 0.25 else ("right" if hjust > 0.75 else "center")
-    return Paragraph(*text.split("\n"), alignment=align, **style)
+    return theme.make_text(text, align=hjust_align(hjust), **style)
 
 
 # -- theme elements (backgrounds, borders, grid, axis lines, rotated labels) ----------

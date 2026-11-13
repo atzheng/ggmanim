@@ -50,6 +50,8 @@ __all__ = [
     "label_math",
     "label_date",
     "label_date_short",
+    "DateFormatter",
+    "bind_date_formatter",
     "label_wrap",
     "breaks_pretty",
     "breaks_extended",
@@ -318,43 +320,100 @@ def _check_unit(unit: str) -> None:
         raise ValueError(f"unit must be one of {sorted(_DATE_UNITS)}, got {unit!r}")
 
 
-def label_date(format: str = "%Y-%m-%d", unit: str = "D", tz: Any = None) -> Formatter:
+class DateFormatter:
+    """A date formatter that a date scale can complete with its ``unit``/``tz``.
+
+    Returned by :func:`label_date` and :func:`label_date_short`; call it like any
+    formatter. **Date-aware protocol**: an object with ``_date_aware = True`` and a
+    ``bind(unit=..., tz=...)`` method returning a formatter. Date and date-time
+    scales (:class:`~ggmanim.scales.date.ScaleDatePosition`) call ``bind`` with their
+    own unit (``"D"``/``"s"``) and time zone, so ``scale_x_datetime(labels=
+    label_date_short())`` needs no ``unit="s"``/``tz=``. Arguments the user gave
+    explicitly win over the scale's. Unbound, ``unit`` defaults to ``"D"`` and ``tz``
+    to none.
+    """
+
+    _date_aware = True
+
+    def __init__(
+        self, make: Callable[[str, _dt.tzinfo | None], Formatter], unit: str | None, tz: Any
+    ) -> None:
+        from ._tz import resolve_tz
+
+        if unit is not None:
+            _check_unit(unit)
+        self._make = make
+        self.unit = unit
+        self.tz = resolve_tz(tz)
+        self._fn = make(unit if unit is not None else "D", self.tz)
+
+    def __call__(self, x: Any) -> list[str]:
+        return self._fn(x)
+
+    def bind(self, unit: str | None = None, tz: Any = None) -> DateFormatter:
+        """A copy using ``unit``/``tz`` where this formatter left them unset."""
+        return DateFormatter(
+            self._make,
+            self.unit if self.unit is not None else unit,
+            self.tz if self.tz is not None else tz,
+        )
+
+    def __repr__(self) -> str:
+        return f"<DateFormatter unit={self.unit!r} tz={self.tz!r}>"
+
+
+def bind_date_formatter(fmt: Any, unit: str, tz: Any = None) -> Any:
+    """``fmt.bind(unit=unit, tz=tz)`` for a date-aware formatter (see
+    :class:`DateFormatter`); anything else is returned unchanged."""
+    if callable(fmt) and getattr(fmt, "_date_aware", False) and hasattr(fmt, "bind"):
+        return fmt.bind(unit=unit, tz=tz)
+    return fmt
+
+
+def label_date(format: str = "%Y-%m-%d", unit: str | None = None, tz: Any = None) -> DateFormatter:
     """Dates/times with :meth:`~datetime.datetime.strftime` ``format``.
 
     Accepts ``datetime``/``date`` objects, ``numpy.datetime64`` values, or numbers
     counted in ``unit`` since 1970-01-01 (``"D"`` days, as for date scales; ``"s"``
     seconds for date-times; also ``"h"``, ``"m"``, ``"ms"``). Date position scales
-    (S8, ggm-4a9.7) choose the breaks; this only formats them.
+    choose the breaks; this only formats them.
 
     ``tz`` (an IANA name such as ``"America/New_York"`` or a ``tzinfo``) shows the
     times in that zone: numbers, ``datetime64`` values and naive datetimes are taken
     as UTC, aware datetimes are converted. ``None`` formats them as they are.
+
+    Used as ``labels=`` of a date/date-time scale, unset ``unit``/``tz`` are taken
+    from the scale (see :class:`DateFormatter`); elsewhere ``unit`` defaults to
+    ``"D"``.
     """
-    from ._tz import resolve_tz
 
-    _check_unit(unit)
-    zone = resolve_tz(tz)
+    def make(u: str, zone: _dt.tzinfo | None) -> Formatter:
+        def one(v: Any) -> str:
+            if v is not None and not isinstance(v, (_dt.date, np.datetime64)):
+                f = float(v)
+                if not math.isfinite(f) and not math.isnan(f):
+                    return _nonfinite(f)
+            d = _to_datetime(v, u, zone)
+            return "" if d is None else d.strftime(format)
 
-    def one(v: Any) -> str:
-        if v is not None and not isinstance(v, (_dt.date, np.datetime64)):
-            f = float(v)
-            if not math.isfinite(f) and not math.isnan(f):
-                return _nonfinite(f)
-        d = _to_datetime(v, unit, zone)
-        return "" if d is None else d.strftime(format)
+        def fmt(x: Any) -> list[str]:
+            return [one(v) for v in np.atleast_1d(np.asarray(x)).ravel()]
 
-    def fmt(x: Any) -> list[str]:
-        return [one(v) for v in np.atleast_1d(np.asarray(x)).ravel()]
+        return fmt
 
-    return fmt
+    return DateFormatter(make, unit, tz)
+
+
+_LEADING_ZERO_RE = re.compile(r"^0(?=\d)")
 
 
 def label_date_short(
     format: Sequence[str] = ("%Y", "%b", "%d", "%H:%M"),
     sep: str = "\n",
-    unit: str = "D",
+    unit: str | None = None,
     tz: Any = None,
-) -> Formatter:
+    leading: str = "0",
+) -> DateFormatter:
     """Compact date labels (like ``scales::label_date_short``): each label shows only
     the components that changed since the previous break, finest first, joined by
     ``sep`` -- e.g. ``["Jan\\n2021", "Apr", "Jul", "Oct", "Jan\\n2022"]`` for
@@ -362,49 +421,55 @@ def label_date_short(
     ``format[3]`` is shown on every label unless all breaks fall at midnight (then
     days are dropped too when all are 1st of the month, and months when all are
     January). A change in a coarse component (a new year) brings in all finer ones.
-    ``unit`` and ``tz`` are as for :func:`label_date` (``unit="s"`` on date-time
-    scales). Labels containing ``"\\n"`` are drawn over several lines.
+    ``leading`` replaces the leading zero of each component (``"05"`` -> ``"5"``
+    with ``leading=""``, or ``"\\u2007"`` for a figure space); the default ``"0"``
+    keeps it. ``unit`` and ``tz`` are as for :func:`label_date` (taken from the scale
+    when unset). Labels containing ``"\\n"`` are drawn over several lines.
     """
-    from ._tz import resolve_tz
-
-    _check_unit(unit)
-    zone = resolve_tz(tz)
     if len(format) != 4:
         raise ValueError("format must give 4 strftime formats: year, month, day, time")
     fy, fm, fd, ft = format
+    leading = str(leading)
 
-    def fmt(x: Any) -> list[str]:
-        dts = [_to_datetime(v, unit, zone) for v in np.atleast_1d(np.asarray(x)).ravel()]
-        ok = [d for d in dts if d is not None]
-        midnight = all(getattr(d, "hour", 0) == 0 and getattr(d, "minute", 0) == 0 for d in ok)
-        f_time: str | None = None if midnight else ft
-        f_day: str | None = fd
-        f_month: str | None = fm
-        if midnight and all(d.day == 1 for d in ok):
-            f_day = None
-            if all(d.month == 1 for d in ok):
-                f_month = None
-        out: list[str] = []
-        prev: _dt.date | None = None
-        for d in dts:
-            if d is None:
-                out.append("")
-                prev = None
-                continue
-            new_y = prev is None or d.year != prev.year
-            new_m = new_y or d.month != prev.month  # type: ignore[union-attr]
-            new_d = new_m or d.day != prev.day  # type: ignore[union-attr]
-            parts = [
-                f_time,
-                f_day if new_d else None,
-                f_month if new_m else None,
-                fy if new_y else None,
-            ]
-            out.append(sep.join(d.strftime(p) for p in parts if p))
-            prev = d
-        return out
+    def strf(d: _dt.date, p: str) -> str:
+        s = d.strftime(p)
+        return s if leading == "0" else _LEADING_ZERO_RE.sub(lambda _m: leading, s)
 
-    return fmt
+    def make(u: str, zone: _dt.tzinfo | None) -> Formatter:
+        def fmt(x: Any) -> list[str]:
+            dts = [_to_datetime(v, u, zone) for v in np.atleast_1d(np.asarray(x)).ravel()]
+            ok = [d for d in dts if d is not None]
+            midnight = all(getattr(d, "hour", 0) == 0 and getattr(d, "minute", 0) == 0 for d in ok)
+            f_time: str | None = None if midnight else ft
+            f_day: str | None = fd
+            f_month: str | None = fm
+            if midnight and all(d.day == 1 for d in ok):
+                f_day = None
+                if all(d.month == 1 for d in ok):
+                    f_month = None
+            out: list[str] = []
+            prev: _dt.date | None = None
+            for d in dts:
+                if d is None:
+                    out.append("")
+                    prev = None
+                    continue
+                new_y = prev is None or d.year != prev.year
+                new_m = new_y or d.month != prev.month  # type: ignore[union-attr]
+                new_d = new_m or d.day != prev.day  # type: ignore[union-attr]
+                parts = [
+                    f_time,
+                    f_day if new_d else None,
+                    f_month if new_m else None,
+                    fy if new_y else None,
+                ]
+                out.append(sep.join(strf(d, p) for p in parts if p))
+                prev = d
+            return out
+
+        return fmt
+
+    return DateFormatter(make, unit, tz)
 
 
 def label_wrap(width: int) -> Formatter:
