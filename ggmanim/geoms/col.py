@@ -31,7 +31,8 @@ class GeomCol(Geom):
     :meth:`setup_data` (run by the pipeline after the stat, in transformed space)
     adds ``xmin = x - width/2``, ``xmax = x + width/2``, ``ymin = min(y, 0)``,
     ``ymax = max(y, 0)``. ``width`` (param or column, transformed x units)
-    defaults to ``0.9 * resolution(x)``; so on ``scale_x_log10`` bars have equal
+    defaults to ``0.9 * resolution(x)`` (``0.9`` on a discrete x scale, where
+    levels sit at ``1..n``); so on ``scale_x_log10`` bars have equal
     widths on screen, as in ggplot2. The base ``0`` is in transformed space (data
     value 1 on a log10 y scale, like ggplot2), and both ends are clipped to the
     panel's y range so bars never extend past the axes.
@@ -62,7 +63,8 @@ class GeomCol(Geom):
         if width is None and "width" in data.columns:
             width = pd.to_numeric(data["width"], errors="coerce").to_numpy(dtype=float)
         if width is None:
-            width = 0.9 * resolution(x)
+            # discrete x: levels sit at 1..n, so 0.9 of the level spacing
+            width = 0.9 * (1.0 if params and params.get("_x_discrete") else resolution(x))
         width = np.broadcast_to(np.asarray(width, dtype=float), x.shape)
         data["xmin"] = x - width / 2
         data["xmax"] = x + width / 2
