@@ -66,6 +66,17 @@ from .scales import (
     xlim,
     ylim,
 )
+from .scales.brewer import (
+    scale_color_brewer,
+    scale_color_distiller,
+    scale_color_fermenter,
+    scale_colour_brewer,
+    scale_colour_distiller,
+    scale_colour_fermenter,
+    scale_fill_brewer,
+    scale_fill_distiller,
+    scale_fill_fermenter,
+)
 from .scales.colour import (
     scale_color_continuous,
     scale_color_gradient,
@@ -217,6 +228,15 @@ __all__ = [
     "scale_fill_hue",
     "scale_fill_viridis_c",
     "scale_fill_viridis_d",
+    "scale_color_brewer",
+    "scale_color_distiller",
+    "scale_color_fermenter",
+    "scale_colour_brewer",
+    "scale_colour_distiller",
+    "scale_colour_fermenter",
+    "scale_fill_brewer",
+    "scale_fill_distiller",
+    "scale_fill_fermenter",
     "xlim",
     "ylim",
     # coords
