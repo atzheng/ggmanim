@@ -46,6 +46,7 @@ from .coords import CartesianPanel, CoordCartesian
 from .guides import build_legends, place_legends  # also registers guides()
 from .layer import Layer
 from .scales.continuous import X_AESTHETICS, Y_AESTHETICS, ScaleContinuousPosition
+from .scales.date import ScaleDatePosition, date_kind
 from .scales.discrete import CATEGORICAL_AESTHETICS, default_scale_for
 from .scales.discrete_position import ScaleDiscretePosition
 from .stats import add_group, is_discrete
@@ -146,10 +147,16 @@ def assign_panels(layers: list[LayerData]) -> None:
 def _position_scale(plot, axis: str, layers: list[LayerData] | None = None):
     """The user's scale for ``axis`` (cloned), else a default chosen by dtype:
     discrete if any layer maps a non-numeric (non-bool) column to an ``axis``
-    aesthetic, continuous otherwise."""
+    aesthetic, continuous otherwise. ``datetime64`` / date-object columns get a
+    date or date-time scale (:func:`~ggmanim.scales.date.date_kind`)."""
     user = plot.get_scale(axis)
     if user is not None:
         return user.clone()
+    kind = date_kind(
+        [ld.data[c] for ld in layers or () for c in POSITION_AES[axis] if c in ld.data.columns]
+    )
+    if kind is not None:  # datetime64 / date objects -> date or datetime scale
+        return ScaleDatePosition(POSITION_AES[axis], unit="D" if kind == "date" else "s")
     for ld in layers or ():
         for c in POSITION_AES[axis]:
             if c in ld.data.columns and _is_discrete_col(ld.data[c]):
@@ -162,7 +169,7 @@ def _is_discrete_col(s: pd.Series) -> bool:
 
 
 def _check_numeric(ld: LayerData, col: str, scale=None) -> None:
-    if getattr(scale, "is_discrete", False):
+    if getattr(scale, "is_discrete", False) or getattr(scale, "is_date", False):
         return
     s = ld.data[col]
     if _is_discrete_col(s):

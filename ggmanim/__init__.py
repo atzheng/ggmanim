@@ -100,6 +100,7 @@ from .scales.colour import (
     scale_fill_viridis_c,
     scale_fill_viridis_d,
 )
+from .scales.date import scale_x_date, scale_x_datetime, scale_y_date, scale_y_datetime
 from .scales.discrete import (
     scale_color_discrete,
     scale_color_identity,
@@ -184,6 +185,10 @@ __all__ = [
     "scale_y_sqrt",
     "scale_x_discrete",
     "scale_y_discrete",
+    "scale_x_date",
+    "scale_x_datetime",
+    "scale_y_date",
+    "scale_y_datetime",
     "scale_color_discrete",
     "scale_color_identity",
     "scale_color_manual",
