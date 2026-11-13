@@ -66,6 +66,7 @@ from ..palettes import as_manim_color
 from ..scales.continuous import X_AESTHETICS, Y_AESTHETICS
 from ..stats import STATS, Stat, add_group, get_stat
 from ..theme import Theme, theme_default
+from ._clip import clip_polyline, panel_rect
 
 __all__ = [
     "Geom",
@@ -133,6 +134,9 @@ class Geom:
     default_stat: str = "identity"
     x_aes: tuple[str, ...] = X_AESTHETICS
     y_aes: tuple[str, ...] = Y_AESTHETICS
+    #: Position columns whose non-finite values (missing or oob-censored) remove
+    #: the row before drawing; ``None`` = the positional :attr:`required_aes`.
+    na_aes: tuple[str, ...] | None = None
 
     def __repr__(self) -> str:
         return f"{type(self).__name__}()"
@@ -191,6 +195,31 @@ class Geom:
         if "group" not in out.columns:
             out["group"] = _group_ids(data)
         return out
+
+    def handle_na(
+        self, data: pd.DataFrame, params: Mapping[str, Any] | None = None, label: str | None = None
+    ) -> pd.DataFrame:
+        """Drop rows with non-finite :attr:`na_aes` positions (missing values or
+        values censored by a scale's ``oob``), warning once with the count -- like
+        ggplot2's "Removed n rows" -- unless ``params["na_rm"]`` is true. The build
+        pipeline calls this once per layer before :meth:`draw_panel`."""
+        cols = self.na_aes
+        if cols is None:
+            pos = set(X_AESTHETICS) | set(Y_AESTHETICS)
+            cols = tuple(a for a in self.required_aes if a in pos)
+        cols = tuple(c for c in cols if c in data.columns)
+        if not cols or len(data) == 0:
+            return data
+        kept = finite_rows(data, cols)
+        n = len(data) - len(kept)
+        if n and not (params or {}).get("na_rm", False):
+            who = label if label is not None else type(self).__name__
+            warnings.warn(
+                f"{who}: removed {n} row{'s' if n != 1 else ''} containing missing values "
+                "or values outside the scale range",
+                stacklevel=2,
+            )
+        return kept
 
     # -- drawing --------------------------------------------------------------
     def draw_panel(
@@ -266,6 +295,33 @@ def path_mobject(points: np.ndarray, color: Any, linewidth: float, alpha: float)
     if len(points):
         m.set_points_as_corners(points)
     m.set_fill(opacity=0)
+    m.set_stroke(color=color, width=linewidth, opacity=alpha)
+    return m
+
+
+def clipped_path_points(coord, panel_params, x, y) -> list[np.ndarray]:
+    """The open path through transformed-space ``(x, y)`` as scene points, clipped
+    to the panel (see :mod:`._clip`): a list of ``(n, 3)`` pieces, ``[]`` if nothing
+    is visible. Unclipped (``clip="off"`` or entirely inside) it is one piece with
+    every vertex."""
+    rect = panel_rect(coord, panel_params)
+    x = np.asarray(x, dtype=float)
+    y = np.asarray(y, dtype=float)
+    pieces = [(x, y)] if rect is None else clip_polyline(x, y, rect)
+    return [transform_points(coord, px, py) for px, py in pieces if len(px)]
+
+
+def multi_path_mobject(
+    pieces: Sequence[np.ndarray], color: Any, linewidth: float, alpha: float
+) -> VMobject:
+    """Like :func:`path_mobject`, for a path broken into several pieces (one
+    ``VMobject`` with one subpath per piece). One piece == :func:`path_mobject`."""
+    if len(pieces) <= 1:
+        return path_mobject(pieces[0] if pieces else np.zeros((0, 3)), color, linewidth, alpha)
+    m = path_mobject(pieces[0], color, linewidth, alpha)
+    for piece in pieces[1:]:
+        m.start_new_path(piece[0])
+        m.add_points_as_corners(piece[1:])
     m.set_stroke(color=color, width=linewidth, opacity=alpha)
     return m
 

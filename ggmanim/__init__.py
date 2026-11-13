@@ -7,7 +7,7 @@ style chaining works. The public API is exactly :data:`__all__`.
 
 from . import build as _build  # noqa: F401  (the pipeline; registers guides)
 from .aes import aes, after_stat
-from .coords import coord_cartesian
+from .coords import coord_cartesian, coord_fixed, coord_flip
 from .geoms import (
     geom_bar,
     geom_col,
@@ -155,6 +155,8 @@ __all__ = [
     "ylim",
     # coords
     "coord_cartesian",
+    "coord_fixed",
+    "coord_flip",
     # themes
     "theme",
     "theme_bw",

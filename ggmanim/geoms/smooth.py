@@ -7,17 +7,19 @@ from manim import LEFT, RIGHT, Line, Polygon, Square, VGroup, VMobject
 
 from ..registry import register
 from ..theme import Theme, theme_default
+from ._clip import clip_polygon, panel_rect
 from ._linetype import apply_linetype
 from .base import (
     KEY_SIZE,
     assemble,
+    clipped_path_points,
     finite_rows,
     first,
     group_label,
     make_label,
     make_layer,
+    multi_path_mobject,
     num,
-    path_mobject,
     resolve_color,
     transform_points,
 )
@@ -57,19 +59,23 @@ class GeomSmooth(GeomLine):
         for i, (gid, gdf) in enumerate(data.groupby("group", sort=True)):
             gdf = gdf.sort_values("x", kind="stable")
             x = gdf["x"].to_numpy(float)
-            pts = transform_points(coord, x, gdf["y"].to_numpy(float))
+            pieces = clipped_path_points(coord, panel_params, x, gdf["y"].to_numpy(float))
             color = resolve_color(first(gdf, "color"), fg)
-            line = path_mobject(pts, color, num(first(gdf, "linewidth"), 3.0), 1.0)
+            # clip first, then dash each visible subpath
+            line = multi_path_mobject(pieces, color, num(first(gdf, "linewidth"), 3.0), 1.0)
             line = apply_linetype(line, first(gdf, "linetype"))
             mob = line
             if se and {"ymin", "ymax"} <= set(gdf.columns):
                 ymin = gdf["ymin"].to_numpy(float)
                 ymax = gdf["ymax"].to_numpy(float)
                 ok = np.isfinite(ymin) & np.isfinite(ymax)
-                if ok.sum() >= 2:
-                    upper = transform_points(coord, x[ok], ymax[ok])
-                    lower = transform_points(coord, x[ok], ymin[ok])
-                    ribbon = Polygon(*upper, *lower[::-1])
+                rx = np.concatenate([x[ok], x[ok][::-1]])
+                ry = np.concatenate([ymax[ok], ymin[ok][::-1]])
+                rect = panel_rect(coord, panel_params)
+                if rect is not None and ok.sum() >= 2:
+                    rx, ry = clip_polygon(rx, ry, rect)
+                if ok.sum() >= 2 and len(rx) >= 3:
+                    ribbon = Polygon(*transform_points(coord, rx, ry))
                     ribbon.set_fill(
                         resolve_color(first(gdf, "fill"), color),
                         opacity=num(first(gdf, "alpha"), 0.4),
@@ -78,8 +84,8 @@ class GeomSmooth(GeomLine):
                     mob = VGroup(ribbon, line)
             groups.add(mob)
             lab = make_label(theme, group_label(label, i, gid), color)
-            if lab is not None and len(pts):
-                labels.add(lab.next_to(pts[-1], RIGHT, buff=0.1))
+            if lab is not None and pieces:
+                labels.add(lab.next_to(pieces[-1][-1], RIGHT, buff=0.1))
         return assemble(groups, labels)
 
     def draw_key(self, data_row, theme: Theme | None = None) -> VMobject:

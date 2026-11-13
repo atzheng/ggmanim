@@ -55,7 +55,19 @@ from .registry import register
 from .scales.breaks import expand_range
 from .theme import Theme, theme_default
 
-__all__ = ["CoordCartesian", "coord_cartesian", "PanelParams", "CartesianPanel", "PanelAxes"]
+__all__ = [
+    "CoordCartesian",
+    "coord_cartesian",
+    "PanelParams",
+    "CartesianPanel",
+    "PanelAxes",
+    "CoordFlip",
+    "coord_flip",
+    "CoordFixed",
+    "coord_fixed",
+]
+
+_CLIP = ("on", "off")
 
 _FALLBACK_RANGE = (0.0, 1.0)
 
@@ -94,7 +106,15 @@ class CartesianPanel(VGroup):
 
     See the module docstring for the attributes. Submobject order (back to front):
     ``grid, axes, x_ticks, y_ticks, x_tick_labels, y_tick_labels[, x_title][, y_title]``.
+
+    ``clip`` (``"on"``/``"off"``) is the coord's clipping policy, read by the geoms.
+    ``flipped`` is true for :func:`coord_flip`: ``panel_params`` stay in aesthetic
+    orientation (``x_range`` is the *x aesthetic's* range, drawn vertically) while
+    ``axes``/``x_ticks``/``x_tick_labels``/``x_title`` are the horizontal ones.
     """
+
+    clip: str = "on"
+    flipped: bool = False
 
     def __init__(
         self,
@@ -129,7 +149,10 @@ class CartesianPanel(VGroup):
 
     def transform(self, x: Any, y: Any) -> np.ndarray:
         """Transformed-space ``(x, y)`` -> ``(N, 3)`` scene points (one vectorised
-        ``axes.c2p`` call). ``x`` and ``y`` broadcast; NaN in gives NaN out."""
+        ``axes.c2p`` call). ``x`` and ``y`` broadcast; NaN in gives NaN out.
+        Under ``coord_flip`` the x aesthetic goes on the vertical axis."""
+        if self.flipped:
+            x, y = y, x
         return _c2p(self.axes, x, y)
 
 
@@ -192,9 +215,16 @@ class CoordCartesian:
     """Cartesian coordinates.
 
     ``xlim``/``ylim`` (data space, optional) *zoom* the panel without touching the
-    data: no values are censored or dropped (unlike ``xlim()``/``scale limits``),
-    geoms simply draw outside the visible range (Phase 1 does no clipping).
+    data: no values are censored or dropped. This happens *after* the stats, so a
+    ``geom_smooth`` is fitted to all the data and its line runs to the panel edge.
+    Scale limits (``xlim()``, ``scale_x_continuous(limits=)``) instead apply the
+    scale's ``oob`` (default: censor) *before* the stats, so the fit only sees
+    in-range data.
+
     ``expand=False`` turns off the scales' expansion (for zoomed and unzoomed axes).
+    ``clip="on"`` (default) clips marks to the panel: points outside are dropped,
+    paths/ribbons/bars are cut at the border (:mod:`ggmanim.geoms._clip`);
+    ``clip="off"`` draws them wherever they fall.
     """
 
     def __init__(
@@ -202,7 +232,11 @@ class CoordCartesian:
         xlim: Sequence[float | None] | None = None,
         ylim: Sequence[float | None] | None = None,
         expand: bool = True,
+        clip: str = "on",
     ):
+        if clip not in _CLIP:
+            raise ValueError(f"clip must be 'on' or 'off', got {clip!r}")
+        self.clip = clip
         for name, lim in (("xlim", xlim), ("ylim", ylim)):
             if lim is not None and len(tuple(lim)) != 2:
                 raise ValueError(f"{name} must be (lo, hi), got {lim!r}")
@@ -214,11 +248,18 @@ class CoordCartesian:
         return plot._with_coord(self)
 
     def __repr__(self):
-        return f"coord_cartesian(xlim={self.xlim!r}, ylim={self.ylim!r}, expand={self.expand!r})"
+        clip = f", clip={self.clip!r}" if self.clip != "on" else ""
+        return (
+            f"coord_cartesian(xlim={self.xlim!r}, ylim={self.ylim!r}, expand={self.expand!r}{clip})"
+        )
 
     # -- geometry --------------------------------------------------------------
     def _axis_range(self, scale, lim) -> tuple[float, float]:
         return _range(scale, lim, self.expand)
+
+    def _panel_size(self, theme: Theme, has_legend: bool, pp: PanelParams) -> tuple[float, float]:
+        """``(width, height)`` of the panel; :class:`CoordFixed` overrides this."""
+        return theme.panel_size(has_legend)
 
     def setup_panel_params(self, x_scale, y_scale) -> PanelParams:
         """Ranges, breaks and labels for trained ``x_scale``/``y_scale`` (either may
@@ -252,7 +293,7 @@ class CoordCartesian:
         """
         theme = theme if theme is not None else theme_default()
         pp = self.setup_panel_params(x_scale, y_scale)
-        width, height = theme.panel_size(has_legend)
+        width, height = self._panel_size(theme, has_legend, pp)
         (x0, x1), (y0, y1) = pp.x_range, pp.y_range
 
         axes = PanelAxes(
@@ -339,6 +380,7 @@ class CoordCartesian:
             axes, pp, grid, x_ticks, y_ticks, x_tick_labels, y_tick_labels, x_title, y_title
         )
         _add_panel_decorations(panel, theme)
+        panel.clip = self.clip
         return panel
 
 
@@ -447,6 +489,106 @@ def _make_title(theme: Theme, content: Any) -> Mobject | None:
 
 
 @register
-def coord_cartesian(xlim=None, ylim=None, expand: bool = True) -> CoordCartesian:
-    """Cartesian coordinates; ``xlim``/``ylim`` zoom without censoring data."""
-    return CoordCartesian(xlim=xlim, ylim=ylim, expand=expand)
+def coord_cartesian(xlim=None, ylim=None, expand: bool = True, clip: str = "on") -> CoordCartesian:
+    """Cartesian coordinates; ``xlim``/``ylim`` zoom without censoring data and
+    ``clip="on"`` keeps marks inside the panel (see :class:`CoordCartesian`)."""
+    return CoordCartesian(xlim=xlim, ylim=ylim, expand=expand, clip=clip)
+
+
+def _swap_xy(labels: Mapping[str, Any] | None) -> dict[str, Any] | None:
+    if labels is None:
+        return None
+    out = {k: v for k, v in labels.items() if k not in ("x", "y")}
+    if "y" in labels:
+        out["x"] = labels["y"]
+    if "x" in labels:
+        out["y"] = labels["x"]
+    return out
+
+
+class CoordFlip(CoordCartesian):
+    """Cartesian coordinates with x and y swapped: the x aesthetic (and its scale,
+    breaks and title) is drawn on the vertical axis, y on the horizontal one.
+
+    Geoms are unchanged: they go through ``panel.transform(x, y)``, which swaps.
+    ``xlim``/``ylim`` refer to the x/y *aesthetics* (as in ggplot2).
+    ``panel.panel_params`` stays in aesthetic orientation (see
+    :class:`CartesianPanel`).
+    """
+
+    def __repr__(self):
+        return f"coord_flip(xlim={self.xlim!r}, ylim={self.ylim!r}, expand={self.expand!r})"
+
+    def build(
+        self,
+        x_scale,
+        y_scale,
+        theme: Theme | None = None,
+        labels: Mapping[str, Any] | None = None,
+        *,
+        has_legend: bool = False,
+    ) -> CartesianPanel:
+        inner = CoordCartesian(xlim=self.ylim, ylim=self.xlim, expand=self.expand, clip=self.clip)
+        panel = inner.build(y_scale, x_scale, theme, _swap_xy(labels), has_legend=has_legend)
+        pp = panel.panel_params
+        panel.panel_params = PanelParams(
+            x_range=pp.y_range,
+            y_range=pp.x_range,
+            x_breaks=pp.y_breaks,
+            y_breaks=pp.x_breaks,
+            x_labels=pp.y_labels,
+            y_labels=pp.x_labels,
+        )
+        panel.flipped = True
+        return panel
+
+
+class CoordFixed(CoordCartesian):
+    """Cartesian coordinates with a fixed aspect ratio: one unit on the y axis is
+    ``ratio`` times as long on screen as one unit on the x axis (in transformed
+    space). The panel is the largest such rectangle inside ``theme.panel_size``.
+    """
+
+    def __init__(
+        self,
+        ratio: float = 1.0,
+        xlim: Sequence[float | None] | None = None,
+        ylim: Sequence[float | None] | None = None,
+        expand: bool = True,
+        clip: str = "on",
+    ):
+        super().__init__(xlim=xlim, ylim=ylim, expand=expand, clip=clip)
+        ratio = float(ratio)
+        if not (np.isfinite(ratio) and ratio > 0):
+            raise ValueError(f"ratio must be a positive number, got {ratio!r}")
+        self.ratio = ratio
+
+    def __repr__(self):
+        return (
+            f"coord_fixed(ratio={self.ratio!r}, xlim={self.xlim!r}, ylim={self.ylim!r}, "
+            f"expand={self.expand!r})"
+        )
+
+    def _panel_size(self, theme: Theme, has_legend: bool, pp: PanelParams) -> tuple[float, float]:
+        w, h = theme.panel_size(has_legend)
+        dx = pp.x_range[1] - pp.x_range[0]
+        dy = pp.y_range[1] - pp.y_range[0]
+        aspect = self.ratio * dy / dx  # wanted height / width
+        if aspect > h / w:
+            return h / aspect, h
+        return w, w * aspect
+
+
+@register
+def coord_flip(xlim=None, ylim=None, expand: bool = True, clip: str = "on") -> CoordFlip:
+    """Flip x and y: the x aesthetic runs vertically (horizontal bars, etc.)."""
+    return CoordFlip(xlim=xlim, ylim=ylim, expand=expand, clip=clip)
+
+
+@register
+def coord_fixed(
+    ratio: float = 1.0, xlim=None, ylim=None, expand: bool = True, clip: str = "on"
+) -> CoordFixed:
+    """Fixed aspect ratio: ``ratio`` = screen length of one y unit / one x unit
+    (``ratio=1``: a unit square is drawn square)."""
+    return CoordFixed(ratio=ratio, xlim=xlim, ylim=ylim, expand=expand, clip=clip)
