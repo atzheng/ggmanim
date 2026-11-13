@@ -182,6 +182,9 @@ class ggplot:
             raise AttributeError(attr)
         component = COMPONENTS.get(attr)
         if component is None:
+            _load_components()
+            component = COMPONENTS.get(attr)
+        if component is None:
             raise AttributeError(
                 f"'ggplot' object has no attribute {attr!r} (no registered component {attr!r})"
             )
@@ -198,6 +201,14 @@ class ggplot:
         method.__qualname__ = f"ggplot.{attr}"
         method.__doc__ = getattr(component, "__doc__", None)
         return method
+
+    # -- building ------------------------------------------------------------
+    def build(self, **kwargs):
+        """Build the plot into a :class:`~ggmanim.mobjects.GGPlot` (pure: the spec
+        is never mutated). See :func:`ggmanim.build.build_plot`."""
+        from .build import build_plot
+
+        return build_plot(self, **kwargs)
 
     def __dir__(self):
         return sorted(set(super().__dir__()) | set(COMPONENTS))
@@ -221,6 +232,18 @@ class ggplot:
 
 #: Legacy name.
 GGManim = ggplot
+
+
+def _load_components() -> None:
+    """Import the component modules so their constructors are registered
+    (chaining like ``ggplot(df).geom_point()`` must not depend on import order)."""
+    import importlib
+
+    for mod in ("geoms", "scales", "scales.discrete", "stats", "coords", "theme", "guides"):
+        try:
+            importlib.import_module(f"{__package__}.{mod}")
+        except ImportError:  # optional / not yet available (guides)
+            pass
 
 
 def _rebuild(cls, state):
