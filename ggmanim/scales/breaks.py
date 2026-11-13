@@ -359,13 +359,42 @@ def _common_decimals(x: np.ndarray, max_digits: int = 15) -> int:
     return max_digits
 
 
+#: Significant digits shown by the default formatters (R's ``getOption("digits")``).
+_DISPLAY_DIGITS = 7
+
+
+def _display_decimals(x: np.ndarray, digits: int = _DISPLAY_DIGITS, max_digits: int = 15) -> int:
+    """Common number of decimals for labelling ``x``: the fewest that show every
+    value exactly, but never more than needed to show each value to ``digits``
+    significant figures (like R's ``format()``), so unrounded values such as
+    ``0.9999999999`` print as ``1`` instead of ``1.000000000``."""
+    x = np.asarray(x, dtype=float)
+    x = x[np.isfinite(x)]
+    if not len(x):
+        return 0
+    rounded = _round_sig(x, digits)
+    nz = rounded != 0
+    exps = np.floor(np.log10(np.abs(np.where(nz, rounded, 1.0))) + 1e-12)
+    caps = np.where(nz, np.clip(digits - 1 - exps, 0, max_digits), 0).astype(int)
+    tol = 1e-10 * max(float(np.max(np.abs(x))), 1e-300)
+    d = 0
+    for v, cap in zip(rounded, caps):
+        # fewest decimals showing v exactly, capped at its last significant digit;
+        # integer digits are never dropped
+        need = next((k for k in range(cap + 1) if abs(round(v, k) - v) <= tol), cap)
+        d = max(d, need)
+    return d
+
+
 def format_numbers(values) -> list[str]:
     """Default tick-label formatter.
 
     All labels share the same number of decimals -- the fewest needed to show every
     value (so trailing zeros are trimmed, but ``0.0, 0.5, 1.0`` stay aligned, as in
     ggplot2). Scientific notation (R style, ``"1e+05"``) is used when any non-zero
-    value has a decimal exponent with ``|exp| >= 5``. Non-finite values give ``""``.
+    value has a decimal exponent with ``|exp| >= 5``. Values are shown to at most
+    7 significant digits (R's default ``digits``), so unrounded limits don't print
+    as ``"1.000000000"``. Non-finite values give ``""``.
     """
     x = np.asarray(values, dtype=float).ravel()
     out = [""] * len(x)
@@ -383,7 +412,7 @@ def format_numbers(values) -> list[str]:
             xf != 0, np.floor(np.log10(np.abs(np.where(xf != 0, xf, 1))) + 1e-12), 0
         )
         mant = xf / 10.0**exps_all
-        d = _common_decimals(np.round(mant, 12), max_digits=14)
+        d = _display_decimals(mant, max_digits=14)
         labels = []
         for m, e in zip(mant, exps_all):
             if round(abs(m), d) >= 10:  # rounding pushed mantissa to 10
@@ -391,7 +420,7 @@ def format_numbers(values) -> list[str]:
             sign = "-" if e < 0 else "+"
             labels.append(f"{m:.{d}f}e{sign}{int(abs(e)):02d}")
     else:
-        d = _common_decimals(xf)
+        d = _display_decimals(xf)
         labels = [f"{v:.{d}f}" for v in np.round(xf, d) + 0.0]
     it = iter(labels)
     for i, ok in enumerate(finite):

@@ -48,6 +48,12 @@ def test_label_number_defaults_and_edge_cases():
     assert label_number()([-0.0, 5]) == ["0", "5"]
 
 
+def test_label_number_caps_significant_digits():
+    assert label_number()([0.9999999999, 2.0000000001]) == ["1", "2"]
+    assert label_number()([-1.23456789, 3.3]) == ["-1.234568", "3.300000"]
+    assert label_number()([12345678.123456]) == ["12,345,678"]  # integer digits kept
+
+
 def test_label_number_accuracy_scale_marks():
     assert label_number(accuracy=0.01)([1, 2.346]) == ["1.00", "2.35"]
     assert label_number(accuracy=10)([1234, 5]) == ["1,230", "0"]
