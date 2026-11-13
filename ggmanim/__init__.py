@@ -77,7 +77,20 @@ from .scales.shape import (
     scale_shape_manual,
 )
 from .stats import stat_function, stat_identity, stat_smooth
-from .theme import theme, theme_classic, theme_default, theme_minimal
+from .theme import (
+    theme,
+    theme_bw,
+    theme_classic,
+    theme_dark,
+    theme_default,
+    theme_gray,
+    theme_grey,
+    theme_light,
+    theme_linedraw,
+    theme_manim,
+    theme_minimal,
+    theme_void,
+)
 
 __version__ = "0.1.0"
 
@@ -144,9 +157,17 @@ __all__ = [
     "coord_cartesian",
     # themes
     "theme",
+    "theme_bw",
     "theme_classic",
+    "theme_dark",
     "theme_default",
+    "theme_gray",
+    "theme_grey",
+    "theme_light",
+    "theme_linedraw",
+    "theme_manim",
     "theme_minimal",
+    "theme_void",
     # palettes
     "BRIGHT",
     "MUTED",

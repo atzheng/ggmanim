@@ -384,14 +384,39 @@ def make_legends(
     return list(build_legends(scales, specs, theme, labels, guide_specs) or [])
 
 
-def _text(theme: Theme, content: Any, size: float) -> Mobject | None:
+def _text(theme: Theme, content: Any, size: float, element: str | None = None) -> Mobject | None:
     if content is None:
         return None
     if isinstance(content, Mobject):
         return content.copy()
     if str(content) == "":
         return None
-    return theme.make_text(str(content), font_size=size)
+    style = theme.text_style(element) if element is not None else {}
+    style["font_size"] = size
+    return theme.make_text(str(content), **style)
+
+
+def _title_edges(panel: CartesianPanel, legend: VGroup, theme: Theme) -> tuple[float, float]:
+    """``(left, right)`` x that titles/captions align to (``plot_title_position``)."""
+    if getattr(theme, "plot_title_position", "panel") == "plot":
+        whole = VGroup(panel, legend) if len(legend) else panel
+        return whole.get_left()[0], whole.get_right()[0]
+    return panel.axes.get_left()[0], panel.axes.get_right()[0]
+
+
+def _plot_background(content: Mobject, theme: Theme) -> Mobject | None:
+    """A filled rectangle behind ``content`` padded by ``theme.plot_margin``."""
+    if getattr(theme, "plot_background", None) is None:
+        return None
+    from manim import DL, UR, ManimColor, Polygon
+
+    t, r, b, l_ = theme.plot_margin
+    (x0, y0, _), (x1, y1, _) = content.get_corner(DL), content.get_corner(UR)
+    x0, x1, y0, y1 = x0 - l_, x1 + r, y0 - b, y1 + t
+    corners = [np.array([x, y, 0.0]) for x, y in ((x0, y0), (x1, y0), (x1, y1), (x0, y1))]
+    rect = Polygon(*corners, stroke_width=0)
+    rect.set_fill(ManimColor(theme.plot_background), opacity=theme.plot_background_opacity)
+    return rect
 
 
 def assemble(
@@ -404,10 +429,10 @@ def assemble(
     legend = VGroup()
     if legends:
         legend = place_legends(panel, legends, theme)
-    title = _text(theme, labels.get("title"), theme.title_size)
-    subtitle = _text(theme, labels.get("subtitle"), theme.axis_title_size)
-    caption = _text(theme, labels.get("caption"), theme.axis_text_size)
-    left = panel.get_left()[0]
+    title = _text(theme, labels.get("title"), theme.title_size, "title")
+    subtitle = _text(theme, labels.get("subtitle"), theme.axis_title_size, "subtitle")
+    caption = _text(theme, labels.get("caption"), theme.axis_text_size, "caption")
+    left, right = _title_edges(panel, legend, theme)
     if subtitle is not None:
         subtitle.next_to(panel, UP, buff=0.2)
         subtitle.set_x(left, direction=LEFT)
@@ -416,7 +441,7 @@ def assemble(
         title.set_x(left, direction=LEFT)
     if caption is not None:
         caption.next_to(panel, DOWN, buff=0.2)
-        caption.set_x(panel.get_right()[0], direction=RIGHT)
+        caption.set_x(right, direction=RIGHT)
     plot = GGPlot(
         panel=panel,
         layers=drawn,
@@ -427,19 +452,30 @@ def assemble(
         caption=caption,
         **extra,
     )
-    return fit_to_frame(plot)
+    background = _plot_background(plot, theme)
+    if background is not None:
+        plot.background = background
+        plot.add_to_back(background)
+        return fit_to_frame(plot, margin=0.0)
+    return fit_to_frame(plot, margin=getattr(theme, "plot_margin", 0.2))
 
 
-def fit_to_frame(plot: Mobject, margin: float = 0.2) -> Mobject:
+def fit_to_frame(plot: Mobject, margin: float | tuple[float, ...] = 0.2) -> Mobject:
     """Centre ``plot`` (its whole bounding box: panel, titles, legend) in the
-    frame, shrinking it only if it would not fit inside ``margin``."""
-    from manim import ORIGIN, config
+    frame inside ``margin`` (a number or ``(top, right, bottom, left)``), shrinking
+    it only if it would not fit."""
+    from manim import config
 
-    plot.move_to(ORIGIN)
-    max_w, max_h = config.frame_width - 2 * margin, config.frame_height - 2 * margin
+    if isinstance(margin, (int, float)):
+        t = r = b = l_ = float(margin)
+    else:
+        t, r, b, l_ = (float(m) for m in margin)
+    centre = np.array([(l_ - r) / 2, (b - t) / 2, 0.0])
+    plot.move_to(centre)
+    max_w, max_h = config.frame_width - l_ - r, config.frame_height - t - b
     factor = min(1.0, max_w / max(plot.width, 1e-9), max_h / max(plot.height, 1e-9))
     if factor < 1.0:
-        plot.scale(factor, about_point=ORIGIN)
+        plot.scale(factor, about_point=centre)
     return plot
 
 

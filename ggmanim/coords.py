@@ -35,7 +35,21 @@ from dataclasses import dataclass
 from typing import Any
 
 import numpy as np
-from manim import DOWN, LEFT, PI, Axes, Line, Mobject, VGroup, VMobject
+from manim import (
+    DEGREES,
+    DL,
+    DOWN,
+    LEFT,
+    PI,
+    UR,
+    Axes,
+    Line,
+    ManimColor,
+    Mobject,
+    Polygon,
+    VGroup,
+    VMobject,
+)
 
 from .registry import register
 from .scales.breaks import expand_range
@@ -105,6 +119,8 @@ class CartesianPanel(VGroup):
         self.y_tick_labels = y_tick_labels
         self.x_title = x_title
         self.y_title = y_title
+        self.background: VMobject | None = None  # theme.panel_background (set by build)
+        self.border: VMobject | None = None  # theme.panel_border (set by build)
         self.add(grid, axes, x_ticks, y_ticks, x_tick_labels, y_tick_labels)
         if x_title is not None:
             self.add(x_title)  # type: ignore[arg-type]
@@ -236,7 +252,6 @@ class CoordCartesian:
         """
         theme = theme if theme is not None else theme_default()
         pp = self.setup_panel_params(x_scale, y_scale)
-        fg = theme.get_foreground()
         width, height = theme.panel_size(has_legend)
         (x0, x1), (y0, y1) = pp.x_range, pp.y_range
 
@@ -252,9 +267,7 @@ class CoordCartesian:
                 "stroke_width": theme.axis_stroke_width,
             },
         )
-        axes.set_stroke(
-            color=fg, width=theme.axis_stroke_width, opacity=1.0 if theme.axis_line else 0.0
-        )
+        _style_axis_lines(axes, theme)
 
         xb = np.asarray(pp.x_breaks, dtype=float)
         yb = np.asarray(pp.y_breaks, dtype=float)
@@ -263,66 +276,164 @@ class CoordCartesian:
         left = _c2p(axes, x0, yb)
         right = _c2p(axes, x1, yb)
 
-        grid = VGroup()
-        if theme.panel_grid:
-            for a, b in list(zip(bottom, top)) + list(zip(left, right)):
-                grid.add(
-                    Line(
-                        a,
-                        b,
-                        stroke_width=theme.grid_stroke_width,
-                        stroke_color=fg,
-                        stroke_opacity=theme.grid_opacity,
-                    )
-                )
+        grid = _major_grid(theme, bottom, top, left, right)
 
         tl = theme.tick_length
         x_ticks, y_ticks = VGroup(), VGroup()
-        if theme.ticks:
+        tick_color = theme.color_of("axis_ticks_color")
+        if theme.axis_element("axis_ticks", "x"):
             for p in bottom:
                 x_ticks.add(
-                    Line(p, p + tl * DOWN, stroke_width=theme.axis_stroke_width, stroke_color=fg)
+                    Line(
+                        p,
+                        p + tl * DOWN,
+                        stroke_width=theme.axis_stroke_width,
+                        stroke_color=tick_color,
+                    )
                 )
+        if theme.axis_element("axis_ticks", "y"):
             for p in left:
                 y_ticks.add(
-                    Line(p, p + tl * LEFT, stroke_width=theme.axis_stroke_width, stroke_color=fg)
+                    Line(
+                        p,
+                        p + tl * LEFT,
+                        stroke_width=theme.axis_stroke_width,
+                        stroke_color=tick_color,
+                    )
                 )
 
-        gap = (tl if theme.ticks else 0.0) + theme.tick_label_buff
+        x_gap = (tl if len(x_ticks) else 0.0) + theme.tick_label_buff
+        y_gap = (tl if len(y_ticks) else 0.0) + theme.tick_label_buff
         x_tick_labels, y_tick_labels = VGroup(), VGroup()
-        if theme.tick_labels:
+        if theme.axis_element("axis_text", "x"):
             for p, s in zip(bottom, pp.x_labels):
-                x_tick_labels.add(_label(theme, s).next_to(p, DOWN, buff=gap))
+                lab = _place_tick_label(_label(theme, s), p, DOWN, x_gap, theme, "x")
+                x_tick_labels.add(lab)  # type: ignore[arg-type]
+        if theme.axis_element("axis_text", "y"):
             for p, s in zip(left, pp.y_labels):
-                y_tick_labels.add(_label(theme, s).next_to(p, LEFT, buff=gap))
+                lab = _place_tick_label(_label(theme, s), p, LEFT, y_gap, theme, "y")
+                y_tick_labels.add(lab)  # type: ignore[arg-type]
 
-        x_title = _make_title(theme, _title(x_scale, labels, "x"))
-        y_title = _make_title(theme, _title(y_scale, labels, "y"))
+        x_title = y_title = None
+        if theme.axis_element("axis_title", "x"):
+            x_title = _make_title(theme, _title(x_scale, labels, "x"))
+        if theme.axis_element("axis_title", "y"):
+            y_title = _make_title(theme, _title(y_scale, labels, "y"))
         corner = _c2p(axes, x0, y0)[0]
         centre = _c2p(axes, (x0 + x1) / 2, (y0 + y1) / 2)[0]
         if x_title is not None:
             below = (
-                x_tick_labels if len(x_tick_labels) else VGroup(Line(corner, corner + gap * DOWN))
+                x_tick_labels if len(x_tick_labels) else VGroup(Line(corner, corner + x_gap * DOWN))
             )
             x_title.next_to(below, DOWN, buff=theme.axis_title_buff)
             x_title.set_x(centre[0])
         if y_title is not None:
             y_title.rotate(PI / 2)
             beside = (
-                y_tick_labels if len(y_tick_labels) else VGroup(Line(corner, corner + gap * LEFT))
+                y_tick_labels if len(y_tick_labels) else VGroup(Line(corner, corner + y_gap * LEFT))
             )
             y_title.next_to(beside, LEFT, buff=theme.axis_title_buff)
             y_title.set_y(centre[1])
 
-        return CartesianPanel(
+        panel = CartesianPanel(
             axes, pp, grid, x_ticks, y_ticks, x_tick_labels, y_tick_labels, x_title, y_title
         )
+        _add_panel_decorations(panel, theme)
+        return panel
 
 
 def _label(theme: Theme, s: str) -> Mobject:
     if s == "":
         return VMobject()  # keep one label per break; nothing to draw
-    return theme.make_text(s, font_size=theme.axis_text_size)
+    return theme.make_text(s, **theme.text_style("axis_text"))
+
+
+# -- theme elements (backgrounds, borders, grid, axis lines, rotated labels) ----------
+def _style_axis_lines(axes: Axes, theme: Theme) -> None:
+    """Colour/width the axis lines; hide the ones switched off (per axis)."""
+    color = theme.color_of("axis_line_color")
+    for axis, line in (("x", axes.x_axis), ("y", axes.y_axis)):
+        on = theme.axis_element("axis_line", axis)
+        line.set_stroke(color=color, width=theme.axis_stroke_width, opacity=1.0 if on else 0.0)
+
+
+def _major_grid(theme: Theme, bottom, top, left, right) -> VGroup:
+    """Major grid lines: vertical ones at the x breaks, horizontal at the y breaks."""
+    grid = VGroup()
+    pairs = []
+    if theme.grid_major("x"):
+        pairs += list(zip(bottom, top))
+    if theme.grid_major("y"):
+        pairs += list(zip(left, right))
+    color = theme.color_of("grid_color")
+    for a, b in pairs:
+        grid.add(
+            Line(
+                a,
+                b,
+                stroke_width=theme.grid_stroke_width,
+                stroke_color=color,
+                stroke_opacity=theme.grid_opacity,
+            )
+        )
+    return grid
+
+
+def _place_tick_label(
+    label: Mobject, point: np.ndarray, direction: np.ndarray, gap: float, theme: Theme, axis: str
+) -> Mobject:
+    """Rotate ``label`` by ``axis_text_{axis}_angle`` and pin its (hjust, vjust)
+    anchor at ``gap`` from ``point`` in ``direction`` (ggplot semantics: the
+    anchor is a point of the *unrotated* label box). With automatic justification
+    the label is then nudged so no part of it lies on the axis side of the anchor.
+    With angle 0 and automatic justification this equals ``next_to(point, direction, gap)``."""
+    target = np.asarray(point, dtype=float) + gap * np.asarray(direction, dtype=float)
+    if len(label.get_all_points()) == 0:
+        return label.move_to(target)
+    angle = getattr(theme, f"axis_text_{axis}_angle")
+    hjust, vjust, auto = theme.axis_text_just(axis)
+    lo, hi = label.get_corner(DL), label.get_corner(UR)
+    anchor = np.array([lo[0] + hjust * (hi[0] - lo[0]), lo[1] + vjust * (hi[1] - lo[1]), 0.0])
+    if angle:
+        label.rotate(angle * DEGREES, about_point=anchor)
+    label.shift(target - anchor)
+    if auto:
+        back = -np.asarray(direction, dtype=float)
+        overshoot = float(np.dot(label.get_critical_point(back) - target, back))
+        if overshoot > 1e-9:
+            label.shift(-overshoot * back)
+    return label
+
+
+def _add_panel_decorations(panel: CartesianPanel, theme: Theme) -> None:
+    """Add the panel background (behind everything) and border (in front of the
+    axes) as ``panel.background`` / ``panel.border`` when the theme asks for them."""
+    (x0, x1), (y0, y1) = panel.panel_params.x_range, panel.panel_params.y_range
+    lo = _c2p(panel.axes, x0, y0)[0]
+    hi = _c2p(panel.axes, x1, y1)[0]
+    if theme.panel_background is not None:
+        bg = Polygon(*_box(lo, hi), stroke_width=0)
+        bg.set_fill(ManimColor(theme.panel_background), opacity=theme.panel_background_opacity)
+        panel.background = bg
+        panel.add_to_back(bg)
+    if theme.panel_border:
+        border = Polygon(
+            *_box(lo, hi),
+            stroke_color=theme.color_of("panel_border_color"),
+            stroke_width=theme.panel_border_width,
+        )
+        border.set_fill(opacity=0)
+        panel.border = border
+        panel.add(border)
+
+
+def _box(lo: np.ndarray, hi: np.ndarray) -> list[np.ndarray]:
+    return [
+        np.array([lo[0], lo[1], 0.0]),
+        np.array([hi[0], lo[1], 0.0]),
+        np.array([hi[0], hi[1], 0.0]),
+        np.array([lo[0], hi[1], 0.0]),
+    ]
 
 
 def _make_title(theme: Theme, content: Any) -> Mobject | None:
@@ -332,7 +443,7 @@ def _make_title(theme: Theme, content: Any) -> Mobject | None:
         return content.copy()  # never move/rotate the caller's mobject
     if str(content) == "":
         return None
-    return theme.make_text(content, font_size=theme.axis_title_size)
+    return theme.make_text(content, **theme.text_style("axis_title"))
 
 
 @register
