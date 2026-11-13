@@ -142,6 +142,50 @@ tex_plot = ggplot().geom_function(lambda x: x ** 2, xlim=(0, 2)).add(
 
 Any label may also be a ready-made manim `Mobject`, e.g. `labs(y=MathTex(r"\hat{y}"))`.
 
+## Legends
+
+Every mapped non-position aesthetic gets a guide: a legend of keys for discrete
+scales (and size/alpha/linewidth), a colourbar for continuous colour. As in
+ggplot2, legends with the same title and the same levels merge into one with
+composite keys, so `color="g", shape="g"` gives a single legend. Configure a
+guide with `guide_legend(...)` / `guide_colorbar(...)`, either in `guides()` or
+as a scale's `guide=`; place and style them with `theme()`:
+
+```python
+import numpy as np
+import pandas as pd
+from ggmanim import aes, ggplot, guide_colorbar, guide_legend, guides, theme
+
+df = pd.DataFrame({"x": np.arange(12.0), "y": np.sqrt(np.arange(12.0)),
+                   "g": list("abcd") * 3, "z": np.linspace(0, 1, 12)})
+
+legend_plot = (ggplot(df, aes("x", "y", color="g", shape="g"))   # one merged legend
+               .geom_point(alpha=0.5)
+               .add(guides(color=guide_legend(ncol=2, override_aes={"alpha": 1})),
+                    theme(legend_position=(1, 0),                # inside, bottom-right
+                          legend_background="#222222", legend_border=True))
+               .build())
+
+two_guides = (ggplot(df, aes("x", "y", color="z", shape="g"))
+              .geom_point()
+              .add(guides(shape=guide_legend(order=1), color=guide_colorbar(order=2)),
+                   theme(legend_position="bottom", legend_justification="left"))
+              .build())
+```
+
+- `guide_legend(title, nrow, ncol, byrow, reverse, override_aes, order, direction)`;
+  `guide_colorbar(title, barwidth, barheight, nbin, reverse, ticks, order, direction)`.
+- `theme(legend_position=...)`: `"right"` (default), `"left"`, `"top"`, `"bottom"`,
+  `"none"`, or `(x, y)` in `[0, 1]` to put the legend *inside* the panel;
+  `legend_justification` picks the point of the legend box anchored there.
+- `legend_direction` (key layout, independent of position), `legend_box`
+  (stack several legends `"vertical"`ly or `"horizontal"`ly), `legend_key_size`,
+  `legend_key_width`, `legend_spacing`, `legend_box_spacing`, `legend_title_align`,
+  `legend_background`, `legend_border`, `legend_text_color`/`_font`,
+  `legend_title_color`/`_font`.
+- `show_legend=False` on a layer keeps it out of every legend;
+  `show_legend={"color": False}` only out of the colour legend.
+
 ## What is supported
 
 Phase 1 (this release): `geom_point`, `geom_line`, `geom_smooth` (`method="lm"`,

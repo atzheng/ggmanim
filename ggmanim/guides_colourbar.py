@@ -19,9 +19,11 @@ from collections.abc import Sequence
 from typing import Any
 
 import numpy as np
-from manim import LEFT, UP, Line, Mobject, Rectangle, SurroundingRectangle, VGroup
+from manim import LEFT, UP, Line, Mobject, Rectangle, VGroup
 
 from .geoms.base import KEY_SIZE
+from .guides_legend import legend_frame
+from .labels import render_label
 from .theme import Theme, theme_default
 
 __all__ = [
@@ -44,7 +46,16 @@ _TITLE_BUFF = 0.15
 class GuideColourbar:
     """Colourbar options (see :func:`guide_colorbar`)."""
 
-    __slots__ = ("title", "barwidth", "barheight", "nbin", "reverse", "ticks")
+    __slots__ = (
+        "title",
+        "barwidth",
+        "barheight",
+        "nbin",
+        "reverse",
+        "ticks",
+        "order",
+        "direction",
+    )
 
     def __init__(
         self,
@@ -54,15 +65,25 @@ class GuideColourbar:
         nbin: int = 32,
         reverse: bool = False,
         ticks: bool = True,
+        order: int = 0,
+        direction: str | None = None,
     ) -> None:
         if int(nbin) < 1:
             raise ValueError("nbin must be >= 1")
+        if direction not in (None, "horizontal", "vertical"):
+            raise ValueError(
+                f"direction must be 'horizontal', 'vertical' or None, got {direction!r}"
+            )
+        if isinstance(order, bool) or not isinstance(order, int) or order < 0:
+            raise ValueError(f"order must be an integer >= 0, got {order!r}")
         self.title = title
         self.barwidth = barwidth
         self.barheight = barheight
         self.nbin = int(nbin)
         self.reverse = bool(reverse)
         self.ticks = bool(ticks)
+        self.order = int(order)
+        self.direction = direction
 
     def __eq__(self, other: object) -> bool:
         return isinstance(other, GuideColourbar) and all(
@@ -84,16 +105,20 @@ def guide_colorbar(
     nbin: int = 32,
     reverse: bool = False,
     ticks: bool = True,
+    order: int = 0,
+    direction: str | None = None,
 ) -> GuideColourbar:
     """Colourbar guide options.
 
     ``title`` overrides the scale/labs title; ``barwidth``/``barheight`` are the
     bar's thickness and length in scene units (default ``1.2 * KEY_SIZE`` and
-    ``5`` times that); ``nbin`` is the number of rectangles the bar is made of;
+    ``5`` times that, lengthened for horizontal bars so labels fit); ``nbin`` is the number of rectangles the bar is made of;
     ``reverse`` puts high values at the bottom (left); ``ticks=False`` hides the
-    tick marks.
+    tick marks. ``order`` and ``direction`` work as in
+    :func:`~ggmanim.guides_legend.guide_legend` (``direction`` overrides the
+    layout chosen from the legend position).
     """
-    return GuideColourbar(title, barwidth, barheight, nbin, reverse, ticks)
+    return GuideColourbar(title, barwidth, barheight, nbin, reverse, ticks, order, direction)
 
 
 guide_colourbar = guide_colorbar
@@ -166,7 +191,13 @@ class Colourbar(VGroup):
     @property
     def bar_length(self) -> float:
         bh = self.options.barheight
-        return float(bh) if bh is not None else KEY_SIZE * 1.2 * 5
+        if bh is not None:
+            return float(bh)
+        length = KEY_SIZE * 1.2 * 5
+        if self.direction == "horizontal" and self.labels:
+            # side-by-side labels need room: stretch the default bar so they don't overlap
+            length = max(length, 1.5 * len(self.labels) * max(lab.width for lab in self.labels))
+        return length
 
     def _fraction(self, value: float) -> float:
         lo, hi = self.limits
@@ -222,15 +253,16 @@ class Colourbar(VGroup):
 
         if self.title is not None:
             self.title.next_to(self.bar, UP, buff=_TITLE_BUFF, aligned_edge=LEFT)
+            content = VGroup(self.bar, *self.labels)  # type: ignore[arg-type]
+            align = float(getattr(self.theme, "legend_title_align", 0.0))
+            left = content.get_left()[0] + align * (content.width - self.title.width)
+            self.title.set_x(left, direction=LEFT)
 
         parts: list[Any] = [self.title] if self.title is not None else []
         parts += [self.bar, self.ticks, *self.labels]
-        self.box = None
-        if getattr(self.theme, "legend_box", False):
-            self.box = SurroundingRectangle(
-                VGroup(*parts), color=self.theme.get_foreground(), buff=0.15, stroke_width=1
-            )
-            parts.append(self.box)
+        self.box = legend_frame(VGroup(*parts), self.theme)
+        if self.box is not None:
+            parts.insert(0, self.box)
         self.submobjects = []
         self.add(*parts)
         return self
@@ -253,14 +285,19 @@ def build_colourbar(
     n = options.nbin
     tv = lo + (np.arange(n) + 0.5) / n * (hi - lo)
     colours = list(scale.map_transformed(tv))
-    label_mobs = [theme.make_text(str(lab), font_size=theme.legend_text_size) for lab in labels]
+    label_mobs = [
+        theme.make_text(
+            render_label(str(lab), theme.text_engine), **theme.text_style("legend_text")
+        )
+        for lab in labels
+    ]
     if options.title is not None:
         title = options.title
     if title is not None:
         if isinstance(title, Mobject):
             title = title.copy()
         else:
-            title = theme.make_text(str(title), font_size=theme.legend_title_size)
+            title = theme.make_text(str(title), **theme.text_style("legend_title"))
     return Colourbar(
         title, colours, breaks, label_mobs, (lo, hi), tuple(aes_scales), options, theme
     )
