@@ -79,7 +79,7 @@ VIBRANT: list[ManimColor] = _colors(
 SHAPES: list[str] = ["circle", "triangle", "square", "cross", "diamond", "star"]
 """Default palette for the ``shape`` aesthetic (names interpreted by geoms)."""
 
-LINETYPES: list[str] = ["solid", "dashed", "dotted", "dashdot"]
+LINETYPES: list[str] = ["solid", "dashed", "dotted", "dashdot", "longdash", "twodash"]
 """Default palette for the ``linetype`` aesthetic (names interpreted by geoms)."""
 
 

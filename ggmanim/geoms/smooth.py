@@ -7,6 +7,7 @@ from manim import LEFT, RIGHT, Line, Polygon, Square, VGroup, VMobject
 
 from ..registry import register
 from ..theme import Theme, theme_default
+from ._linetype import apply_linetype
 from .base import (
     KEY_SIZE,
     assemble,
@@ -59,6 +60,7 @@ class GeomSmooth(GeomLine):
             pts = transform_points(coord, x, gdf["y"].to_numpy(float))
             color = resolve_color(first(gdf, "color"), fg)
             line = path_mobject(pts, color, num(first(gdf, "linewidth"), 3.0), 1.0)
+            line = apply_linetype(line, first(gdf, "linetype"))
             mob = line
             if se and {"ymin", "ymax"} <= set(gdf.columns):
                 ymin = gdf["ymin"].to_numpy(float)
@@ -92,7 +94,7 @@ class GeomSmooth(GeomLine):
             color=color,
             stroke_width=num(row.get("linewidth"), 3.0),
         )
-        return VGroup(bg, line)
+        return VGroup(bg, apply_linetype(line, row.get("linetype"), max_period=KEY_SIZE / 2))
 
 
 @register

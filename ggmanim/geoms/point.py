@@ -2,21 +2,25 @@
 
 from __future__ import annotations
 
-from manim import ORIGIN, Dot, VGroup, VMobject
+from manim import ORIGIN, VGroup, VMobject
 
 from ..registry import register
 from ..theme import Theme, theme_default
+from ._markers import make_marker
 from .base import Geom, finite_rows, make_layer, num, resolve_color, transform_points
 
 __all__ = ["GeomPoint", "geom_point"]
 
 
 class GeomPoint(Geom):
-    """Points: ``draw_panel`` returns a ``VGroup`` with one ``Dot`` per (finite) row,
+    """Points: ``draw_panel`` returns a ``VGroup`` with one marker per (finite) row,
     in data order.
 
-    ``size`` is the dot radius in scene units; ``color=None`` is the theme
-    foreground; ``fill`` (if set) colours the dot instead of ``color``.
+    ``size`` is the dot radius in scene units (other shapes have the same area);
+    ``color=None`` is the theme foreground; ``fill`` (if set) colours solid
+    markers instead of ``color``. ``shape`` (``None`` = circle) selects the
+    marker, see :mod:`ggmanim.geoms._markers` and
+    :func:`ggmanim.scales.shape.parse_shape`.
     """
 
     required_aes = ("x", "y")
@@ -36,15 +40,15 @@ class GeomPoint(Geom):
         return dots
 
     @staticmethod
-    def _dot(point, row, fg) -> Dot:
+    def _dot(point, row, fg) -> VMobject:
         color = resolve_color(row.get("color"), fg)
-        fill = resolve_color(row.get("fill"), color)
-        return Dot(
+        return make_marker(
+            row.get("shape"),
             point,
             radius=num(row.get("size"), 0.06),
-            color=fill if fill is not None else fg,
-            fill_opacity=num(row.get("alpha"), 1.0),
-            stroke_width=0,
+            color=color if color is not None else fg,
+            fill=resolve_color(row.get("fill")),
+            alpha=num(row.get("alpha"), 1.0),
         )
 
     def draw_key(self, data_row, theme: Theme | None = None) -> VMobject:

@@ -58,6 +58,14 @@ from .scales.discrete import (
     scale_fill_manual,
 )
 from .scales.discrete_position import scale_x_discrete, scale_y_discrete
+from .scales.shape import (
+    scale_linetype,
+    scale_linetype_identity,
+    scale_linetype_manual,
+    scale_shape,
+    scale_shape_identity,
+    scale_shape_manual,
+)
 from .stats import stat_function, stat_identity, stat_smooth
 from .theme import theme, theme_classic, theme_default, theme_minimal
 
@@ -106,6 +114,12 @@ __all__ = [
     "scale_fill_discrete",
     "scale_fill_identity",
     "scale_fill_manual",
+    "scale_linetype",
+    "scale_linetype_identity",
+    "scale_linetype_manual",
+    "scale_shape",
+    "scale_shape_identity",
+    "scale_shape_manual",
     "xlim",
     "ylim",
     # coords
