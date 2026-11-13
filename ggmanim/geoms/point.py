@@ -6,7 +6,8 @@ from manim import ORIGIN, VGroup, VMobject
 
 from ..registry import register
 from ..theme import Theme, theme_default
-from ._clip import inside, panel_rect
+from ._clip import panel_rect
+from ._marker_clip import clip_marker, marker_extent, near_box, scene_box
 from ._markers import make_marker
 from .base import Geom, finite_rows, make_layer, num, resolve_color, transform_points
 
@@ -34,13 +35,19 @@ class GeomPoint(Geom):
         self.check_required_aes(data)
         data = finite_rows(self.use_defaults(data, params), ("x", "y"))
         rect = panel_rect(coord, panel_params)
-        if rect is not None:  # clip="on": points outside the panel are not drawn
-            data = data[inside(data["x"].to_numpy(float), data["y"].to_numpy(float), rect)]
         fg = theme.get_foreground()
         pts = transform_points(coord, data["x"].to_numpy(float), data["y"].to_numpy(float))
+        box = None
+        if rect is not None:  # clip="on": markers are clipped to the panel
+            box = scene_box(coord, rect)
+            keep = near_box(pts, box, marker_extent([num(v, 0.06) for v in data["size"]]))
+            data, pts = data[keep], pts[keep]
         dots = VGroup()
         for p, row in zip(pts, data.to_dict("records")):
-            dots.add(self._dot(p, row, fg))
+            dot = self._dot(p, row, fg)
+            shown = dot if box is None else clip_marker(dot, box)  # None: fully clipped
+            if shown is not None:
+                dots.add(shown)
         return dots
 
     @staticmethod
