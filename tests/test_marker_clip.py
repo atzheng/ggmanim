@@ -115,6 +115,28 @@ def test_plus_on_corner_keeps_arms_along_border():
     assert pts[:, 0].min() < 0.6 and pts[:, 1].max() > 0.4  # both inward arms visible
 
 
+@pytest.mark.parametrize("eps", [0.0, 1e-15, -1e-15])
+@pytest.mark.parametrize(
+    ("centre", "axis"),
+    [((0.0, 0.5), 0), ((1.0, 0.5), 0), ((0.5, 0.0), 1), ((0.5, 1.0), 1)],
+    ids=["left", "right", "bottom", "top"],
+)
+def test_plus_on_border_keeps_arm_along_border(centre, axis, eps):
+    # a plus centred on a panel edge: one arm runs along the border (up to
+    # rounding); it must be kept whole, not cut at an arbitrary point (ggm-sol)
+    c = np.array([*centre, 0.0])
+    c[axis] += eps
+    m = make_marker("plus", c, radius=0.2, color="#ffffff")
+    out = clip_marker(m, (0.0, 1.0, 0.0, 1.0))
+    pts = _points(out)[:, :2]
+    assert np.all(pts >= -1e-9) and np.all(pts <= 1 + 1e-9)
+    other = 1 - axis
+    on_border = pts[np.abs(pts[:, axis] - centre[axis]) <= 1e-9]
+    lo, hi = on_border[:, other].min(), on_border[:, other].max()
+    assert lo < 0.5 - 0.15 and hi > 0.5 + 0.15  # the full arm along the border
+    assert np.abs(pts[:, axis] - centre[axis]).max() > 0.15  # the inward arm
+
+
 def test_clip_marker_fast_path_and_invisible():
     dot = make_marker("circle", [0.5, 0.0, 0.0], radius=0.1, color="#ffffff")
     assert clip_marker(dot, (0.0, 1.0, -1.0, 1.0)) is dot

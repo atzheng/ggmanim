@@ -3,6 +3,7 @@
 from types import SimpleNamespace
 
 import numpy as np
+import pytest
 
 from ggmanim.geoms._clip import (
     clip_polygon,
@@ -38,6 +39,52 @@ def test_liang_barsky_diagonal_corner():
     t0, t1, vis = clip_segments(-1.0, -1.0, 11.0, 11.0, R)
     assert vis
     np.testing.assert_allclose([-1 + 12 * t0, -1 + 12 * t1], [0, 5])
+
+
+# (x0, y0, x1, y1) of a segment lying along each edge of R, offset outward by ``eps``
+# (slightly non-parallel for eps != 0, so Liang-Barsky's ratio q / p is arbitrary).
+# ``eps`` is relative to the edge's coordinate so the offset is representable.
+def _edge_segments(eps):
+    return [
+        (0.0 - eps, 1.0, 0.0 - 2 * eps, 4.0),  # left
+        (10.0 * (1 + eps), 1.0, 10.0 * (1 + 2 * eps), 4.0),  # right
+        (2.0, 0.0 - eps, 8.0, 0.0 - 2 * eps),  # bottom
+        (2.0, 5.0 * (1 + eps), 8.0, 5.0 * (1 + 2 * eps)),  # top
+    ]
+
+
+@pytest.mark.parametrize("eps", [0.0, 1e-15])
+@pytest.mark.parametrize("edge", range(4))
+def test_segment_along_edge_kept_whole(eps, edge):
+    x0, y0, x1, y1 = _edge_segments(eps)[edge]
+    for a, b in (((x0, y0), (x1, y1)), ((x1, y1), (x0, y0))):  # both directions
+        t0, t1, vis = clip_segments(*a, *b, R)
+        assert vis
+        assert (float(t0), float(t1)) == (0.0, 1.0)
+
+
+@pytest.mark.parametrize("eps", [0.0, 1e-15])
+@pytest.mark.parametrize("edge", range(4))
+def test_polyline_and_polygon_along_edge_unchanged(eps, edge):
+    x0, y0, x1, y1 = _edge_segments(eps)[edge]
+    # leave the panel after running along the edge, so the fast path is not taken
+    cx, cy = 5.0, 2.5
+    ox, oy = 2 * x1 - cx, 2 * y1 - cy
+    (piece,) = clip_polyline([x0, x1, ox], [y0, y1, oy], R)
+    np.testing.assert_array_equal(piece[0][:2], [x0, x1])
+    np.testing.assert_array_equal(piece[1][:2], [y0, y1])
+    # a triangle with one side along the edge keeps that side's vertices
+    px, py = clip_polygon([x0, x1, ox], [y0, y1, oy], R)
+    verts = set(zip(px.tolist(), py.tolist()))
+    assert {(x0, y0), (x1, y1)} <= verts
+
+
+def test_segment_clearly_outside_edge_still_cut():
+    # far beyond the tolerance (1e-8 relative), still clipped at the edge
+    t0, t1, vis = clip_segments(-1e-6, 1.0, -2e-6, 4.0, R)
+    assert not vis
+    t0, t1, vis = clip_segments(-1.0, 1.0, 1.0, 1.0, R)
+    assert vis and float(t0) == pytest.approx(0.5)
 
 
 def test_polyline_inside_unchanged():
