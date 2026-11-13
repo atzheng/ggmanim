@@ -27,6 +27,13 @@ from .continuous import (
     xlim,
     ylim,
 )
+from .date import (
+    ScaleDatePosition,
+    scale_x_date,
+    scale_x_datetime,
+    scale_y_date,
+    scale_y_datetime,
+)
 from .discrete_position import ScaleDiscretePosition, scale_x_discrete, scale_y_discrete
 
 __all__ = [
@@ -59,4 +66,9 @@ __all__ = [
     "scale_y_discrete",
     "xlim",
     "ylim",
+    "ScaleDatePosition",
+    "scale_x_date",
+    "scale_y_date",
+    "scale_x_datetime",
+    "scale_y_datetime",
 ]

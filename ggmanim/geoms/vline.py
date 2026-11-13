@@ -118,7 +118,11 @@ def _ref_layer(geom, col, value, mapping, data, position, name, params):
     if value is not None:
         if mapping is not None or data is not None:
             raise TypeError(f"pass either {col}= or mapping/data, not both")
-        data = pd.DataFrame({col: np.atleast_1d(np.asarray(value, dtype=float))})
+        try:
+            values = np.atleast_1d(np.asarray(value, dtype=float))
+        except (TypeError, ValueError):  # dates / ISO strings for a date scale
+            values = np.atleast_1d(np.asarray(value, dtype=object))
+        data = pd.DataFrame({col: values})
         mapping = aes(**{col: col})
     # ggplot2: reference lines never inherit the plot's aesthetics.
     return make_layer(
