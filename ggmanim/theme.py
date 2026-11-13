@@ -487,7 +487,12 @@ class Theme:
 
     # -- text factory --------------------------------------------------------
     def make_text(
-        self, content: Any, font_size: float | None = None, color: Any = None, **kwargs
+        self,
+        content: Any,
+        font_size: float | None = None,
+        color: Any = None,
+        align: str = "left",
+        **kwargs,
     ) -> Mobject:
         """Make a text mobject honouring ``text_engine``.
 
@@ -495,6 +500,11 @@ class Theme:
         callers that move or rotate it must ``.copy()`` it first). Anything else is
         converted with ``str``. ``font_size`` defaults to ``axis_text_size``; ``color``
         to :meth:`get_foreground`. A ``font`` keyword is dropped for ``"tex"``.
+
+        Multi-line text (containing ``"\\n"``) becomes a Pango
+        :class:`~manim.Paragraph` whose lines are justified by ``align`` (``"left"``,
+        ``"center"`` or ``"right"``; see :func:`hjust_align`) with the ``"text"``
+        engine; with ``"tex"`` the newlines become ``\\\\`` line breaks.
         """
         if isinstance(content, Mobject):
             return content
@@ -505,10 +515,24 @@ class Theme:
             color = self.get_foreground()
         if self.text_engine == "tex":
             kwargs.pop("font", None)  # Pango font families do not apply to LaTeX
+            text = text.replace("\n", r"\\")
             return manim.Tex(text, font_size=font_size, color=color, **kwargs)
         if self.font is not None:
             kwargs.setdefault("font", self.font)
+        if "\n" in text:
+            if align not in ("left", "center", "right"):
+                raise ValueError(f"align must be 'left', 'center' or 'right', got {align!r}")
+            lines = text.split("\n")
+            return manim.Paragraph(
+                *lines, alignment=align, font_size=font_size, color=color, **kwargs
+            )
         return manim.Text(text, font_size=font_size, color=color, **kwargs)
+
+
+def hjust_align(hjust: float) -> str:
+    """Line alignment of multi-line text for a horizontal justification ``hjust``
+    (0 = left, 0.5 = centre, 1 = right), as ggplot2 justifies each line."""
+    return "left" if hjust < 0.25 else ("right" if hjust > 0.75 else "center")
 
 
 _FIELD_NAMES = frozenset(f.name for f in dataclasses.fields(Theme)) - {"complete", "overrides"}

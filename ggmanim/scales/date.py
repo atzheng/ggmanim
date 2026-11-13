@@ -20,6 +20,9 @@ Breaks
 Labels
 ------
 ``date_labels="%b %Y"`` (strftime) or ``labels=`` (e.g. :func:`ggmanim.labels.label_date`).
+Date-aware formatters (:func:`~ggmanim.labels.label_date`,
+:func:`~ggmanim.labels.label_date_short`, see :class:`~ggmanim.labels.DateFormatter`)
+get the scale's unit and time zone filled in, unless given explicitly.
 By default the format follows the breaks' resolution: ``"%Y"`` for January-1st
 breaks, ``"%b"``/``"%b %Y"`` for month starts, ``"%b %d"``/``"%Y-%m-%d"`` for days,
 ``"%H:%M"`` for minutes, ``"%H:%M:%S"`` otherwise.
@@ -348,6 +351,14 @@ def _label_date(fmt: str, unit: str, tz: Any = None) -> Callable[[Any], list[str
     return label_date(fmt, unit=unit, tz=tz)
 
 
+def _bind_labels(labels: Any, unit: str, tz: Any) -> Any:
+    """Complete a date-aware ``labels=`` formatter (``label_date()``,
+    ``label_date_short()`` ...) with the scale's unit and time zone."""
+    from ..labels import bind_date_formatter
+
+    return bind_date_formatter(labels, unit, tz)
+
+
 def date_format_auto(x: Any, unit: str = "D") -> str:
     """strftime format for breaks ``x`` (``unit``\\ s since the epoch), from their
     resolution: ``"%Y"`` (all on January 1st), ``"%b"`` / ``"%b %Y"`` (month starts
@@ -450,8 +461,11 @@ class ScaleDatePosition(ScaleContinuousPosition):
             breaks = date_breaks_width(date_breaks, unit, tz)
         elif breaks is not None and not callable(breaks):
             breaks = tuple(to_epoch(list(breaks), unit).tolist())
+        self._user_labels = labels
         if date_labels is not None:
             labels = _label_date(date_labels, unit, tz)
+        else:
+            labels = _bind_labels(labels, unit, tz)
         if date_minor_breaks is not None:
             minor_breaks = date_breaks_width(date_minor_breaks, unit, tz)
         elif minor_breaks is not None and not callable(minor_breaks) and minor_breaks is not False:
@@ -482,8 +496,9 @@ class ScaleDatePosition(ScaleContinuousPosition):
     def set_timezone(self, tz: Any) -> None:
         """Use time zone ``tz`` for breaks and labels (date-time scales only; call on a
         :meth:`clone`, as the build does with the zone of tz-aware data). Rebuilds the
-        ``date_breaks``/``date_labels``/``date_minor_breaks`` helpers; user
-        ``breaks``/``labels`` functions are left alone."""
+        ``date_breaks``/``date_labels``/``date_minor_breaks`` helpers and re-binds date-aware
+        ``labels`` formatters to ``tz``; other user ``breaks``/``labels`` functions
+        are left alone."""
         if self.unit != "s":
             return
         tz = resolve_tz(tz)
@@ -494,6 +509,8 @@ class ScaleDatePosition(ScaleContinuousPosition):
             self.breaks = date_breaks_width(date_breaks, self.unit, tz)
         if date_labels is not None:
             self.labels = _label_date(date_labels, self.unit, tz)
+        elif getattr(getattr(self, "_user_labels", None), "_date_aware", False):
+            self.labels = _bind_labels(self._user_labels, self.unit, tz)
         if date_minor_breaks is not None:
             self.minor_breaks = date_breaks_width(date_minor_breaks, self.unit, tz)
 
