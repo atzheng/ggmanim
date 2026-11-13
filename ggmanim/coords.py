@@ -133,7 +133,9 @@ def _range(scale, lim, expand: bool = True) -> tuple[float, float]:
     if scale is not None and lim is None:
         rng = scale.get_expanded_limits() if expand else scale.get_expanded_limits(False)
     elif scale is not None:
-        known = scale.get_limits() or _FALLBACK_RANGE
+        # discrete position scales: get_limits() are levels; use numeric positions
+        num = getattr(scale, "continuous_limits", None)
+        known = (num() if num is not None else scale.get_limits()) or _FALLBACK_RANGE
         inc = scale._is_increasing() if hasattr(scale, "_is_increasing") else True
         t = np.asarray(scale.transform([np.nan if v is None else v for v in lim]), dtype=float)
         # lim[0] is the smaller data value: the low end for increasing transforms

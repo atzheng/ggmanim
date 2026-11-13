@@ -44,6 +44,7 @@ from .guides import build_legends, place_legends  # also registers guides()
 from .layer import Layer
 from .scales.continuous import X_AESTHETICS, Y_AESTHETICS, ScaleContinuousPosition
 from .scales.discrete import CATEGORICAL_AESTHETICS, default_scale_for
+from .scales.discrete_position import ScaleDiscretePosition
 from .stats import add_group, is_discrete
 from .theme import Theme, theme_default
 
@@ -139,39 +140,52 @@ def assign_panels(layers: list[LayerData]) -> None:
 
 
 # --------------------------------------------------------------------------- 3
-def _position_scale(plot, axis: str):
+def _position_scale(plot, axis: str, layers: list[LayerData] | None = None):
+    """The user's scale for ``axis`` (cloned), else a default chosen by dtype:
+    discrete if any layer maps a non-numeric (non-bool) column to an ``axis``
+    aesthetic, continuous otherwise."""
     user = plot.get_scale(axis)
     if user is not None:
-        if getattr(user, "is_discrete", False):
-            raise BuildError(f"discrete {axis} scales are not supported yet")
         return user.clone()
+    for ld in layers or ():
+        for c in POSITION_AES[axis]:
+            if c in ld.data.columns and _is_discrete_col(ld.data[c]):
+                return ScaleDiscretePosition(POSITION_AES[axis])
     return ScaleContinuousPosition(POSITION_AES[axis])
 
 
-def _check_numeric(ld: LayerData, col: str) -> None:
+def _is_discrete_col(s: pd.Series) -> bool:
+    return is_discrete(s) and not pd.api.types.is_bool_dtype(s) and s.notna().any()
+
+
+def _check_numeric(ld: LayerData, col: str, scale=None) -> None:
+    if getattr(scale, "is_discrete", False):
+        return
     s = ld.data[col]
-    if is_discrete(s) and not pd.api.types.is_bool_dtype(s):
+    if _is_discrete_col(s):
+        axis = "x" if col in POSITION_AES["x"] else "y"
         raise BuildError(
-            f"{ld.label}: {col!r} is mapped to a non-numeric variable; discrete "
-            "position scales are not supported yet"
+            f"{ld.label}: {col!r} is mapped to a non-numeric variable but the {axis} "
+            f"scale is continuous; use scale_{axis}_discrete() or a numeric column"
         )
 
 
 def setup_position_scales(plot, layers: list[LayerData]) -> dict[str, Any]:
-    """Per-build x/y scales (user scales cloned, else continuous), trained on the
+    """Per-build x/y scales (user scales cloned, else discrete or continuous by
+    dtype, see :func:`_position_scale`), trained on the
     raw position columns of every layer; then those columns -> transformed space."""
-    scales = {"x": _position_scale(plot, "x"), "y": _position_scale(plot, "y")}
+    scales = {"x": _position_scale(plot, "x", layers), "y": _position_scale(plot, "y", layers)}
     for ld in layers:
         for axis, cols in ld.layer.geom.position_aes_for_training(ld.data).items():
             for c in cols:
-                _check_numeric(ld, c)
+                _check_numeric(ld, c, scales[axis])
                 scales[axis].train(ld.data[c])
     for ld in layers:
         df = ld.data.copy()
         for axis, aes_names in POSITION_AES.items():
             for c in aes_names:
                 if c in df.columns:
-                    _check_numeric(ld, c)
+                    _check_numeric(ld, c, scales[axis])
                     with np.errstate(all="ignore"):
                         df[c] = scales[axis].transform(df[c])
         ld.data = df
@@ -256,10 +270,20 @@ def apply_positions(layers: list[LayerData]) -> None:
 
 
 # --------------------------------------------------------------------------- 6
-def setup_geom_data(layers: list[LayerData]) -> None:
-    """``geom.setup_data`` per layer (e.g. bar extents for ``geom_col``)."""
+def setup_geom_data(layers: list[LayerData], scales: dict[str, Any] | None = None) -> None:
+    """``geom.setup_data`` per layer (e.g. bar extents for ``geom_col``).
+
+    When the x/y position scale is discrete, the params passed to ``setup_data``
+    also carry ``_x_discrete``/``_y_discrete = True`` (e.g. so bars default to
+    0.9 of the level spacing)."""
+    flags = {
+        f"_{axis}_discrete": True
+        for axis, s in (scales or {}).items()
+        if axis in POSITION_AES and getattr(s, "is_discrete", False)
+    }
     for ld in layers:
-        ld.data = ld.layer.geom.setup_data(ld.data, ld.layer.params)
+        params = {**ld.layer.params, **flags} if flags else ld.layer.params
+        ld.data = ld.layer.geom.setup_data(ld.data, params)
 
 
 def train_position_scales(layers: list[LayerData], scales: dict[str, Any]) -> None:
@@ -412,7 +436,7 @@ def build_plot(plot, *, theme: Theme | None = None):
     compute_stats(layers, pos_scales)
     np_scales = map_non_position(plot, layers)
     apply_positions(layers)
-    setup_geom_data(layers)
+    setup_geom_data(layers, pos_scales)
     train_position_scales(layers, pos_scales)
 
     labels = default_labels(plot, layers)

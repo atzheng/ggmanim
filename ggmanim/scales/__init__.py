@@ -27,11 +27,13 @@ from .continuous import (
     xlim,
     ylim,
 )
+from .discrete_position import ScaleDiscretePosition, scale_x_discrete, scale_y_discrete
 
 __all__ = [
     "Scale",
     "ScaleContinuous",
     "ScaleContinuousPosition",
+    "ScaleDiscretePosition",
     "Transform",
     "IdentityTransform",
     "LogTransform",
@@ -53,6 +55,8 @@ __all__ = [
     "scale_y_sqrt",
     "scale_x_reverse",
     "scale_y_reverse",
+    "scale_x_discrete",
+    "scale_y_discrete",
     "xlim",
     "ylim",
 ]

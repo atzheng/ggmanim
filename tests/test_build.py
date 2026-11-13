@@ -279,9 +279,11 @@ def test_unknown_column_names_column_and_layer(df):
         p.build()
 
 
-def test_discrete_x_not_supported(df):
-    with pytest.raises(BuildError, match="discrete position"):
-        ggplot(df, aes("g", "b")).geom_point().build()
+def test_discrete_x_on_continuous_user_scale_errors(df):
+    # a string column gets a discrete x scale by default (tests/test_scales_discrete_position.py),
+    # but an explicit continuous scale cannot take it
+    with pytest.raises(BuildError, match="scale_x_discrete"):
+        ggplot(df, aes("g", "b")).geom_point().add(xlim(0, 1)).build()
 
 
 def test_numeric_colour_has_helpful_error(df):

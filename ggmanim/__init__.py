@@ -57,6 +57,7 @@ from .scales.discrete import (
     scale_fill_identity,
     scale_fill_manual,
 )
+from .scales.discrete_position import scale_x_discrete, scale_y_discrete
 from .stats import stat_function, stat_identity, stat_smooth
 from .theme import theme, theme_classic, theme_default, theme_minimal
 
@@ -94,6 +95,8 @@ __all__ = [
     "scale_y_log10",
     "scale_y_reverse",
     "scale_y_sqrt",
+    "scale_x_discrete",
+    "scale_y_discrete",
     "scale_color_discrete",
     "scale_color_identity",
     "scale_color_manual",
