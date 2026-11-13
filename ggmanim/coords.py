@@ -56,7 +56,6 @@ from manim import (
     Line,
     ManimColor,
     Mobject,
-    Paragraph,
     Polygon,
     VGroup,
     VMobject,
@@ -396,11 +395,11 @@ class CoordCartesian:
         x_tick_labels, y_tick_labels = VGroup(), VGroup()
         if theme.axis_element("axis_text", "x"):
             for p, s in zip(x_at, pp.x_labels):
-                lab = _place_tick_label(_label(theme, s, "x"), p, x_dir, x_gap, theme, "x")
+                lab = _place_tick_label(_label(theme, s), p, x_dir, x_gap, theme, "x")
                 x_tick_labels.add(lab)  # type: ignore[arg-type]
         if theme.axis_element("axis_text", "y"):
             for p, s in zip(y_at, pp.y_labels):
-                lab = _place_tick_label(_label(theme, s, "y"), p, y_dir, y_gap, theme, "y")
+                lab = _place_tick_label(_label(theme, s), p, y_dir, y_gap, theme, "y")
                 y_tick_labels.add(lab)  # type: ignore[arg-type]
 
         x_title = y_title = None
@@ -437,23 +436,10 @@ class CoordCartesian:
         return panel
 
 
-def _label(theme: Theme, s: str, axis: str = "x") -> Mobject:
+def _label(theme: Theme, s: str) -> Mobject:
     if s == "":
         return VMobject()  # keep one label per break; nothing to draw
-    text = render_label(s, theme.text_engine)
-    if theme.text_engine == "text" and "\n" in text:
-        return _multiline_label(theme, text, axis)
-    return theme.make_text(text, **theme.text_style("axis_text"))
-
-
-def _multiline_label(theme: Theme, text: str, axis: str) -> Mobject:
-    """A multi-line tick label (e.g. from :func:`~ggmanim.labels.label_date_short`):
-    a Pango :class:`~manim.Paragraph` whose lines are justified by the axis text
-    ``hjust`` (x labels centred, y labels right-aligned by default), as in ggplot2."""
-    style = theme.text_style("axis_text")
-    hjust = theme.axis_text_just(axis)[0]
-    align = "left" if hjust < 0.25 else ("right" if hjust > 0.75 else "center")
-    return Paragraph(*text.split("\n"), alignment=align, **style)
+    return theme.make_text(render_label(s, theme.text_engine), **theme.text_style("axis_text"))
 
 
 # -- theme elements (backgrounds, borders, grid, axis lines, rotated labels) ----------

@@ -40,8 +40,12 @@ jobs:
       - name: Render example
         run: manim -ql -s --media_dir "$RUNNER_TEMP/media" examples/basic.py Basic
 
-      - name: Upload rendered example
+      - name: Render gallery
+        run: manim -ql -s -a --media_dir "$RUNNER_TEMP/media" examples/gallery.py
+
+      - name: Upload rendered example and gallery
         uses: actions/upload-artifact@v4
         with:
           name: examples
           path: ${{ runner.temp }}/media/images/
+          if-no-files-found: error

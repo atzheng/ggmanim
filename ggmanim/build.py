@@ -46,7 +46,7 @@ from .coords import CartesianPanel, CoordCartesian
 from .guides import build_legends, place_legends  # also registers guides()
 from .layer import Layer
 from .scales.continuous import X_AESTHETICS, Y_AESTHETICS, ScaleContinuousPosition
-from .scales.date import ScaleDatePosition, data_timezone, date_kind
+from .scales.date import ScaleDatePosition, date_kind
 from .scales.discrete import CATEGORICAL_AESTHETICS, default_scale_for
 from .scales.discrete_position import ScaleDiscretePosition
 from .stats import add_group, is_discrete
@@ -149,29 +149,14 @@ def _position_scale(plot, axis: str, layers: list[LayerData] | None = None):
     discrete if any layer maps a non-numeric (non-bool) column to an ``axis``
     aesthetic, continuous otherwise. ``datetime64`` / date-object columns get a
     date or date-time scale (:func:`~ggmanim.scales.date.date_kind`)."""
-    cols = [ld.data[c] for ld in layers or () for c in POSITION_AES[axis] if c in ld.data.columns]
     user = plot.get_scale(axis)
     if user is not None:
-        scale = user.clone()
-        if getattr(scale, "is_date", False):
-            if scale.unit == "s" and scale.timezone is None:
-                tz = data_timezone(cols)
-                if tz is not None:  # display in the data's zone, as ggplot2 does
-                    scale.set_timezone(tz)
-        elif not getattr(scale, "is_discrete", False) and date_kind(cols) is not None:
-            raise BuildError(
-                f"the {axis} variable holds dates/date-times but the {axis} scale is a "
-                f"continuous {type(scale).__name__} (trans {scale.trans.name!r}); use "
-                f"scale_{axis}_date() or scale_{axis}_datetime() instead"
-            )
-        return scale
-    kind = date_kind(cols)
+        return user.clone()
+    kind = date_kind(
+        [ld.data[c] for ld in layers or () for c in POSITION_AES[axis] if c in ld.data.columns]
+    )
     if kind is not None:  # datetime64 / date objects -> date or datetime scale
-        scale = ScaleDatePosition(POSITION_AES[axis], unit="D" if kind == "date" else "s")
-        tz = data_timezone(cols) if kind == "datetime" else None
-        if tz is not None:
-            scale.set_timezone(tz)
-        return scale
+        return ScaleDatePosition(POSITION_AES[axis], unit="D" if kind == "date" else "s")
     for ld in layers or ():
         for c in POSITION_AES[axis]:
             if c in ld.data.columns and _is_discrete_col(ld.data[c]):
