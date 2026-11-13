@@ -50,7 +50,8 @@ from __future__ import annotations
 
 import inspect
 import warnings
-from typing import Any, Dict, Iterable, Mapping, Optional, Sequence, Tuple
+from collections.abc import Iterable, Mapping, Sequence
+from typing import Any
 
 import numpy as np
 import pandas as pd
@@ -60,8 +61,7 @@ from ..aes import AES_ALIASES, Aes, standardise_aes_name
 from ..layer import Layer
 from ..palettes import as_manim_color
 from ..scales.continuous import X_AESTHETICS, Y_AESTHETICS
-from ..stats import Stat, add_group, get_stat
-from ..stats import STATS
+from ..stats import STATS, Stat, add_group, get_stat
 from ..theme import Theme, theme_default
 
 __all__ = [
@@ -86,7 +86,7 @@ _KNOWN_AES = frozenset(
 _COMMON_PARAMS = frozenset({"na_rm", "show_legend"})
 
 
-def resolve_color(value: Any, fallback: Any = None) -> Optional[ManimColor]:
+def resolve_color(value: Any, fallback: Any = None) -> ManimColor | None:
     """``value`` as a ``ManimColor``; ``None``/NaN -> ``fallback`` (also coerced)."""
     if value is None or (isinstance(value, float) and np.isnan(value)):
         if fallback is None:
@@ -124,12 +124,12 @@ class Geom:
         :meth:`position_aes_for_training`).
     """
 
-    required_aes: Tuple[str, ...] = ()
-    default_aes: Dict[str, Any] = {}
-    extra_params: Tuple[str, ...] = ()
+    required_aes: tuple[str, ...] = ()
+    default_aes: dict[str, Any] = {}
+    extra_params: tuple[str, ...] = ()
     default_stat: str = "identity"
-    x_aes: Tuple[str, ...] = X_AESTHETICS
-    y_aes: Tuple[str, ...] = Y_AESTHETICS
+    x_aes: tuple[str, ...] = X_AESTHETICS
+    y_aes: tuple[str, ...] = Y_AESTHETICS
 
     def __repr__(self) -> str:
         return f"{type(self).__name__}()"
@@ -139,7 +139,7 @@ class Geom:
         """All aesthetic names this geom understands."""
         return frozenset(self.required_aes) | frozenset(self.default_aes) | _KNOWN_AES
 
-    def aes_params(self, params: Mapping[str, Any]) -> Dict[str, Any]:
+    def aes_params(self, params: Mapping[str, Any]) -> dict[str, Any]:
         """The constant aesthetics in ``params`` (names standardised)."""
         out = {}
         aes = self.aesthetics()
@@ -150,7 +150,7 @@ class Geom:
         return out
 
     # -- pipeline hooks -------------------------------------------------------
-    def position_aes_for_training(self, data: Optional[pd.DataFrame]) -> Dict[str, list]:
+    def position_aes_for_training(self, data: pd.DataFrame | None) -> dict[str, list]:
         """``{"x": [cols], "y": [cols]}``: the columns of ``data`` (those present)
         that train the x and y position scales. Call before the stat (raw layer
         data) and again after :meth:`setup_data`."""
@@ -190,8 +190,9 @@ class Geom:
         return out
 
     # -- drawing --------------------------------------------------------------
-    def draw_panel(self, data: pd.DataFrame, panel_params, coord, theme: Optional[Theme] = None,
-                   **params) -> VMobject:
+    def draw_panel(
+        self, data: pd.DataFrame, panel_params, coord, theme: Theme | None = None, **params
+    ) -> VMobject:
         """Draw the whole layer for one panel; default: :meth:`draw_group` per
         group, in ``group`` order, collected in a ``VGroup``.
 
@@ -206,15 +207,16 @@ class Geom:
             out.add(self.draw_group(gdf, panel_params, coord, theme, **params))
         return out
 
-    def draw_group(self, data: pd.DataFrame, panel_params, coord, theme: Theme,
-                   **params) -> VMobject:
+    def draw_group(
+        self, data: pd.DataFrame, panel_params, coord, theme: Theme, **params
+    ) -> VMobject:
         raise NotImplementedError
 
-    def draw_key(self, data_row: Mapping[str, Any], theme: Optional[Theme] = None) -> VMobject:
+    def draw_key(self, data_row: Mapping[str, Any], theme: Theme | None = None) -> VMobject:
         """A small legend glyph (about :data:`KEY_SIZE` across, centred at origin)."""
         raise NotImplementedError
 
-    def key_aes(self, data_row: Optional[Mapping[str, Any]]) -> Dict[str, Any]:
+    def key_aes(self, data_row: Mapping[str, Any] | None) -> dict[str, Any]:
         """``data_row`` (standardised names) over :attr:`default_aes`."""
         out = dict(self.default_aes)
         for k, v in (data_row or {}).items():
@@ -267,7 +269,7 @@ def path_mobject(points: np.ndarray, color: Any, linewidth: float, alpha: float)
 
 def assemble(marks: VGroup, labels: VGroup) -> VGroup:
     """``VGroup(*marks, *labels)`` with ``.marks`` and ``.labels`` attributes."""
-    out = VGroup(*marks, *labels)
+    out: Any = VGroup(*marks, *labels)
     out.marks = marks
     out.labels = labels
     return out
@@ -306,7 +308,7 @@ def group_label(label: Any, index: int, group_id: Any) -> Any:
     return str(label)
 
 
-def make_label(theme: Theme, label: Any, color: Any) -> Optional[Mobject]:
+def make_label(theme: Theme, label: Any, color: Any) -> Mobject | None:
     """Text (via the theme) or a copy of a ready-made Mobject, coloured ``color``."""
     if label is None:
         return None
@@ -334,22 +336,33 @@ def _stat_class(stat):
     return None
 
 
-def _stat_params(cls, params: Mapping[str, Any]) -> Dict[str, Any]:
+def _stat_params(cls, params: Mapping[str, Any]) -> dict[str, Any]:
     if cls is None:
         return {}
     names = set(cls.parameters())
     try:
         sig = inspect.signature(cls.__init__)
-        names |= {n for n, p in sig.parameters.items()
-                  if n != "self" and p.kind in (p.POSITIONAL_OR_KEYWORD, p.KEYWORD_ONLY)}
+        names |= {
+            n
+            for n, p in sig.parameters.items()
+            if n != "self" and p.kind in (p.POSITIONAL_OR_KEYWORD, p.KEYWORD_ONLY)
+        }
     except (TypeError, ValueError):  # pragma: no cover
         pass
     return {k: v for k, v in params.items() if k in names}
 
 
-def make_layer(geom: Geom, mapping=None, data=None, *, stat=None, position="identity",
-               inherit_aes: bool = True, name: Optional[str] = None,
-               params: Optional[Mapping[str, Any]] = None) -> Layer:
+def make_layer(
+    geom: Geom,
+    mapping=None,
+    data=None,
+    *,
+    stat=None,
+    position="identity",
+    inherit_aes: bool = True,
+    name: str | None = None,
+    params: Mapping[str, Any] | None = None,
+) -> Layer:
     """Build the :class:`~ggmanim.layer.Layer` for ``geom``.
 
     * ``mapping``/``data`` may be given in either order (a DataFrame passed as
@@ -365,8 +378,9 @@ def make_layer(geom: Geom, mapping=None, data=None, *, stat=None, position="iden
     if mapping is not None and not isinstance(mapping, Aes):
         mapping = Aes(mapping)
 
-    params = {standardise_aes_name(k) if k in AES_ALIASES else k: v
-              for k, v in dict(params or {}).items()}
+    params = {
+        standardise_aes_name(k) if k in AES_ALIASES else k: v for k, v in dict(params or {}).items()
+    }
 
     stat = geom.default_stat if stat is None else stat
     cls = _stat_class(stat)
@@ -381,5 +395,13 @@ def make_layer(geom: Geom, mapping=None, data=None, *, stat=None, position="iden
             stacklevel=3,
         )
 
-    return Layer(geom=geom, stat=stat_obj, position=position, data=data,
-                 mapping=mapping, params=params, inherit_aes=inherit_aes, name=name)
+    return Layer(
+        geom=geom,
+        stat=stat_obj,
+        position=position,
+        data=data,
+        mapping=mapping,
+        params=params,
+        inherit_aes=inherit_aes,
+        name=name,
+    )

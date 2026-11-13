@@ -5,15 +5,8 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 
+from ..registry import register
 from .base import NO_GROUP, Stat, scale_limits
-
-try:
-    from ..registry import register
-except ImportError:  # registry not available yet
-
-    def register(f):
-        return f
-
 
 __all__ = ["StatFunction", "stat_function", "evaluate_function"]
 
@@ -80,8 +73,9 @@ class StatFunction(Stat):
     def compute_panel(self, df: pd.DataFrame, scales=None, **params) -> pd.DataFrame:
         return self.compute_group(df, scales, **params).assign(group=NO_GROUP)
 
-    def compute_group(self, df: pd.DataFrame, scales=None, fun=None, n=101,
-                      xlim=None, args=None) -> pd.DataFrame:
+    def compute_group(  # type: ignore[override]
+        self, df: pd.DataFrame, scales=None, fun=None, n=101, xlim=None, args=None
+    ) -> pd.DataFrame:
         if fun is None:
             raise TypeError("stat_function requires a callable `fun`")
         rng = tuple(float(v) for v in xlim) if xlim is not None else None

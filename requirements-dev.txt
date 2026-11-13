@@ -1,9 +1,2 @@
-# Test/CI dependencies (until pyproject.toml lands in ggm-s11.10).
-manim>=0.19
-pandas>=2
-numpy
-scipy
-pytest
-# Still imported by the legacy ggmanim/GGManim.py; dropped in ggm-s11.10.
-funcy
-scikit-learn
+# Development install; dependencies are declared in pyproject.toml.
+-e .[dev]

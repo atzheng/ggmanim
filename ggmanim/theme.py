@@ -17,7 +17,7 @@ from __future__ import annotations
 
 import dataclasses
 from dataclasses import dataclass, field
-from typing import Any, FrozenSet, Optional, Tuple
+from typing import Any
 
 import manim
 from manim import BLACK, WHITE, ManimColor, Mobject, config
@@ -74,14 +74,14 @@ class Theme:
     """
 
     text_engine: str = "text"
-    font: Optional[str] = None
+    font: str | None = None
     axis_text_size: float = 24
     axis_title_size: float = 28
     legend_text_size: float = 24
     legend_title_size: float = 28
     title_size: float = 36
 
-    foreground: Optional[Any] = None
+    foreground: Any | None = None
 
     axis_line: bool = True
     axis_stroke_width: float = 2.0
@@ -97,11 +97,11 @@ class Theme:
 
     legend_position: str = "right"
     legend_room: float = 2.5
-    panel_width: Optional[float] = None
-    panel_height: Optional[float] = None
+    panel_width: float | None = None
+    panel_height: float | None = None
 
     complete: bool = False
-    overrides: FrozenSet[str] = field(default=frozenset(), compare=False)
+    overrides: frozenset[str] = field(default=frozenset(), compare=False)
 
     def __post_init__(self):
         if self.text_engine not in _TEXT_ENGINES:
@@ -110,25 +110,22 @@ class Theme:
             )
         if self.legend_position not in _LEGEND_POSITIONS:
             raise ValueError(
-                f"legend_position must be one of {_LEGEND_POSITIONS}, "
-                f"got {self.legend_position!r}"
+                f"legend_position must be one of {_LEGEND_POSITIONS}, got {self.legend_position!r}"
             )
 
     # -- composition ---------------------------------------------------------
     def add_to(self, plot):
         return plot._with_theme(self)
 
-    def merge(self, other: "Theme") -> "Theme":
+    def merge(self, other: Theme) -> Theme:
         """``self`` with ``other`` applied: a complete ``other`` replaces ``self``;
         a partial one overrides only its explicitly set fields."""
         if other.complete:
             return other
         changes = {name: getattr(other, name) for name in other.overrides}
-        return dataclasses.replace(
-            self, overrides=self.overrides | other.overrides, **changes
-        )
+        return dataclasses.replace(self, overrides=self.overrides | other.overrides, **changes)
 
-    def replace(self, **changes) -> "Theme":
+    def replace(self, **changes) -> Theme:
         """A copy with ``changes`` applied (validated)."""
         return dataclasses.replace(self, **changes)
 
@@ -139,7 +136,7 @@ class Theme:
             return ManimColor(self.foreground)
         return foreground_for_background(config.background_color)
 
-    def panel_size(self, has_legend: bool = False) -> Tuple[float, float]:
+    def panel_size(self, has_legend: bool = False) -> tuple[float, float]:
         """``(width, height)`` of the panel (axes) in scene units.
 
         Unset dimensions fit the current manim frame with a 1-unit margin each side
@@ -160,8 +157,9 @@ class Theme:
         return float(max(w, 0.5)), float(max(h, 0.5))
 
     # -- text factory --------------------------------------------------------
-    def make_text(self, content: Any, font_size: Optional[float] = None,
-                  color: Any = None, **kwargs) -> Mobject:
+    def make_text(
+        self, content: Any, font_size: float | None = None, color: Any = None, **kwargs
+    ) -> Mobject:
         """Make a text mobject honouring ``text_engine``.
 
         A ready-made :class:`~manim.Mobject` is returned *unchanged* (the same object;
@@ -195,8 +193,7 @@ def theme_default() -> Theme:
 @register
 def theme_minimal() -> Theme:
     """Complete theme without axis lines or ticks; major grid only."""
-    return Theme(axis_line=False, ticks=False, panel_grid=True, grid_opacity=0.2,
-                 complete=True)
+    return Theme(axis_line=False, ticks=False, panel_grid=True, grid_opacity=0.2, complete=True)
 
 
 @register

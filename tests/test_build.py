@@ -1,7 +1,5 @@
 """Structural tests for the build pipeline (spec -> GGPlot)."""
 
-import copy
-
 import numpy as np
 import pandas as pd
 import pytest
@@ -25,11 +23,13 @@ from ggmanim.theme import theme
 
 @pytest.fixture
 def df():
-    return pd.DataFrame({
-        "a": [1.0, 2.0, 3.0, 4.0, 5.0, 6.0],
-        "b": [2.0, 4.0, 3.0, 5.0, 4.5, 6.0],
-        "g": ["x", "y", "x", "y", "x", "y"],
-    })
+    return pd.DataFrame(
+        {
+            "a": [1.0, 2.0, 3.0, 4.0, 5.0, 6.0],
+            "b": [2.0, 4.0, 3.0, 5.0, 4.5, 6.0],
+            "g": ["x", "y", "x", "y", "x", "y"],
+        }
+    )
 
 
 def _hex(c) -> str:
@@ -69,7 +69,8 @@ def test_line_groups_by_colour(df):
     paths = m.layers[0].marks if hasattr(m.layers[0], "marks") else m.layers[0]
     assert len(paths) == 2
     assert {_hex(p.get_stroke_color()) for p in paths} == {
-        _hex(c) for c in m.scales["color"].get_palette_values()}
+        _hex(c) for c in m.scales["color"].get_palette_values()
+    }
     xs = df[df.g == "x"]
     np.testing.assert_allclose(_vertices(paths[0]), _c2p(m, xs["a"], xs["b"]), atol=1e-6)
 
@@ -83,8 +84,13 @@ def test_col_with_fill_mapping_includes_zero(df):
 
 
 def test_vline_hline(df):
-    m = (ggplot(df, aes("a", "b")).geom_point()
-         .geom_vline(xintercept=[2, 8], color=RED).geom_hline(yintercept=-1).build())
+    m = (
+        ggplot(df, aes("a", "b"))
+        .geom_point()
+        .geom_vline(xintercept=[2, 8], color=RED)
+        .geom_hline(yintercept=-1)
+        .build()
+    )
     assert len(m.layers[1]) == 2 and len(m.layers[2]) == 1
     assert m.scales["x"].get_limits() == (1.0, 8.0)
     assert m.scales["y"].get_limits() == (-1.0, 6.0)
@@ -95,7 +101,7 @@ def test_vline_hline(df):
 
 
 def test_function_uses_trained_x_range(df):
-    m = ggplot(df, aes("a", "b")).geom_point().geom_function(lambda x: x ** 2, n=11).build()
+    m = ggplot(df, aes("a", "b")).geom_point().geom_function(lambda x: x**2, n=11).build()
     curve = m.layers[1][0]
     d = m.layer_data[1]
     assert len(d) == 11 and d["x"].min() == 1.0 and d["x"].max() == 6.0
@@ -127,8 +133,14 @@ def test_idempotent_and_pure(df):
     df_before = df.copy()
     user_scale = scale_color_manual({"x": "red", "y": "blue"})
     title = Square(side_length=0.2)
-    p = (ggplot(df, aes("a", "b", color="g")).geom_point().geom_smooth(se=False)
-         .geom_vline(xintercept=3).add(user_scale).labs(x=title, title="T"))
+    p = (
+        ggplot(df, aes("a", "b", color="g"))
+        .geom_point()
+        .geom_smooth(se=False)
+        .geom_vline(xintercept=3)
+        .add(user_scale)
+        .labs(x=title, title="T")
+    )
     layers_before, scales_before = p.layers, p.scales
     m1, m2 = p.build(), p.build()
     assert m1.panel_params == m2.panel_params
@@ -169,12 +181,14 @@ def test_named_layers(df):
 
 def test_auto_limits_mixed_function_intercepts_and_data(df):
     # regression: the old builder did layer.data[layer.aes["x"]] for every layer -> KeyError
-    m = (ggplot(df, aes("a", "b"))
-         .geom_function(np.sqrt)
-         .geom_vline(xintercept=10)
-         .geom_hline(yintercept=-2)
-         .geom_point()
-         .build())
+    m = (
+        ggplot(df, aes("a", "b"))
+        .geom_function(np.sqrt)
+        .geom_vline(xintercept=10)
+        .geom_hline(yintercept=-2)
+        .geom_point()
+        .build()
+    )
     assert m.scales["x"].get_limits() == (1.0, 10.0)
     lo, hi = m.scales["y"].get_limits()
     assert lo == -2.0 and hi == 6.0
@@ -193,22 +207,24 @@ def test_per_layer_data_override(df):
 
 
 def test_layer_data_callable_and_inherit_aes_false(df):
-    m = (ggplot(df, aes("a", "b", color="g"))
-         .geom_point(data=lambda d: d[d.a > 3], mapping=aes("a", "b"), inherit_aes=False)
-         .build())
+    m = (
+        ggplot(df, aes("a", "b", color="g"))
+        .geom_point(data=lambda d: d[d.a > 3], mapping=aes("a", "b"), inherit_aes=False)
+        .build()
+    )
     assert len(m.layers[0]) == 3 and "color" not in m.layer_data[0]
     assert "color" not in m.scales
 
 
 def test_log10_x_end_to_end():
     d = pd.DataFrame({"x": [1.0, 10.0, 100.0, 1000.0], "y": [1.0, 2.0, 3.0, 4.0]})
-    m = (ggplot(d, aes("x", "y")).geom_point().geom_vline(xintercept=10)
-         .add(scale_x_log10()).build())
+    m = ggplot(d, aes("x", "y")).geom_point().geom_vline(xintercept=10).add(scale_x_log10()).build()
     assert m.scales["x"].get_limits() == pytest.approx((0.0, 3.0))
     np.testing.assert_allclose(_centers(m.layers[0]), _c2p(m, [0, 1, 2, 3], d["y"]), atol=1e-6)
     labels = dict(zip(m.panel_params.x_labels, m.panel_params.x_breaks))
     assert {k: labels[k] for k in ("1", "10", "100", "1000")} == pytest.approx(
-        {"1": 0.0, "10": 1.0, "100": 2.0, "1000": 3.0})
+        {"1": 0.0, "10": 1.0, "100": 2.0, "1000": 3.0}
+    )
     assert m.layers[1][0].get_start()[0] == pytest.approx(_c2p(m, 1.0, 0)[0, 0])
 
 
@@ -222,8 +238,12 @@ def test_user_limits_censor(df):
 
 
 def test_labs_override_and_title(df):
-    m = (ggplot(df, aes("a", "b")).geom_point()
-         .labs(x="Dose", y=None, title="Title", subtitle="Sub", caption="Cap").build())
+    m = (
+        ggplot(df, aes("a", "b"))
+        .geom_point()
+        .labs(x="Dose", y=None, title="Title", subtitle="Sub", caption="Cap")
+        .build()
+    )
     assert m.panel.x_title.text == "Dose" and m.panel.y_title is None
     assert m["title"] is m.title and m.title.text == "Title"
     assert m.title.get_bottom()[1] >= m.subtitle.get_top()[1] - 1e-6

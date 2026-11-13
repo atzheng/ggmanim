@@ -14,14 +14,15 @@ A component constructor returns an object implementing
 
 from __future__ import annotations
 
-from typing import Callable, Dict, Optional, TypeVar, Union, overload
+from collections.abc import Callable
+from typing import TypeVar, overload
 
 __all__ = ["COMPONENTS", "register"]
 
 F = TypeVar("F", bound=Callable)
 
 #: name -> component constructor (function or class).
-COMPONENTS: Dict[str, Callable] = {}
+COMPONENTS: dict[str, Callable] = {}
 
 
 @overload
@@ -29,12 +30,10 @@ def register(fn_or_cls: F) -> F: ...
 
 
 @overload
-def register(fn_or_cls: None = None, *, name: Optional[str] = None) -> Callable[[F], F]: ...
+def register(fn_or_cls: None = None, *, name: str | None = None) -> Callable[[F], F]: ...
 
 
-def register(
-    fn_or_cls: Optional[F] = None, *, name: Optional[str] = None
-) -> Union[F, Callable[[F], F]]:
+def register(fn_or_cls: F | None = None, *, name: str | None = None) -> F | Callable[[F], F]:
     """Register a component constructor under its ``__name__`` (or ``name``).
 
     Usable as ``@register``, ``@register()`` or ``@register(name="alias")``.

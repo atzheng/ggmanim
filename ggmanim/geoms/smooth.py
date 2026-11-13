@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from typing import Optional
-
 import numpy as np
 from manim import LEFT, RIGHT, Line, Polygon, Square, VGroup, VMobject
 
@@ -38,12 +36,18 @@ class GeomSmooth(GeomLine):
     """
 
     default_stat = "smooth"
-    default_aes = {"color": "#3366FF", "fill": "#999999", "linewidth": 3.0, "alpha": 0.4,
-                   "linetype": "solid"}
-    extra_params = ("label", "se")
+    default_aes = {
+        "color": "#3366FF",
+        "fill": "#999999",
+        "linewidth": 3.0,
+        "alpha": 0.4,
+        "linetype": "solid",
+    }
+    extra_params: tuple[str, ...] = ("label", "se")
 
-    def draw_panel(self, data, panel_params, coord, theme: Optional[Theme] = None,
-                   label=None, se=True, **params) -> VMobject:
+    def draw_panel(
+        self, data, panel_params, coord, theme: Theme | None = None, label=None, se=True, **params
+    ) -> VMobject:
         theme = theme if theme is not None else theme_default()
         self.check_required_aes(data)
         data = finite_rows(self.use_defaults(data, params), ("x", "y"))
@@ -64,8 +68,10 @@ class GeomSmooth(GeomLine):
                     upper = transform_points(coord, x[ok], ymax[ok])
                     lower = transform_points(coord, x[ok], ymin[ok])
                     ribbon = Polygon(*upper, *lower[::-1])
-                    ribbon.set_fill(resolve_color(first(gdf, "fill"), color),
-                                    opacity=num(first(gdf, "alpha"), 0.4))
+                    ribbon.set_fill(
+                        resolve_color(first(gdf, "fill"), color),
+                        opacity=num(first(gdf, "alpha"), 0.4),
+                    )
                     ribbon.set_stroke(width=0, opacity=0)
                     mob = VGroup(ribbon, line)
             groups.add(mob)
@@ -74,26 +80,47 @@ class GeomSmooth(GeomLine):
                 labels.add(lab.next_to(pts[-1], RIGHT, buff=0.1))
         return assemble(groups, labels)
 
-    def draw_key(self, data_row, theme: Optional[Theme] = None) -> VMobject:
+    def draw_key(self, data_row, theme: Theme | None = None) -> VMobject:
         theme = theme if theme is not None else theme_default()
         row = self.key_aes(data_row)
         color = resolve_color(row.get("color"), theme.get_foreground())
         bg = Square(side_length=KEY_SIZE, stroke_width=0)
         bg.set_fill(resolve_color(row.get("fill"), color), opacity=num(row.get("alpha"), 0.4))
-        line = Line(LEFT * KEY_SIZE / 2, RIGHT * KEY_SIZE / 2, color=color,
-                    stroke_width=num(row.get("linewidth"), 3.0))
+        line = Line(
+            LEFT * KEY_SIZE / 2,
+            RIGHT * KEY_SIZE / 2,
+            color=color,
+            stroke_width=num(row.get("linewidth"), 3.0),
+        )
         return VGroup(bg, line)
 
 
 @register
-def geom_smooth(mapping=None, data=None, *, method: str = "lm", se: bool = True,
-                stat="smooth", position="identity", inherit_aes: bool = True,
-                name: Optional[str] = None, **params):
+def geom_smooth(
+    mapping=None,
+    data=None,
+    *,
+    method: str = "lm",
+    se: bool = True,
+    stat="smooth",
+    position="identity",
+    inherit_aes: bool = True,
+    name: str | None = None,
+    **params,
+):
     """Smoothed conditional mean with a confidence ribbon (``se=True``).
 
     Stat params (``degree``, ``n``, ``level``, ``fullrange``) and constant
     aesthetics (``color``, ``fill``, ``alpha``, ``linewidth``) go in ``params``.
     """
     params.update(method=method, se=se)
-    return make_layer(GeomSmooth(), mapping, data, stat=stat, position=position,
-                      inherit_aes=inherit_aes, name=name, params=params)
+    return make_layer(
+        GeomSmooth(),
+        mapping,
+        data,
+        stat=stat,
+        position=position,
+        inherit_aes=inherit_aes,
+        name=name,
+        params=params,
+    )

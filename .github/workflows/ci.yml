@@ -15,7 +15,7 @@ jobs:
         with:
           python-version: "3.11"
           cache: pip
-          cache-dependency-path: requirements-dev.txt
+          cache-dependency-path: pyproject.toml
 
       - name: System dependencies (cairo, pango, ffmpeg)
         run: |
@@ -24,14 +24,20 @@ jobs:
             libcairo2-dev libpango1.0-dev pkg-config ffmpeg
 
       - name: Python dependencies
-        run: pip install -r requirements-dev.txt
+        run: pip install -e '.[dev]'
+
+      - name: Lint (ruff)
+        run: |
+          ruff check .
+          ruff format --check .
+
+      - name: Type check (mypy)
+        run: mypy
 
       - name: Tests
         run: python -m pytest tests -q
 
       - name: Render example
-        env:
-          PYTHONPATH: ${{ github.workspace }}
         run: manim -ql -s --media_dir "$RUNNER_TEMP/media" examples/basic.py Basic
 
       - name: Upload rendered example

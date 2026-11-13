@@ -30,7 +30,8 @@ grouping aesthetic every row gets ``NO_GROUP == -1``.
 from __future__ import annotations
 
 import inspect
-from typing import Any, Mapping, Optional
+from collections.abc import Mapping
+from typing import Any
 
 import numpy as np
 import pandas as pd
@@ -96,7 +97,7 @@ def add_group(df: pd.DataFrame) -> pd.DataFrame:
     return out
 
 
-def scale_limits(scales: Optional[Mapping[str, Any]], aes: str):
+def scale_limits(scales: Mapping[str, Any] | None, aes: str):
     """``scales[aes].get_limits()`` as a float pair, or ``None`` if unavailable."""
     if not scales:
         return None

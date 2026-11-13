@@ -26,7 +26,7 @@ data is copied, user Mobjects (titles) are copied, and the spec is never mutated
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 import numpy as np
 import pandas as pd
@@ -38,15 +38,14 @@ from . import geoms as _geoms  # noqa: F401
 from . import scales as _scales  # noqa: F401
 from . import stats as _stats  # noqa: F401
 from . import theme as _theme  # noqa: F401
-from .aes import AfterStat, Aes
+from .aes import Aes, AfterStat
 from .coords import CartesianPanel, CoordCartesian
+from .guides import build_legends, place_legends  # also registers guides()
 from .layer import Layer
 from .scales.continuous import X_AESTHETICS, Y_AESTHETICS, ScaleContinuousPosition
 from .scales.discrete import CATEGORICAL_AESTHETICS, default_scale_for
 from .stats import add_group, is_discrete
 from .theme import Theme, theme_default
-
-from .guides import build_legends, place_legends  # also registers guides()
 
 __all__ = [
     "BuildError",
@@ -97,7 +96,7 @@ class LayerData:
 
 
 # --------------------------------------------------------------------------- 1
-def resolve_layers(plot) -> List[LayerData]:
+def resolve_layers(plot) -> list[LayerData]:
     """Resolve each layer's data and mapping and evaluate its aesthetics.
 
     Returns one :class:`LayerData` per layer whose ``data`` has one column per
@@ -109,8 +108,9 @@ def resolve_layers(plot) -> List[LayerData]:
         ld = LayerData(index=i, layer=layer, mapping=layer.resolve_mapping(plot.mapping))
         raw = layer.resolve_data(plot.data)
         if raw is not None and not isinstance(raw, pd.DataFrame):
-            raise BuildError(f"{ld.label}: data must be a pandas DataFrame, got "
-                             f"{type(raw).__name__}")
+            raise BuildError(
+                f"{ld.label}: data must be a pandas DataFrame, got {type(raw).__name__}"
+            )
         cols = list(raw.columns) if raw is not None else []
         for aes_name, value in ld.mapping.before_stat().items():
             if isinstance(value, str) and value not in cols:
@@ -128,7 +128,7 @@ def resolve_layers(plot) -> List[LayerData]:
 
 
 # --------------------------------------------------------------------------- 2
-def assign_panels(layers: List[LayerData]) -> None:
+def assign_panels(layers: list[LayerData]) -> None:
     """Add ``PANEL = 1`` to every non-empty layer (facets slot in here later).
 
     Empty layers (``geom_function`` without data) get ``PANEL`` after the stat.
@@ -157,7 +157,7 @@ def _check_numeric(ld: LayerData, col: str) -> None:
         )
 
 
-def setup_position_scales(plot, layers: List[LayerData]) -> Dict[str, Any]:
+def setup_position_scales(plot, layers: list[LayerData]) -> dict[str, Any]:
     """Per-build x/y scales (user scales cloned, else continuous), trained on the
     raw position columns of every layer; then those columns -> transformed space."""
     scales = {"x": _position_scale(plot, "x"), "y": _position_scale(plot, "y")}
@@ -178,7 +178,7 @@ def setup_position_scales(plot, layers: List[LayerData]) -> Dict[str, Any]:
     return scales
 
 
-def compute_stats(layers: List[LayerData], scales: Dict[str, Any]) -> None:
+def compute_stats(layers: list[LayerData], scales: dict[str, Any]) -> None:
     """``stat.compute_layer`` per layer, then evaluate ``after_stat`` aesthetics."""
     for ld in layers:
         stat = ld.layer.stat
@@ -209,12 +209,12 @@ def compute_stats(layers: List[LayerData], scales: Dict[str, Any]) -> None:
 
 
 # --------------------------------------------------------------------------- 4
-def map_non_position(plot, layers: List[LayerData]) -> Dict[str, Any]:
+def map_non_position(plot, layers: list[LayerData]) -> dict[str, Any]:
     """Train discrete scales for colour/fill/shape/linetype on every layer, then
     map the columns to manim values. Other non-position aesthetics (size, alpha,
     linewidth) are used as is in Phase 1. Returns ``{aes: trained scale}``."""
-    scales: Dict[str, Any] = {}
-    clones: Dict[int, Any] = {}  # one clone per user scale object (shared aesthetics)
+    scales: dict[str, Any] = {}
+    clones: dict[int, Any] = {}  # one clone per user scale object (shared aesthetics)
     for aes_name in CATEGORICAL_AESTHETICS:
         present = [ld for ld in layers if aes_name in ld.data.columns and len(ld.data)]
         if not present:
@@ -238,14 +238,15 @@ def map_non_position(plot, layers: List[LayerData]) -> Dict[str, Any]:
         for ld in layers:
             if aes_name in ld.data.columns and len(ld.data):
                 df = ld.data.copy()
-                df[aes_name] = pd.Series(np.asarray(scale.map(df[aes_name]), dtype=object),
-                                         index=df.index, dtype=object)
+                df[aes_name] = pd.Series(
+                    np.asarray(scale.map(df[aes_name]), dtype=object), index=df.index, dtype=object
+                )
                 ld.data = df
     return scales
 
 
 # --------------------------------------------------------------------------- 5
-def apply_positions(layers: List[LayerData]) -> None:
+def apply_positions(layers: list[LayerData]) -> None:
     """Position adjustments; only ``"identity"`` exists in Phase 1."""
     for ld in layers:
         pos = ld.layer.position
@@ -255,13 +256,13 @@ def apply_positions(layers: List[LayerData]) -> None:
 
 
 # --------------------------------------------------------------------------- 6
-def setup_geom_data(layers: List[LayerData]) -> None:
+def setup_geom_data(layers: list[LayerData]) -> None:
     """``geom.setup_data`` per layer (e.g. bar extents for ``geom_col``)."""
     for ld in layers:
         ld.data = ld.layer.geom.setup_data(ld.data, ld.layer.params)
 
 
-def train_position_scales(layers: List[LayerData], scales: Dict[str, Any]) -> None:
+def train_position_scales(layers: list[LayerData], scales: dict[str, Any]) -> None:
     """Reset and retrain x/y on the columns each geom draws (transformed space),
     then apply each scale's ``oob`` policy to those columns."""
     for s in scales.values():
@@ -283,7 +284,7 @@ def train_position_scales(layers: List[LayerData], scales: Dict[str, Any]) -> No
 
 
 # --------------------------------------------------------------------------- 7
-def _mapping_label(value: Any) -> Optional[str]:
+def _mapping_label(value: Any) -> str | None:
     if isinstance(value, str):
         return value
     if isinstance(value, AfterStat):
@@ -291,10 +292,10 @@ def _mapping_label(value: Any) -> Optional[str]:
     return None
 
 
-def default_labels(plot, layers: List[LayerData]) -> Dict[str, Any]:
+def default_labels(plot, layers: list[LayerData]) -> dict[str, Any]:
     """Titles for every mapped aesthetic: the mapped column names (plot mapping
     first, then layers in order), overridden by ``labs()``."""
-    labels: Dict[str, Any] = {}
+    labels: dict[str, Any] = {}
     sources = [plot.mapping] + [ld.mapping for ld in layers]
     for mapping in sources:
         for aes_name, value in (mapping or {}).items():
@@ -305,28 +306,30 @@ def default_labels(plot, layers: List[LayerData]) -> Dict[str, Any]:
     return labels
 
 
-def build_panel(plot, scales: Dict[str, Any], theme: Theme, labels: Dict[str, Any],
-                has_legend: bool) -> CartesianPanel:
+def build_panel(
+    plot, scales: dict[str, Any], theme: Theme, labels: dict[str, Any], has_legend: bool
+) -> CartesianPanel:
     """The coord builds the panel (axes, grid, ticks, axis titles)."""
     coord = plot.coord if plot.coord is not None else CoordCartesian()
     return coord.build(scales["x"], scales["y"], theme, labels, has_legend=has_legend)
 
 
 # --------------------------------------------------------------------------- 8
-def draw_layers(layers: List[LayerData], panel: CartesianPanel,
-                theme: Theme) -> List[Tuple[Any, Mobject]]:
+def draw_layers(
+    layers: list[LayerData], panel: CartesianPanel, theme: Theme
+) -> list[tuple[Any, Mobject]]:
     """``geom.draw_panel`` per layer -> ``[(key, mobject), ...]`` in layer order."""
     out = []
     for ld in layers:
-        mob = ld.layer.geom.draw_panel(ld.data, panel.panel_params, panel, theme,
-                                       **ld.layer.params)
+        mob = ld.layer.geom.draw_panel(ld.data, panel.panel_params, panel, theme, **ld.layer.params)
         out.append((ld.key, mob))
     return out
 
 
 # --------------------------------------------------------------------------- 9
-def make_legends(plot, layers: List[LayerData], scales: Dict[str, Any], theme: Theme,
-                 labels: Dict[str, Any]) -> list:
+def make_legends(
+    plot, layers: list[LayerData], scales: dict[str, Any], theme: Theme, labels: dict[str, Any]
+) -> list:
     """Legend objects for the trained non-position scales (``[]`` if hidden)."""
     if theme.legend_position == "none" or not scales:
         return []
@@ -335,7 +338,7 @@ def make_legends(plot, layers: List[LayerData], scales: Dict[str, Any], theme: T
     return list(build_legends(scales, specs, theme, labels, guide_specs) or [])
 
 
-def _text(theme: Theme, content: Any, size: float) -> Optional[Mobject]:
+def _text(theme: Theme, content: Any, size: float) -> Mobject | None:
     if content is None:
         return None
     if isinstance(content, Mobject):
@@ -345,8 +348,9 @@ def _text(theme: Theme, content: Any, size: float) -> Optional[Mobject]:
     return theme.make_text(str(content), font_size=size)
 
 
-def assemble(panel: CartesianPanel, drawn, legends: list, theme: Theme,
-             labels: Dict[str, Any], **extra):
+def assemble(
+    panel: CartesianPanel, drawn, legends: list, theme: Theme, labels: dict[str, Any], **extra
+):
     """Lay out the panel, layers, legend and titles in a GGPlot, centred in the
     frame (see :func:`fit_to_frame`)."""
     from .mobjects import GGPlot
@@ -367,8 +371,16 @@ def assemble(panel: CartesianPanel, drawn, legends: list, theme: Theme,
     if caption is not None:
         caption.next_to(panel, DOWN, buff=0.2)
         caption.set_x(panel.get_right()[0], direction=RIGHT)
-    plot = GGPlot(panel=panel, layers=drawn, legend=legend, legends=legends, title=title,
-                  subtitle=subtitle, caption=caption, **extra)
+    plot = GGPlot(
+        panel=panel,
+        layers=drawn,
+        legend=legend,
+        legends=legends,
+        title=title,
+        subtitle=subtitle,
+        caption=caption,
+        **extra,
+    )
     return fit_to_frame(plot)
 
 
@@ -386,7 +398,7 @@ def fit_to_frame(plot: Mobject, margin: float = 0.2) -> Mobject:
 
 
 # --------------------------------------------------------------------------- all
-def build_plot(plot, *, theme: Optional[Theme] = None):
+def build_plot(plot, *, theme: Theme | None = None):
     """Run the whole pipeline on ``plot`` and return a :class:`GGPlot`.
 
     ``theme`` overrides the plot's theme for this build only.
@@ -407,6 +419,12 @@ def build_plot(plot, *, theme: Optional[Theme] = None):
     legends = make_legends(plot, layers, np_scales, theme, labels)
     panel = build_panel(plot, pos_scales, theme, labels, has_legend=bool(legends))
     drawn = draw_layers(layers, panel, theme)
-    return assemble(panel, drawn, legends, theme, labels,
-                    scales={**pos_scales, **np_scales},
-                    layer_data={ld.key: ld.data for ld in layers})
+    return assemble(
+        panel,
+        drawn,
+        legends,
+        theme,
+        labels,
+        scales={**pos_scales, **np_scales},
+        layer_data={ld.key: ld.data for ld in layers},
+    )

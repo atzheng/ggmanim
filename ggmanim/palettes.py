@@ -15,7 +15,8 @@ from __future__ import annotations
 
 import colorsys
 import math
-from typing import Any, Callable, Sequence, Union
+from collections.abc import Callable, Sequence
+from typing import Any, TypeAlias
 
 from manim import ManimColor
 
@@ -34,7 +35,7 @@ __all__ = [
     "resolve_palette",
 ]
 
-Palette = Union[Sequence[Any], Callable[[int], Sequence[Any]]]
+Palette: TypeAlias = Sequence[Any] | Callable[[int], Sequence[Any]]
 
 
 def as_manim_color(value: Any) -> ManimColor:
@@ -56,7 +57,17 @@ BRIGHT: list[ManimColor] = _colors(
 """Paul Tol's "light" qualitative scheme (historically called BRIGHT in ggmanim)."""
 
 MUTED: list[ManimColor] = _colors(
-    ["#332288", "#117733", "#CC6677", "#88CCEE", "#999933", "#882255", "#44AA99", "#DDCC77", "#AA4499"]
+    [
+        "#332288",
+        "#117733",
+        "#CC6677",
+        "#88CCEE",
+        "#999933",
+        "#882255",
+        "#44AA99",
+        "#DDCC77",
+        "#AA4499",
+    ]
 )
 """Paul Tol's "muted" qualitative scheme."""
 
@@ -140,7 +151,11 @@ def hsv_pal(s: float = 0.65, v: float = 0.9) -> Callable[[int], list[ManimColor]
     """Simple evenly spaced HSV hues (cheap alternative to :func:`hue_pal`)."""
 
     def pal(n: int) -> list[ManimColor]:
-        return [ManimColor.from_rgb(colorsys.hsv_to_rgb(i / n, s, v)) for i in range(n)] if n > 0 else []
+        return (
+            [ManimColor.from_rgb(colorsys.hsv_to_rgb(i / n, s, v)) for i in range(n)]
+            if n > 0
+            else []
+        )
 
     return pal
 

@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from typing import Optional
-
 import numpy as np
 import pandas as pd
 from manim import Polygon, Square, VGroup, VMobject
@@ -43,9 +41,14 @@ class GeomCol(Geom):
     """
 
     required_aes = ("x", "y")
-    default_aes = {"color": None, "fill": "#595959", "linewidth": 1.0, "alpha": 1.0,
-                   "linetype": "solid"}
-    extra_params = ("width",)
+    default_aes = {
+        "color": None,
+        "fill": "#595959",
+        "linewidth": 1.0,
+        "alpha": 1.0,
+        "linetype": "solid",
+    }
+    extra_params: tuple[str, ...] = ("width",)
 
     def setup_data(self, data: pd.DataFrame, params) -> pd.DataFrame:
         data = data.copy()
@@ -67,8 +70,9 @@ class GeomCol(Geom):
         data["ymax"] = np.maximum(y, 0.0)
         return data
 
-    def draw_panel(self, data, panel_params, coord, theme: Optional[Theme] = None,
-                   width=None, **params) -> VMobject:
+    def draw_panel(
+        self, data, panel_params, coord, theme: Theme | None = None, width=None, **params
+    ) -> VMobject:
         theme = theme if theme is not None else theme_default()
         self.check_required_aes(data)
         if not {"xmin", "xmax", "ymin", "ymax"} <= set(data.columns):
@@ -101,24 +105,56 @@ class GeomCol(Geom):
             poly.set_stroke(color=outline, width=num(row.get("linewidth"), 1.0), opacity=alpha)
         return poly
 
-    def draw_key(self, data_row, theme: Optional[Theme] = None) -> VMobject:
+    def draw_key(self, data_row, theme: Theme | None = None) -> VMobject:
         theme = theme if theme is not None else theme_default()
         return self._bar(Square(side_length=KEY_SIZE), self.key_aes(data_row), theme)
 
 
 @register
-def geom_col(mapping=None, data=None, *, stat="identity", position="identity",
-             inherit_aes: bool = True, name: Optional[str] = None, **params):
+def geom_col(
+    mapping=None,
+    data=None,
+    *,
+    stat="identity",
+    position="identity",
+    inherit_aes: bool = True,
+    name: str | None = None,
+    **params,
+):
     """Bars whose heights are the data's ``y``. ``width=`` in x (transformed) units;
     constant ``fill``/``color``/``alpha`` go in ``params``."""
-    return make_layer(GeomCol(), mapping, data, stat=stat, position=position,
-                      inherit_aes=inherit_aes, name=name, params=params)
+    return make_layer(
+        GeomCol(),
+        mapping,
+        data,
+        stat=stat,
+        position=position,
+        inherit_aes=inherit_aes,
+        name=name,
+        params=params,
+    )
 
 
 @register
-def geom_bar(mapping=None, data=None, *, stat="identity", position="identity",
-             inherit_aes: bool = True, name: Optional[str] = None, **params):
+def geom_bar(
+    mapping=None,
+    data=None,
+    *,
+    stat="identity",
+    position="identity",
+    inherit_aes: bool = True,
+    name: str | None = None,
+    **params,
+):
     """Alias of :func:`geom_col` (identity heights) until ``stat_count`` lands
     in Phase 3, at which point it will default to counting rows."""
-    return make_layer(GeomCol(), mapping, data, stat=stat, position=position,
-                      inherit_aes=inherit_aes, name=name, params=params)
+    return make_layer(
+        GeomCol(),
+        mapping,
+        data,
+        stat=stat,
+        position=position,
+        inherit_aes=inherit_aes,
+        name=name,
+        params=params,
+    )

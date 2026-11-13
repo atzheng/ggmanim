@@ -30,8 +30,9 @@ builds from the same inputs give identically positioned mobjects.
 
 from __future__ import annotations
 
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
-from typing import Any, Mapping, Optional, Sequence, Tuple
+from typing import Any
 
 import numpy as np
 from manim import DOWN, LEFT, PI, Axes, Line, Mobject, VGroup, VMobject
@@ -54,12 +55,12 @@ class PanelParams:
     ``x_labels``/``y_labels`` the matching data-space label strings.
     """
 
-    x_range: Tuple[float, float]
-    y_range: Tuple[float, float]
-    x_breaks: Tuple[float, ...]
-    y_breaks: Tuple[float, ...]
-    x_labels: Tuple[str, ...]
-    y_labels: Tuple[str, ...]
+    x_range: tuple[float, float]
+    y_range: tuple[float, float]
+    x_breaks: tuple[float, ...]
+    y_breaks: tuple[float, ...]
+    x_labels: tuple[str, ...]
+    y_labels: tuple[str, ...]
 
 
 class PanelAxes(Axes):
@@ -81,10 +82,19 @@ class CartesianPanel(VGroup):
     ``grid, axes, x_ticks, y_ticks, x_tick_labels, y_tick_labels[, x_title][, y_title]``.
     """
 
-    def __init__(self, axes: Axes, panel_params: PanelParams, grid: VGroup,
-                 x_ticks: VGroup, y_ticks: VGroup,
-                 x_tick_labels: VGroup, y_tick_labels: VGroup,
-                 x_title: Optional[Mobject], y_title: Optional[Mobject], **kwargs):
+    def __init__(
+        self,
+        axes: Axes,
+        panel_params: PanelParams,
+        grid: VGroup,
+        x_ticks: VGroup,
+        y_ticks: VGroup,
+        x_tick_labels: VGroup,
+        y_tick_labels: VGroup,
+        x_title: Mobject | None,
+        y_title: Mobject | None,
+        **kwargs,
+    ):
         super().__init__(**kwargs)
         self.axes = axes
         self.panel_params = panel_params
@@ -97,9 +107,9 @@ class CartesianPanel(VGroup):
         self.y_title = y_title
         self.add(grid, axes, x_ticks, y_ticks, x_tick_labels, y_tick_labels)
         if x_title is not None:
-            self.add(x_title)
+            self.add(x_title)  # type: ignore[arg-type]
         if y_title is not None:
-            self.add(y_title)
+            self.add(y_title)  # type: ignore[arg-type]
 
     def transform(self, x: Any, y: Any) -> np.ndarray:
         """Transformed-space ``(x, y)`` -> ``(N, 3)`` scene points (one vectorised
@@ -116,7 +126,7 @@ def _c2p(axes: Axes, x: Any, y: Any) -> np.ndarray:
     return pts.reshape(3, -1).T.copy()
 
 
-def _range(scale, lim, expand: bool = True) -> Tuple[float, float]:
+def _range(scale, lim, expand: bool = True) -> tuple[float, float]:
     """Expanded transformed-space range for ``scale``; ``lim`` is an optional
     data-space zoom ``(lo, hi)`` (either end ``None`` = the scale's own limit)."""
     rng = None
@@ -127,8 +137,10 @@ def _range(scale, lim, expand: bool = True) -> Tuple[float, float]:
         inc = scale._is_increasing() if hasattr(scale, "_is_increasing") else True
         t = np.asarray(scale.transform([np.nan if v is None else v for v in lim]), dtype=float)
         # lim[0] is the smaller data value: the low end for increasing transforms
-        ends = [t[0] if np.isfinite(t[0]) else (known[0] if inc else known[1]),
-                t[1] if np.isfinite(t[1]) else (known[1] if inc else known[0])]
+        ends = [
+            t[0] if np.isfinite(t[0]) else (known[0] if inc else known[1]),
+            t[1] if np.isfinite(t[1]) else (known[1] if inc else known[0]),
+        ]
         rng = expand_range(tuple(sorted(ends)), getattr(scale, "expand", None) if expand else False)
     if rng is None or not all(np.isfinite(rng)):
         rng = _FALLBACK_RANGE
@@ -138,19 +150,17 @@ def _range(scale, lim, expand: bool = True) -> Tuple[float, float]:
     return lo, hi
 
 
-def _breaks_labels(scale, rng) -> Tuple[Tuple[float, ...], Tuple[str, ...]]:
+def _breaks_labels(scale, rng) -> tuple[tuple[float, ...], tuple[str, ...]]:
     if scale is None:
         return (), ()
     breaks = np.asarray(scale.get_breaks(rng), dtype=float).ravel()
     labels = list(scale.get_labels(rng))
     if len(labels) != len(breaks):
-        raise ValueError(
-            f"scale {scale!r} returned {len(labels)} labels for {len(breaks)} breaks"
-        )
+        raise ValueError(f"scale {scale!r} returned {len(labels)} labels for {len(breaks)} breaks")
     return tuple(float(b) for b in breaks), tuple(str(lab) for lab in labels)
 
 
-def _title(scale, labels: Optional[Mapping[str, Any]], aes: str):
+def _title(scale, labels: Mapping[str, Any] | None, aes: str):
     """Scale name wins (ggplot2), then ``labels[aes]``; ``None`` -> no title."""
     name = getattr(scale, "name", None) if scale is not None else None
     if name is not None:
@@ -169,8 +179,12 @@ class CoordCartesian:
     ``expand=False`` turns off the scales' expansion (for zoomed and unzoomed axes).
     """
 
-    def __init__(self, xlim: Optional[Sequence[Optional[float]]] = None,
-                 ylim: Optional[Sequence[Optional[float]]] = None, expand: bool = True):
+    def __init__(
+        self,
+        xlim: Sequence[float | None] | None = None,
+        ylim: Sequence[float | None] | None = None,
+        expand: bool = True,
+    ):
         for name, lim in (("xlim", xlim), ("ylim", ylim)):
             if lim is not None and len(tuple(lim)) != 2:
                 raise ValueError(f"{name} must be (lo, hi), got {lim!r}")
@@ -185,7 +199,7 @@ class CoordCartesian:
         return f"coord_cartesian(xlim={self.xlim!r}, ylim={self.ylim!r}, expand={self.expand!r})"
 
     # -- geometry --------------------------------------------------------------
-    def _axis_range(self, scale, lim) -> Tuple[float, float]:
+    def _axis_range(self, scale, lim) -> tuple[float, float]:
         return _range(scale, lim, self.expand)
 
     def setup_panel_params(self, x_scale, y_scale) -> PanelParams:
@@ -195,12 +209,19 @@ class CoordCartesian:
         yr = self._axis_range(y_scale, self.ylim)
         xb, xl = _breaks_labels(x_scale, xr)
         yb, yl = _breaks_labels(y_scale, yr)
-        return PanelParams(x_range=xr, y_range=yr, x_breaks=xb, y_breaks=yb,
-                           x_labels=xl, y_labels=yl)
+        return PanelParams(
+            x_range=xr, y_range=yr, x_breaks=xb, y_breaks=yb, x_labels=xl, y_labels=yl
+        )
 
-    def build(self, x_scale, y_scale, theme: Optional[Theme] = None,
-              labels: Optional[Mapping[str, Any]] = None, *,
-              has_legend: bool = False) -> CartesianPanel:
+    def build(
+        self,
+        x_scale,
+        y_scale,
+        theme: Theme | None = None,
+        labels: Mapping[str, Any] | None = None,
+        *,
+        has_legend: bool = False,
+    ) -> CartesianPanel:
         """Build the panel mobject.
 
         Parameters
@@ -223,11 +244,15 @@ class CoordCartesian:
             x_length=width,
             y_length=height,
             tips=False,
-            axis_config={"include_ticks": False, "include_numbers": False,
-                         "stroke_width": theme.axis_stroke_width},
+            axis_config={
+                "include_ticks": False,
+                "include_numbers": False,
+                "stroke_width": theme.axis_stroke_width,
+            },
         )
-        axes.set_stroke(color=fg, width=theme.axis_stroke_width,
-                        opacity=1.0 if theme.axis_line else 0.0)
+        axes.set_stroke(
+            color=fg, width=theme.axis_stroke_width, opacity=1.0 if theme.axis_line else 0.0
+        )
 
         xb = np.asarray(pp.x_breaks, dtype=float)
         yb = np.asarray(pp.y_breaks, dtype=float)
@@ -239,18 +264,27 @@ class CoordCartesian:
         grid = VGroup()
         if theme.panel_grid:
             for a, b in list(zip(bottom, top)) + list(zip(left, right)):
-                grid.add(Line(a, b, stroke_width=theme.grid_stroke_width,
-                              stroke_color=fg, stroke_opacity=theme.grid_opacity))
+                grid.add(
+                    Line(
+                        a,
+                        b,
+                        stroke_width=theme.grid_stroke_width,
+                        stroke_color=fg,
+                        stroke_opacity=theme.grid_opacity,
+                    )
+                )
 
         tl = theme.tick_length
         x_ticks, y_ticks = VGroup(), VGroup()
         if theme.ticks:
             for p in bottom:
-                x_ticks.add(Line(p, p + tl * DOWN, stroke_width=theme.axis_stroke_width,
-                                 stroke_color=fg))
+                x_ticks.add(
+                    Line(p, p + tl * DOWN, stroke_width=theme.axis_stroke_width, stroke_color=fg)
+                )
             for p in left:
-                y_ticks.add(Line(p, p + tl * LEFT, stroke_width=theme.axis_stroke_width,
-                                 stroke_color=fg))
+                y_ticks.add(
+                    Line(p, p + tl * LEFT, stroke_width=theme.axis_stroke_width, stroke_color=fg)
+                )
 
         gap = (tl if theme.ticks else 0.0) + theme.tick_label_buff
         x_tick_labels, y_tick_labels = VGroup(), VGroup()
@@ -265,17 +299,22 @@ class CoordCartesian:
         corner = _c2p(axes, x0, y0)[0]
         centre = _c2p(axes, (x0 + x1) / 2, (y0 + y1) / 2)[0]
         if x_title is not None:
-            below = x_tick_labels if len(x_tick_labels) else VGroup(Line(corner, corner + gap * DOWN))
+            below = (
+                x_tick_labels if len(x_tick_labels) else VGroup(Line(corner, corner + gap * DOWN))
+            )
             x_title.next_to(below, DOWN, buff=theme.axis_title_buff)
             x_title.set_x(centre[0])
         if y_title is not None:
             y_title.rotate(PI / 2)
-            beside = y_tick_labels if len(y_tick_labels) else VGroup(Line(corner, corner + gap * LEFT))
+            beside = (
+                y_tick_labels if len(y_tick_labels) else VGroup(Line(corner, corner + gap * LEFT))
+            )
             y_title.next_to(beside, LEFT, buff=theme.axis_title_buff)
             y_title.set_y(centre[1])
 
-        return CartesianPanel(axes, pp, grid, x_ticks, y_ticks, x_tick_labels,
-                              y_tick_labels, x_title, y_title)
+        return CartesianPanel(
+            axes, pp, grid, x_ticks, y_ticks, x_tick_labels, y_tick_labels, x_title, y_title
+        )
 
 
 def _label(theme: Theme, s: str) -> Mobject:
@@ -284,7 +323,7 @@ def _label(theme: Theme, s: str) -> Mobject:
     return theme.make_text(s, font_size=theme.axis_text_size)
 
 
-def _make_title(theme: Theme, content: Any) -> Optional[Mobject]:
+def _make_title(theme: Theme, content: Any) -> Mobject | None:
     if content is None:
         return None
     if isinstance(content, Mobject):

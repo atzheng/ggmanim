@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Callable, Optional
+from collections.abc import Callable
 
 from ..registry import register
 from .base import make_layer
@@ -23,9 +23,20 @@ class GeomFunction(GeomPath):
 
 
 @register
-def geom_function(fun: Optional[Callable] = None, mapping=None, data=None, *, n: int = 101,
-                  xlim=None, args=None, stat="function", position="identity",
-                  inherit_aes: bool = False, name: Optional[str] = None, **params):
+def geom_function(
+    fun: Callable | None = None,
+    mapping=None,
+    data=None,
+    *,
+    n: int = 101,
+    xlim=None,
+    args=None,
+    stat="function",
+    position="identity",
+    inherit_aes: bool = False,
+    name: str | None = None,
+    **params,
+):
     """Draw the curve ``y = fun(x, **args)`` at ``n`` points.
 
     The x range is ``xlim`` if given, else the x scale's limits trained by the
@@ -41,5 +52,13 @@ def geom_function(fun: Optional[Callable] = None, mapping=None, data=None, *, n:
     if fun is None or not callable(fun):
         raise TypeError("geom_function requires a callable `fun`")
     params.update(fun=fun, n=n, xlim=xlim, args=args)
-    return make_layer(GeomFunction(), mapping, data, stat=stat, position=position,
-                      inherit_aes=inherit_aes, name=name, params=params)
+    return make_layer(
+        GeomFunction(),
+        mapping,
+        data,
+        stat=stat,
+        position=position,
+        inherit_aes=inherit_aes,
+        name=name,
+        params=params,
+    )

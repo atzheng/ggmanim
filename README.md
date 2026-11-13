@@ -33,11 +33,12 @@ Differences from ggplot2 worth knowing up front:
 ## Install
 
 ```bash
-pip install manim pandas numpy scipy
-pip install git+https://github.com/atzheng/ggmanim
+pip install git+https://github.com/atzheng/ggmanim                    # manim, pandas, numpy
+pip install "ggmanim[stats] @ git+https://github.com/atzheng/ggmanim"  # + scipy
 ```
 
-`scipy` is optional (exact t-quantiles for `geom_smooth` confidence bands).
+Requires Python 3.10+. The `stats` extra (`scipy`) is optional: it gives exact
+t-quantiles for `geom_smooth` confidence bands.
 
 ## Example 1: scatter, linear fits, log x axis
 
@@ -157,7 +158,9 @@ transitions between plots).
 ## Development
 
 ```bash
-pip install -r requirements-dev.txt
+pip install -e '.[dev]'
+ruff check . && ruff format --check .
+mypy
 pytest
 manim -ql -s examples/basic.py Basic
 ```

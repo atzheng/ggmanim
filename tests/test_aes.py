@@ -24,8 +24,16 @@ def test_omitted_xy_absent():
 
 @pytest.mark.parametrize(
     "alias,canon",
-    [("colour", "color"), ("col", "color"), ("fill_color", "fill"), ("fill_colour", "fill"),
-     ("pch", "shape"), ("lty", "linetype"), ("cex", "size"), ("lwd", "linewidth")],
+    [
+        ("colour", "color"),
+        ("col", "color"),
+        ("fill_color", "fill"),
+        ("fill_colour", "fill"),
+        ("pch", "shape"),
+        ("lty", "linetype"),
+        ("cex", "size"),
+        ("lwd", "linewidth"),
+    ],
 )
 def test_alias_normalisation(alias, canon):
     m = aes(**{alias: "g"})

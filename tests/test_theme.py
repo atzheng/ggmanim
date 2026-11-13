@@ -7,7 +7,6 @@ from manim import BLACK, WHITE, ManimColor, Square, tempconfig
 from ggmanim.plot import ggplot
 from ggmanim.registry import COMPONENTS
 from ggmanim.theme import (
-    Theme,
     foreground_for_background,
     theme,
     theme_classic,
@@ -77,8 +76,14 @@ def test_plot_composition():
 
 @pytest.mark.parametrize(
     "background, expected",
-    [(WHITE, BLACK), ("#FFFFFF", BLACK), ("#EEEEEE", BLACK),
-     (BLACK, WHITE), ("#000000", WHITE), ("#333333", WHITE)],
+    [
+        (WHITE, BLACK),
+        ("#FFFFFF", BLACK),
+        ("#EEEEEE", BLACK),
+        (BLACK, WHITE),
+        ("#000000", WHITE),
+        ("#333333", WHITE),
+    ],
 )
 def test_foreground_for_background(background, expected):
     assert foreground_for_background(background) == ManimColor(expected)

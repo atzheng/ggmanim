@@ -2,10 +2,14 @@
 pipeline addresses. Each test builds a plot through the public API
 (``ggmanim.ggplot`` / ``GGManim`` + ``.build()``) and checks the defect is gone."""
 
+import subprocess
+import sys
+from pathlib import Path
+
 import numpy as np
 import pandas as pd
 import pytest
-from manim import BLACK, WHITE, Dot, ManimColor, config
+from manim import BLACK, WHITE, ManimColor, config
 
 from ggmanim import (
     GGManim,
@@ -20,13 +24,15 @@ from ggmanim.palettes import BRIGHT, MUTED, hue_pal
 
 @pytest.fixture
 def df():
-    return pd.DataFrame({
-        "x": [1.0, 2.0, 3.0, 4.0, 5.0, 6.0],
-        "y": [2.0, 4.0, 3.0, 5.0, 4.5, 6.0],
-        "g": ["a", "b", "c", "a", "b", "c"],
-        "s": [0.05, 0.06, 0.07, 0.08, 0.09, 0.1],
-        "w": [0.2, 0.4, 0.6, 0.8, 1.0, 0.5],
-    })
+    return pd.DataFrame(
+        {
+            "x": [1.0, 2.0, 3.0, 4.0, 5.0, 6.0],
+            "y": [2.0, 4.0, 3.0, 5.0, 4.5, 6.0],
+            "g": ["a", "b", "c", "a", "b", "c"],
+            "s": [0.05, 0.06, 0.07, 0.08, 0.09, 0.1],
+            "w": [0.2, 0.4, 0.6, 0.8, 1.0, 0.5],
+        }
+    )
 
 
 @pytest.fixture
@@ -65,9 +71,14 @@ def test_per_layer_dataframe_without_plot_data():
 
 
 def test_intercept_and_function_layers_with_auto_limits(df):
-    m = (ggplot(df, aes("x", "y")).geom_point()
-         .geom_function(lambda x: 0.5 * x).geom_vline(xintercept=7).geom_hline(yintercept=0)
-         .build())
+    m = (
+        ggplot(df, aes("x", "y"))
+        .geom_point()
+        .geom_function(lambda x: 0.5 * x)
+        .geom_vline(xintercept=7)
+        .geom_hline(yintercept=0)
+        .build()
+    )
     assert m.scales["x"].get_limits() == (1.0, 7.0)
     assert m.scales["y"].get_limits() == (0.0, 6.0)
     assert len(m.layers) == 4
@@ -83,10 +94,23 @@ def test_intercept_only_plot_builds():
 # -- auto_breaks: 2-16 ticks, no 1-2-5 rounding -----------------------------------
 
 
-@pytest.mark.parametrize("lo,hi", [
-    (0, 1), (0, 7), (0, 10), (0, 13), (1, 99), (0.001, 0.0123), (-3.2, 47),
-    (100, 1000), (12345, 12399), (-1e6, 3e6), (0.5, 0.51), (2, 5.5),
-])
+@pytest.mark.parametrize(
+    "lo,hi",
+    [
+        (0, 1),
+        (0, 7),
+        (0, 10),
+        (0, 13),
+        (1, 99),
+        (0.001, 0.0123),
+        (-3.2, 47),
+        (100, 1000),
+        (12345, 12399),
+        (-1e6, 3e6),
+        (0.5, 0.51),
+        (2, 5.5),
+    ],
+)
 def test_nice_break_count(lo, hi):
     data = pd.DataFrame({"x": [lo, hi], "y": [lo, hi]})
     m = ggplot(data, aes("x", "y")).geom_point().build()
@@ -114,12 +138,13 @@ def test_log10_axis_labels():
     assert pp.x_range[0] < 0.0 and pp.x_range[1] > 3.0
     # labels are data values at the (log-space) break positions
     for b, lab in zip(pp.x_breaks, pp.x_labels):
-        assert float(lab) == pytest.approx(10 ** b)
+        assert float(lab) == pytest.approx(10**b)
     assert {"1", "10", "100", "1000"} <= set(pp.x_labels)
     # points sit at c2p(log10(x))
     centres = np.array([d.get_center() for d in m.layers[0]])
-    np.testing.assert_allclose(centres, m.panel.transform(np.log10(data["x"]), data["y"]),
-                               atol=1e-6)
+    np.testing.assert_allclose(
+        centres, m.panel.transform(np.log10(data["x"]), data["y"]), atol=1e-6
+    )
 
 
 # -- colour scale: only `color` mapped; others leaked raw values into kwargs -----
@@ -133,10 +158,18 @@ def test_fill_mapping_uses_palette(df):
 
 
 @pytest.mark.parametrize("geom", ["geom_point", "geom_line", "geom_col", "geom_smooth"])
-@pytest.mark.parametrize("mapping", [
-    dict(fill="g"), dict(shape="g"), dict(linetype="g"), dict(size="g"), dict(alpha="g"),
-    dict(size="s"), dict(alpha="w"),
-])
+@pytest.mark.parametrize(
+    "mapping",
+    [
+        dict(fill="g"),
+        dict(shape="g"),
+        dict(linetype="g"),
+        dict(size="g"),
+        dict(alpha="g"),
+        dict(size="s"),
+        dict(alpha="w"),
+    ],
+)
 def test_mapped_non_colour_aesthetics_build(df, geom, mapping):
     # used to raise TypeError: raw column values passed as mobject kwargs
     m = getattr(ggplot(df, aes("x", "y", **mapping)), geom)().build()
@@ -194,7 +227,7 @@ def test_smooth_lm_with_se_ribbon_and_degree(df):
     assert (d["ymin"] < d["y"]).all() and (d["y"] < d["ymax"]).all()
     m2 = ggplot(df, aes("x", "y")).geom_smooth(method="lm", se=False).build()
     assert "ymin" not in m2.layer_data[0] or m2.layer_data[0]["ymin"].isna().all()
-    with pytest.raises(Exception):
+    with pytest.raises(ValueError, match="no-such-method"):
         ggplot(df, aes("x", "y")).geom_smooth(method="no-such-method").build()
 
 
@@ -246,3 +279,76 @@ def test_foreground_follows_background(df, background, bg, fg):
     assert _hex(m.axes.x_axis.get_color()) == _hex(fg)
     assert _hex(m.panel.x_title.get_color()) == _hex(fg)
     assert _hex(m.layers[0][0].get_fill_color()) == _hex(fg)
+
+
+# -- __init__.py: `import *` without __all__ re-exported f, np, pd, ... ----------
+
+
+def test_star_import_exposes_exactly_all():
+    import ggmanim
+
+    ns: dict = {}
+    exec("from ggmanim import *", ns)
+    ns.pop("__builtins__", None)
+    assert set(ns) == set(ggmanim.__all__)
+    assert len(ggmanim.__all__) == len(set(ggmanim.__all__))
+    for leaked in ("np", "pd", "f", "manim", "LinearRegression", "Dot", "VGroup"):
+        assert leaked not in ns
+
+
+def test_every_registered_component_is_public():
+    # in a fresh interpreter: other tests register throwaway components
+    code = (
+        "import ggmanim, ggmanim.registry as r; "
+        "missing = sorted(set(r.COMPONENTS) - set(ggmanim.__all__)); "
+        "assert not missing, missing; print(len(r.COMPONENTS))"
+    )
+    out = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True)
+    assert out.returncode == 0, out.stderr
+    assert int(out.stdout) >= 30
+
+
+def test_public_api_names():
+    import ggmanim
+
+    for name in ("ggplot", "GGManim", "aes", "after_stat", "theme", "labs", "xlab", "ylab"):
+        assert name in ggmanim.__all__
+    for name in ("xlim", "ylim", "guides", "coord_cartesian", "hue_pal", "BRIGHT", "PALETTES"):
+        assert name in ggmanim.__all__
+    assert ggmanim.GGManim is ggmanim.ggplot
+
+
+# -- setup.py: distutils, no install_requires; funcy/sklearn undeclared ----------
+
+
+ROOT = Path(__file__).resolve().parents[1]
+
+
+def test_packaging_metadata():
+    tomllib = pytest.importorskip("tomllib")
+    assert not (ROOT / "setup.py").exists()
+    meta = tomllib.loads((ROOT / "pyproject.toml").read_text())
+    assert meta["build-system"]["build-backend"] == "setuptools.build_meta"
+    project = meta["project"]
+    assert project["name"] == "ggmanim"
+    assert project["requires-python"] == ">=3.10"
+    deps = " ".join(project["dependencies"])
+    assert "manim>=0.19" in deps and "pandas>=2" in deps and "numpy" in deps
+    assert project["optional-dependencies"]["stats"] == ["scipy"]
+    everything = deps + " ".join(sum(project["optional-dependencies"].values(), []))
+    assert "funcy" not in everything and "scikit-learn" not in everything
+
+
+# -- repo: legacy prototype, stray gurobi.log; funcy/sklearn imports ------------
+
+
+def test_legacy_code_removed():
+    assert not (ROOT / "ggmanim" / "GGManim.py").exists()
+    for path in (ROOT / "ggmanim").rglob("*.py"):
+        src = path.read_text()
+        for needle in ("funcy", "sklearn", "HashableManimColor", "distutils"):
+            assert needle not in src, (path, needle)
+    import ggmanim
+
+    assert not hasattr(ggmanim, "CATEGORICAL_AES")
+    assert not hasattr(ggmanim, "color_mapping")

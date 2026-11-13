@@ -10,7 +10,6 @@ from ggmanim.layer import Layer
 from ggmanim.plot import GGManim, Labels, ggplot, labs, xlab, ylab
 from ggmanim.registry import COMPONENTS, register
 
-
 # -- tiny stub components (real geoms/scales/themes live elsewhere) ---------
 
 
@@ -19,8 +18,15 @@ class StubGeom:
 
 
 def _stub_layer(data=None, mapping=None, name=None, **params):
-    return Layer(geom=StubGeom(), stat="identity", position="identity",
-                 data=data, mapping=aes(**(mapping or {})), params=params, name=name)
+    return Layer(
+        geom=StubGeom(),
+        stat="identity",
+        position="identity",
+        data=data,
+        mapping=aes(**(mapping or {})),
+        params=params,
+        name=name,
+    )
 
 
 class StubScale:
@@ -114,7 +120,7 @@ def test_chaining_method_exists_for_every_registered_component(stubs):
 def test_component_registered_after_plot_import_gets_method(stubs):
     p = ggplot()
     with pytest.raises(AttributeError):
-        p.geom_late
+        _ = p.geom_late
 
     @register
     def geom_late(**kw):
@@ -127,9 +133,9 @@ def test_component_registered_after_plot_import_gets_method(stubs):
 def test_unknown_and_private_attrs_raise():
     p = ggplot()
     with pytest.raises(AttributeError):
-        p.not_a_component
+        _ = p.not_a_component
     with pytest.raises(AttributeError):
-        p.__array_interface__
+        _ = p.__array_interface__
 
 
 def test_chaining_equals_add(stubs, df):

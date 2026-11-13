@@ -3,8 +3,9 @@
 from __future__ import annotations
 
 import dataclasses
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, Callable, Dict, Optional, Union
+from typing import TYPE_CHECKING, Any, TypeAlias
 
 import pandas as pd
 
@@ -15,7 +16,7 @@ if TYPE_CHECKING:  # pragma: no cover
 
 __all__ = ["Layer"]
 
-LayerData = Union[pd.DataFrame, Callable[[pd.DataFrame], pd.DataFrame], None]
+LayerData: TypeAlias = pd.DataFrame | Callable[[pd.DataFrame], pd.DataFrame] | None
 
 
 @dataclass(frozen=True, eq=False)
@@ -33,9 +34,9 @@ class Layer:
     position: Any = None
     data: LayerData = None
     mapping: Aes = field(default_factory=Aes)
-    params: Dict[str, Any] = field(default_factory=dict)
+    params: dict[str, Any] = field(default_factory=dict)
     inherit_aes: bool = True
-    name: Optional[str] = None
+    name: str | None = None
 
     def __post_init__(self):
         if self.mapping is None:
@@ -47,14 +48,14 @@ class Layer:
             raise TypeError(f"layer name must be a str or None, got {self.name!r}")
 
     # -- component protocol ------------------------------------------------
-    def add_to(self, plot: "ggplot") -> "ggplot":
+    def add_to(self, plot: ggplot) -> ggplot:
         return plot._with_layer(self)
 
     # -- helpers -----------------------------------------------------------
-    def replace(self, **changes) -> "Layer":
+    def replace(self, **changes) -> Layer:
         return dataclasses.replace(self, **changes)
 
-    def resolve_data(self, plot_data: Optional[pd.DataFrame]) -> Optional[pd.DataFrame]:
+    def resolve_data(self, plot_data: pd.DataFrame | None) -> pd.DataFrame | None:
         """The data this layer draws from (never uses DataFrame truthiness)."""
         if self.data is None:
             return plot_data
@@ -62,7 +63,7 @@ class Layer:
             return self.data(plot_data)
         return self.data
 
-    def resolve_mapping(self, plot_mapping: Optional[Aes]) -> Aes:
+    def resolve_mapping(self, plot_mapping: Aes | None) -> Aes:
         """Plot mapping overridden by the layer mapping (if ``inherit_aes``)."""
         if self.inherit_aes and plot_mapping is not None:
             base = plot_mapping if isinstance(plot_mapping, Aes) else Aes(plot_mapping)
@@ -73,8 +74,12 @@ class Layer:
         def short(o):
             return type(o).__name__ if o is not None and not isinstance(o, str) else repr(o)
 
-        data = "None" if self.data is None else (
-            f"DataFrame{self.data.shape}" if isinstance(self.data, pd.DataFrame) else "callable"
+        data = (
+            "None"
+            if self.data is None
+            else (
+                f"DataFrame{self.data.shape}" if isinstance(self.data, pd.DataFrame) else "callable"
+            )
         )
         return (
             f"Layer(name={self.name!r}, geom={short(self.geom)}, stat={short(self.stat)}, "
