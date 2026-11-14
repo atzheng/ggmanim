@@ -50,6 +50,7 @@ class GGPlot(VGroup):
     dict-style access; integer/slice indices index the submobjects as usual.
     """
 
+    # region: structure
     def __init__(
         self,
         panel,
@@ -100,3 +101,14 @@ class GGPlot(VGroup):
 
     def __repr__(self):
         return f"GGPlot(layers={list(self.layers)!r}, legends={len(self.legends)})"
+
+    # endregion
+
+    # region: facets
+    # endregion
+
+    # region: animation
+    # endregion
+
+    # region: live
+    # endregion

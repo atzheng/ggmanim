@@ -9,14 +9,23 @@ from ..theme import Theme, theme_default
 from ._clip import panel_rect
 from ._marker_clip import clip_marker, marker_extent, near_box, scene_box
 from ._markers import make_marker
-from .base import Geom, finite_rows, make_layer, num, resolve_color, transform_points
+from .base import (
+    Geom,
+    attach_marks,
+    finite_rows,
+    make_layer,
+    num,
+    resolve_color,
+    transform_points,
+)
 
 __all__ = ["GeomPoint", "geom_point"]
 
 
 class GeomPoint(Geom):
     """Points: ``draw_panel`` returns a ``VGroup`` with one marker per (finite) row,
-    in data order.
+    in data order (``.marks``/``.keys``: one per drawn row, see
+    :func:`~ggmanim.geoms.base.attach_marks`).
 
     ``size`` is the dot radius in scene units (other shapes have the same area);
     ``color=None`` is the theme foreground; ``fill`` (if set) colours solid
@@ -43,12 +52,14 @@ class GeomPoint(Geom):
             keep = near_box(pts, box, marker_extent([num(v, 0.06) for v in data["size"]]))
             data, pts = data[keep], pts[keep]
         dots = VGroup()
-        for p, row in zip(pts, data.to_dict("records")):
+        drawn = []
+        for i, (p, row) in enumerate(zip(pts, data.to_dict("records"))):
             dot = self._dot(p, row, fg)
             shown = dot if box is None else clip_marker(dot, box)  # None: fully clipped
             if shown is not None:
                 dots.add(shown)
-        return dots
+                drawn.append(i)
+        return attach_marks(dots, data.iloc[drawn], per="row")
 
     @staticmethod
     def _dot(point, row, fg) -> VMobject:

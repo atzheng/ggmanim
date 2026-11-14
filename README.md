@@ -332,20 +332,58 @@ Render stills of all of them with
 manim -ql -s -a examples/gallery.py
 ```
 
-CI renders the gallery on every push and uploads the PNGs as the `examples` artifact.
+CI renders every `examples/*.py` (`scripts/render_examples.sh`) on every push and
+uploads the PNGs as the `examples` artifact.
 
 ## ggplot2 → ggmanim cheat sheet
 
 Everything below is supported; names and arguments follow ggplot2 unless noted.
+Each section ends with what is not there yet; see [PLAN.md](PLAN.md) for the
+roadmap.
 
 | ggplot2 | ggmanim | notes |
 |---|---|---|
 | `ggplot(df, aes(x, y, colour = g)) + ...` | `ggplot(df, aes("x", "y", color="g")).add(...)` | strings for columns; `colour` accepted |
+| `labs()`, `xlab()`, `ylab()`, `ggtitle()` | `labs()`, `xlab()`, `ylab()`, `labs(title=...)` | |
+| `p1 + p2` (patchwork) | build both, arrange the mobjects | see `examples/gallery.py` |
+
+<!-- section: geoms -->
+### Geoms
+
+| ggplot2 | ggmanim | notes |
+|---|---|---|
 | `geom_point()`, `geom_line()`, `geom_path()` | same | `size` = radius in scene units |
 | `geom_col()`, `geom_bar(stat = "identity")` | `geom_col()`, `geom_bar()` | identity heights only |
 | `geom_smooth(method = "lm")` | `geom_smooth(method="lm", degree=1)` | polynomial fits, SE ribbon |
 | `geom_function(fun = f)` | `geom_function(f)` | |
 | `geom_hline()`, `geom_vline()` | same | take part in axis limits |
+
+Not yet: `geom_histogram`, `geom_area`/`ribbon`, `geom_text`/`label`, `geom_boxplot`,
+`geom_violin`, `geom_density`, `geom_rect`/`tile`, `geom_segment`, error bars.
+
+<!-- section: stats -->
+### Stats
+
+| ggplot2 | ggmanim | notes |
+|---|---|---|
+| `stat_identity()`, `stat_smooth()`, `stat_function()` | same | `after_stat("var")` maps computed variables |
+
+Not yet: `stat_count`, `stat_bin`, `stat_summary`, `stat_density`, `stat_boxplot`.
+
+<!-- section: positions -->
+### Positions
+
+| ggplot2 | ggmanim | notes |
+|---|---|---|
+| `position = "identity"`, `position_identity()` | same | the default for every geom |
+
+Not yet: `position_stack`, `_fill`, `_dodge`, `_dodge2`, `_jitter`, `_jitterdodge`, `_nudge`.
+
+<!-- section: scales -->
+### Scales
+
+| ggplot2 | ggmanim | notes |
+|---|---|---|
 | `scale_x_continuous()`, `scale_x_log10()`, `scale_x_sqrt()`, `scale_x_reverse()` | same (`x` and `y`) | `position="top"`/`"right"` |
 | `xlim()`, `ylim()` | `xlim(lo, hi)`, `ylim(lo, hi)` | censor out-of-range rows |
 | `scale_x_discrete()` | same (`x` and `y`) | |
@@ -360,22 +398,59 @@ Everything below is supported; names and arguments follow ggplot2 unless noted.
 | `scale_linetype()`, `scale_linetype_manual()` | same | names, codes or hex patterns |
 | `scales::label_percent()` etc. | `label_percent()`, `label_comma()`, `label_dollar()`, `label_number()`, `label_scientific()`, `label_math()`, `label_date()`, `label_wrap()` | |
 | `scales::breaks_width()` etc. | `breaks_width()`, `breaks_pretty()`, `breaks_extended()`, `breaks_log()` | |
+
+Not yet: binned position scales, `sec_axis`.
+
+<!-- section: guides -->
+### Guides
+
+| ggplot2 | ggmanim | notes |
+|---|---|---|
 | `guides(colour = "none")` | `guides(color="none")` | |
 | `guide_legend()` | `guide_legend(title, nrow, ncol, byrow, reverse, override_aes, order, direction)` | |
 | `guide_colourbar()` | `guide_colorbar(...)` / `guide_colourbar(...)` | `barwidth`, `barheight`, `nbin`, `ticks` |
 | `guide_coloursteps()` | `guide_coloursteps(...)` / `guide_colorsteps(...)` | default for `_fermenter`; `even_steps`, `show_limits` |
-| `theme(legend.position = c(1, 0))` | `theme(legend_position=(1, 0))` | dots become underscores |
+
+Not yet: `guide_axis`, `guide_bins`.
+
+<!-- section: facets -->
+### Facets
+
+| ggplot2 | ggmanim | notes |
+|---|---|---|
+
+Not yet: `facet_wrap`, `facet_grid`, free scales, strips.
+
+<!-- section: coords -->
+### Coords
+
+| ggplot2 | ggmanim | notes |
+|---|---|---|
 | `coord_cartesian(xlim =, ylim =)` | same | zoom without dropping rows; `clip="on"` |
 | `coord_flip()`, `coord_fixed(ratio)` | same | |
+
+Not yet: `coord_trans`, `coord_polar`.
+
+<!-- section: themes -->
+### Themes
+
+| ggplot2 | ggmanim | notes |
+|---|---|---|
+| `theme(legend.position = c(1, 0))` | `theme(legend_position=(1, 0))` | dots become underscores |
 | `theme_grey()`, `theme_bw()`, `theme_linedraw()`, `theme_light()`, `theme_dark()`, `theme_minimal()`, `theme_classic()`, `theme_void()` | same (+ `theme_gray`) | |
 | `theme(axis.text.x = element_text(angle = 45))` | `theme(axis_text_x_angle=45)` | flat fields instead of `element_*` |
 | `theme(panel.background = element_rect(fill = ...))` | `theme(panel_background=...)` | |
-| `labs()`, `xlab()`, `ylab()`, `ggtitle()` | `labs()`, `xlab()`, `ylab()`, `labs(title=...)` | |
-| `p1 + p2` (patchwork) | build both, arrange the mobjects | see `examples/gallery.py` |
 
-Not yet: facets, positions (dodge/stack/jitter), other stats (bins, density,
-boxplot), polar coords, `element_*` objects, transitions between plots. See
-[PLAN.md](PLAN.md) for the roadmap.
+Not yet: `element_*` objects.
+
+<!-- section: animation -->
+### Animation (manim-only)
+
+| ggplot2 / gganimate | ggmanim | notes |
+|---|---|---|
+| `aes(group = id)` in gganimate | `aes(key="id")` | each layer mobject has `.marks` and matching `.keys` |
+
+Not yet: `GGPlot.create()`, transitions between plots, `ValueTracker`-driven rebuilds.
 
 ## Development
 

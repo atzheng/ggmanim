@@ -83,6 +83,7 @@ _CLIP = ("on", "off")
 _FALLBACK_RANGE = (0.0, 1.0)
 
 
+# region: panel
 @dataclass(frozen=True)
 class PanelParams:
     """Resolved panel geometry, all positions in transformed (scale) space.
@@ -240,6 +241,10 @@ def _title(scale, labels: Mapping[str, Any] | None, aes: str):
     return labels.get(aes)
 
 
+# endregion
+
+
+# region: cartesian
 class CoordCartesian:
     """Cartesian coordinates.
 
@@ -709,3 +714,9 @@ def coord_fixed(
     """Fixed aspect ratio: ``ratio`` = screen length of one y unit / one x unit
     (``ratio=1``: a unit square is drawn square)."""
     return CoordFixed(ratio=ratio, xlim=xlim, ylim=ylim, expand=expand, clip=clip)
+
+
+# endregion
+
+# region: nonlinear
+# endregion

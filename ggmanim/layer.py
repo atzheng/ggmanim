@@ -10,6 +10,7 @@ from typing import TYPE_CHECKING, Any, TypeAlias
 import pandas as pd
 
 from .aes import Aes
+from .positions import get_position
 
 if TYPE_CHECKING:  # pragma: no cover
     from .plot import ggplot
@@ -27,11 +28,16 @@ class Layer:
     applied to the plot data. ``mapping`` is merged over the plot mapping when
     ``inherit_aes`` is true. ``name`` is the key of the layer in the built
     mobject (``plot.layers[name]``).
+
+    ``position`` is resolved through :func:`~ggmanim.positions.get_position` on
+    construction (a name, class or instance; ``None`` -> the geom's
+    ``default_position``, else ``"identity"``), so it is always a
+    :class:`~ggmanim.positions.Position`.
     """
 
     geom: Any = None
     stat: Any = None
-    position: Any = None
+    position: Any = None  # a Position after __post_init__
     data: LayerData = None
     mapping: Aes = field(default_factory=Aes)
     params: dict[str, Any] = field(default_factory=dict)
@@ -44,6 +50,10 @@ class Layer:
         elif not isinstance(self.mapping, Aes):
             object.__setattr__(self, "mapping", Aes(self.mapping))
         object.__setattr__(self, "params", dict(self.params or {}))
+        position = self.position
+        if position is None:
+            position = getattr(self.geom, "default_position", None)
+        object.__setattr__(self, "position", get_position(position))
         if self.name is not None and not isinstance(self.name, str):
             raise TypeError(f"layer name must be a str or None, got {self.name!r}")
 

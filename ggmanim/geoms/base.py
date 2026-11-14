@@ -47,6 +47,24 @@ units), ``linewidth`` -> ``stroke_width`` (manim units), ``shape`` -> point mark
 (:mod:`ggmanim.geoms._markers`), ``linetype`` -> dash pattern
 (:mod:`ggmanim.geoms._linetype`). Legend keys reflect ``shape``/``linetype``; line
 keys shrink the dash pattern so at least two repeats fit in :data:`KEY_SIZE`.
+
+Marks (for animation)
+---------------------
+Every geom's ``draw_panel`` returns a ``VGroup`` and calls :func:`attach_marks`
+on it before returning, so animations can address individual marks:
+``mob.marks`` is the list of mark mobjects (one per drawn data row for
+``per="row"`` geoms such as points and bars, one per group for ``per="group"``
+geoms such as lines and smooths) and ``mob.keys`` the matching identifiers: the
+values of the ``key`` aesthetic when it is mapped (``aes(key="id")``; never
+scaled, carried through stats when constant within a group), else the row index
+of the layer data (``per="row"``) or the group id (``per="group"``).
+
+Position adjustments
+--------------------
+:attr:`Geom.default_position` (``"identity"``) is used when a layer is built
+with ``position=None``; the layer resolves it through
+:func:`ggmanim.positions.get_position`. The pipeline runs the position after
+``setup_data`` (see :mod:`ggmanim.build`).
 """
 
 from __future__ import annotations
@@ -63,6 +81,7 @@ from manim import ManimColor, Mobject, VGroup, VMobject
 from ..aes import AES_ALIASES, Aes, standardise_aes_name
 from ..layer import Layer
 from ..palettes import as_manim_color
+from ..positions import get_position
 from ..scales.continuous import X_AESTHETICS, Y_AESTHETICS
 from ..stats import STATS, Stat, add_group, get_stat
 from ..theme import Theme, theme_default
@@ -71,6 +90,7 @@ from ._clip import clip_polyline, panel_rect
 __all__ = [
     "Geom",
     "KEY_SIZE",
+    "attach_marks",
     "make_layer",
     "resolve_color",
     "group_label",
@@ -79,15 +99,20 @@ __all__ = [
 #: Approximate width/height of a legend key glyph in scene units.
 KEY_SIZE = 0.3
 
+# region: aesthetics
 #: Aesthetic names a geom may receive as constant params (besides its defaults).
+#: ``key`` identifies marks for animation (see :func:`attach_marks`); it is never
+#: scaled and does not define groups.
 _KNOWN_AES = frozenset(
     {"x", "y", "color", "fill", "alpha", "size", "linewidth", "linetype", "shape", "group"}
+    | {"key"}
     | set(X_AESTHETICS)
     | set(Y_AESTHETICS)
 )
 
 #: Params every layer accepts.
 _COMMON_PARAMS = frozenset({"na_rm", "show_legend"})
+# endregion
 
 
 def resolve_color(value: Any, fallback: Any = None) -> ManimColor | None:
@@ -123,6 +148,8 @@ class Geom:
         Non-aesthetic geom params (``label``, ``width``, ``se`` ...).
     default_stat : str
         Stat used when the constructor is given ``stat=None``.
+    default_position : str
+        Position used when the constructor is given ``position=None``.
     x_aes, y_aes : tuple
         Columns that, when present, train the x / y position scale (see
         :meth:`position_aes_for_training`).
@@ -132,6 +159,7 @@ class Geom:
     default_aes: dict[str, Any] = {}
     extra_params: tuple[str, ...] = ()
     default_stat: str = "identity"
+    default_position: str = "identity"
     x_aes: tuple[str, ...] = X_AESTHETICS
     y_aes: tuple[str, ...] = Y_AESTHETICS
     #: Position columns whose non-finite values (missing or oob-censored) remove
@@ -226,7 +254,8 @@ class Geom:
         self, data: pd.DataFrame, panel_params, coord, theme: Theme | None = None, **params
     ) -> VMobject:
         """Draw the whole layer for one panel; default: :meth:`draw_group` per
-        group, in ``group`` order, collected in a ``VGroup``.
+        group, in ``group`` order, collected in a ``VGroup`` with one mark per
+        group (:func:`attach_marks`).
 
         ``coord`` is the built :class:`~ggmanim.coords.CartesianPanel` (anything with
         ``transform(x, y) -> (N, 3)`` taking transformed-space values).
@@ -237,7 +266,7 @@ class Geom:
         out = VGroup()
         for _, gdf in data.groupby("group", sort=True):
             out.add(self.draw_group(gdf, panel_params, coord, theme, **params))
-        return out
+        return attach_marks(out, data, per="group")
 
     def draw_group(
         self, data: pd.DataFrame, panel_params, coord, theme: Theme, **params
@@ -259,6 +288,8 @@ class Geom:
 
 
 # -- helpers for subclasses -------------------------------------------------------
+
+# region: helpers
 
 
 def _group_ids(data: pd.DataFrame) -> np.ndarray:
@@ -381,6 +412,69 @@ def make_label(theme: Theme, label: Any, color: Any) -> Mobject | None:
     return theme.make_text(str(label), font_size=theme.axis_text_size, color=color)
 
 
+# endregion
+
+# region: munching
+# endregion
+
+
+# region: marks
+def attach_marks(
+    group: VGroup,
+    data: pd.DataFrame,
+    per: str = "row",
+    marks: Sequence[Mobject] | None = None,
+) -> VGroup:
+    """Record ``group.marks`` and ``group.keys`` on a geom's output and return it.
+
+    Parameters
+    ----------
+    group : VGroup
+        What ``draw_panel`` returns.
+    data : DataFrame
+        The rows actually drawn, in mark order: for ``per="row"`` exactly one row
+        per mark (drop the rows of marks that were not drawn, e.g. clipped away);
+        for ``per="group"`` the drawn rows of every group that produced a mark.
+    per : ``"row"`` or ``"group"``
+        One mark per data row, or one mark per ``group`` (in sorted group order).
+    marks : sequence of Mobject, optional
+        The marks, in data-row / group order. Default: ``group.marks`` if already
+        set (e.g. by :func:`assemble`, which separates marks from labels), else
+        ``group.submobjects``.
+
+    Sets ``group.marks`` (a list) and ``group.keys`` (a list, same length): the
+    ``key`` aesthetic's value for each row / the first value in each group when
+    ``key`` is a column of ``data``, else the row's index label (``per="row"``)
+    or the group id (``per="group"``). Raises ``ValueError`` when the number of
+    marks and keys differ.
+    """
+    if marks is None:
+        marks = getattr(group, "marks", None)
+    if marks is None:
+        marks = group.submobjects
+    marks = list(marks)
+    if per == "row":
+        keys = list(data["key"]) if "key" in data.columns else list(data.index)
+    elif per == "group":
+        if "group" in data.columns and len(data):
+            grouped = data.groupby("group", sort=True)
+            keys = list(grouped["key"].first()) if "key" in data.columns else list(grouped.groups)
+        else:
+            keys = []
+    else:
+        raise ValueError(f"per must be 'row' or 'group', got {per!r}")
+    keys = [_scalar(k) for k in keys]
+    if len(keys) != len(marks):
+        raise ValueError(f"attach_marks: {len(marks)} mark(s) but {len(keys)} key(s) (per={per!r})")
+    out: Any = group
+    out.marks = marks
+    out.keys = keys
+    return group
+
+
+# endregion
+
+
 # -- layer construction -----------------------------------------------------------
 
 
@@ -417,7 +511,7 @@ def make_layer(
     data=None,
     *,
     stat=None,
-    position="identity",
+    position=None,
     inherit_aes: bool = True,
     name: str | None = None,
     params: Mapping[str, Any] | None = None,
@@ -430,6 +524,8 @@ def make_layer(
     * ``stat`` (name, class or instance; ``None`` -> ``geom.default_stat``) is
       instantiated with the params it accepts; ``Layer.params`` keeps *all* params
       (constant aesthetics, geom params and stat params).
+    * ``position`` (name, class or instance; ``None`` -> ``geom.default_position``)
+      is resolved by :func:`ggmanim.positions.get_position`.
     * Unknown params trigger a warning (ggplot2's "Ignoring unknown parameters").
     """
     if isinstance(mapping, pd.DataFrame) and (data is None or isinstance(data, Mapping)):
@@ -442,6 +538,7 @@ def make_layer(
     }
 
     stat = geom.default_stat if stat is None else stat
+    position = geom.default_position if position is None else position
     cls = _stat_class(stat)
     sp = _stat_params(cls, params)
     stat_obj = get_stat(stat, **sp)
@@ -457,7 +554,7 @@ def make_layer(
     return Layer(
         geom=geom,
         stat=stat_obj,
-        position=position,
+        position=get_position(position),
         data=data,
         mapping=mapping,
         params=params,

@@ -13,6 +13,7 @@ from .base import (
     KEY_SIZE,
     Geom,
     assemble,
+    attach_marks,
     clipped_path_points,
     finite_rows,
     first,
@@ -38,7 +39,8 @@ class GeomPath(Geom):
     :func:`~ggmanim.geoms._segments.segmented_path`), then — when ``label=`` is
     given — one label per group placed right of the group's last visible point
     in the group's colour (for a per-segment group, the colour of its last
-    visible segment). ``.marks`` holds the paths and ``.labels`` the labels.
+    visible segment). ``.marks`` holds the paths (one per group), ``.keys`` the
+    group ids (or ``key`` values) and ``.labels`` the labels.
     """
 
     required_aes = ("x", "y")
@@ -75,7 +77,7 @@ class GeomPath(Geom):
             lab = make_label(theme, group_label(label, i, gid), color)
             if lab is not None and pieces:
                 labels.add(lab.next_to(pieces[-1][-1], RIGHT, buff=0.1))
-        return assemble(paths, labels)
+        return attach_marks(assemble(paths, labels), data, per="group")
 
     def draw_key(self, data_row, theme: Theme | None = None) -> VMobject:
         theme = theme if theme is not None else theme_default()

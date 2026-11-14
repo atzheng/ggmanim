@@ -15,6 +15,7 @@ from .base import (
     KEY_SIZE,
     Geom,
     assemble,
+    attach_marks,
     finite_rows,
     group_label,
     make_label,
@@ -80,7 +81,8 @@ class _RefLine(Geom):
                 else:
                     lab.next_to(q, UP, buff=0.05).align_to(q, RIGHT)
                 labels.add(lab)  # type: ignore[arg-type]
-        return assemble(lines, labels)
+        # one line per row, so marks are per row (each intercept is its own mark)
+        return attach_marks(assemble(lines, labels), data, per="row")
 
     def draw_key(self, data_row, theme: Theme | None = None) -> VMobject:
         theme = theme if theme is not None else theme_default()

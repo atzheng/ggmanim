@@ -240,6 +240,7 @@ class Theme:
     ``overrides`` lists the fields a partial :func:`theme` sets explicitly.
     """
 
+    # region: text
     text_engine: str = "text"
     font: str | None = None
     axis_text_size: float = 24
@@ -257,7 +258,9 @@ class Theme:
     axis_text_color: Any | None = None
     axis_title_color: Any | None = None
     title_color: Any | None = None
+    # endregion
 
+    # region: axes
     axis_line: bool = True
     axis_stroke_width: float = 2.0
     ticks: bool = True
@@ -282,7 +285,9 @@ class Theme:
     axis_text_x_vjust: float | None = None
     axis_text_y_hjust: float | None = None
     axis_text_y_vjust: float | None = None
+    # endregion
 
+    # region: grid
     panel_background: Any | None = None
     panel_background_opacity: float = 1.0
     panel_border: bool = False
@@ -298,12 +303,9 @@ class Theme:
     grid_opacity: float = 0.15
     grid_minor_stroke_width: float = 0.5
     grid_minor_opacity: float = 0.08
+    # endregion
 
-    plot_background: Any | None = None
-    plot_background_opacity: float = 1.0
-    plot_margin: Any = 0.2
-    plot_title_position: str = "panel"
-
+    # region: legend
     legend_position: str | tuple[float, float] = "right"
     legend_room: float = 2.5
     legend_justification: Any = None
@@ -328,8 +330,28 @@ class Theme:
     legend_title_color: Any | None = None
     legend_text_font: str | None = None
     legend_title_font: str | None = None
+    # endregion
+
+    # region: layout
+    plot_background: Any | None = None
+    plot_background_opacity: float = 1.0
+    plot_margin: Any = 0.2
+    plot_title_position: str = "panel"
     panel_width: float | None = None
     panel_height: float | None = None
+    # endregion
+
+    # region: facets
+    # endregion
+
+    # region: coords
+    # endregion
+
+    # region: performance
+    # endregion
+
+    # region: animation
+    # endregion
 
     complete: bool = False
     overrides: frozenset[str] = field(default=frozenset(), compare=False)
