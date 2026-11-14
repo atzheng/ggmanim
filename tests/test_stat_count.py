@@ -38,7 +38,7 @@ def test_compute_counts_props_and_weight():
     assert out["count"].tolist() == [2, 1, 3]
     np.testing.assert_allclose(out["prop"], [2 / 6, 1 / 6, 3 / 6])
     np.testing.assert_allclose(out["width"], 0.9)
-    assert (out["y"] == out["count"]).all() and not out["flipped_aes"].any()
+    assert "y" not in out.columns and not out["flipped_aes"].any()  # y: after_stat default
     out = StatCount().compute(df.assign(weight=[1, 1, 0.5, 2, 2, np.nan]))
     assert out["count"].tolist() == [2, 0.5, 4]
     assert "weight" not in out.columns

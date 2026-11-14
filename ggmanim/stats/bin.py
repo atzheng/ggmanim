@@ -10,6 +10,14 @@ a fuzz of ``1e-8 * median(diff(breaks))`` so values on an edge are not lost to
 rounding. Everything happens in transformed space: on ``scale_x_log10`` the bins
 are equal in log units (as in ggplot2); ``breaks=`` are given in data units and
 transformed by the x scale.
+
+Orientation: with only ``y`` mapped (or ``orientation="y"``) ``y`` is binned
+instead (``ymin``/``ymax`` edges, ``flipped_aes = True``; the counts come from
+the default ``x=after_stat("count")``); see :mod:`ggmanim.stats.count`.
+
+The ``bins = 30`` warning is given once per build: under facets the stat runs
+once per panel, on slices of the layer data, and only the slice holding the
+layer's first row (index label ``0``) warns.
 """
 
 from __future__ import annotations
@@ -24,7 +32,7 @@ import pandas as pd
 from ..aes import after_stat
 from ..registry import register
 from .base import Stat, scale_limits
-from .count import check_x_only, weights
+from .count import check_one_axis, orient, unflip, weights
 
 __all__ = ["StatBin", "stat_bin", "bin_breaks", "bin_breaks_width", "bin_breaks_bins"]
 
@@ -159,25 +167,41 @@ class StatBin(Stat):
     Output columns, one row per bin: ``count`` (or summed ``weight``), ``x``
     (centre), ``xmin``, ``xmax``, ``width``, ``density`` (``count / width /
     total``), ``ncount``, ``ndensity`` (scaled to a maximum of 1),
-    ``flipped_aes = False`` and ``y = count`` (overridden by the default
-    ``y=after_stat("count")`` or any other ``after_stat`` mapping).
+    and ``flipped_aes = False``; ``y`` comes from the default
+    ``y=after_stat("count")`` (or any other ``after_stat`` mapping).
+
+    With only ``y`` mapped, or ``orientation="y"``, ``y`` is binned (``y``,
+    ``ymin``, ``ymax``; ``flipped_aes = True``) with the y scale's limits and
+    transform, and the default is ``x=after_stat("count")``.
     """
 
-    required_aes = ("x",)
-    default_aes = {"y": after_stat("count")}
+    #: Either one (see :func:`~ggmanim.stats.count.check_one_axis`).
+    required_aes = ("x", "y")
+    default_aes = {"x": after_stat("count"), "y": after_stat("count")}
     dropped_aes = ("weight",)
+    #: The layer runs its position on swapped x/y for horizontal (flipped) data.
+    oriented_position = True
+
+    def check_required_aes(self, df: pd.DataFrame) -> None:
+        check_one_axis(self, df)
 
     def compute_layer(self, df: pd.DataFrame, scales=None, **params) -> pd.DataFrame:
         if (
             params.get("bins") is None
             and params.get("binwidth") is None
             and params.get("breaks") is None
+            and _first_slice(df)
         ):
             warnings.warn(BINS_WARNING, UserWarning, stacklevel=3)
         return super().compute_layer(df, scales, **params)
 
-    def compute_panel(self, df: pd.DataFrame, scales=None, **params) -> pd.DataFrame:
-        check_x_only(self, df)
+    def compute_panel(  # type: ignore[override]
+        self, df: pd.DataFrame, scales=None, orientation=None, **params
+    ) -> pd.DataFrame:
+        flipped, df, scales = orient(self, df, scales, orientation)
+        return unflip(self._compute_panel(df, scales, **params), flipped)
+
+    def _compute_panel(self, df: pd.DataFrame, scales=None, **params) -> pd.DataFrame:
         xs = (scales or {}).get("x") if scales else None
         if getattr(xs, "is_discrete", False):
             raise ValueError(
@@ -230,6 +254,7 @@ class StatBin(Stat):
         breaks=None,
         closed: str = "right",
         pad: bool = False,
+        orientation: str | None = None,
         _breaks: np.ndarray | None = None,
     ) -> pd.DataFrame:
         x = pd.to_numeric(df["x"], errors="coerce").to_numpy(dtype=float)
@@ -240,9 +265,14 @@ class StatBin(Stat):
             _breaks = self._breaks(
                 (fin.min(), fin.max()), fin, bins, binwidth, center, boundary, breaks
             )
-        out = bin_vector(x, _breaks, closed, weights(df), pad)
-        out["y"] = out["count"]
-        return out
+        return bin_vector(x, _breaks, closed, weights(df), pad)
+
+
+def _first_slice(df: pd.DataFrame) -> bool:
+    """Whether ``df`` is the whole layer data or the per-panel slice holding its
+    first row (index label 0). An empty frame (an empty layer is computed for
+    every panel) does not warn: there is nothing to bin."""
+    return len(df) > 0 and 0 in df.index
 
 
 @register
@@ -265,7 +295,8 @@ def stat_bin(
 ):
     """Histogram bars of binned ``x`` (as :func:`~ggmanim.geoms.histogram.geom_histogram`).
     ``y=after_stat("count")`` by default; ``"density"``, ``"ncount"``,
-    ``"ndensity"`` too. See :class:`StatBin` for the parameters. Returns a layer."""
+    ``"ndensity"`` too. Map ``y`` instead of ``x`` (or pass ``orientation="y"``)
+    for horizontal bars. See :class:`StatBin` for the parameters. Returns a layer."""
     from ..geoms.count import stat_layer  # geoms import manim: keep stats free of it
 
     params.update(

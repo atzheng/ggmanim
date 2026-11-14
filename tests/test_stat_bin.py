@@ -74,7 +74,7 @@ def test_output_columns_density_and_weight():
     np.testing.assert_allclose((out["density"] * out["width"]).sum(), 1)
     np.testing.assert_allclose(out["ncount"], [0.5, 1, 0.5, 0.5])
     np.testing.assert_allclose(out["ndensity"], [0.5, 1, 0.5, 0.5])
-    assert {"flipped_aes", "y"} <= set(out.columns)
+    assert "flipped_aes" in out.columns and "y" not in out.columns  # y: after_stat default
     out = StatBin(binwidth=1).compute(df.assign(weight=[2, 1, 1, 0, np.nan]))
     assert out["count"].tolist() == [2, 2, 0, 0]
     assert "weight" not in out.columns
@@ -99,7 +99,7 @@ def test_default_bins_warns():
 def test_histogram_layers():
     assert STATS["bin"] is StatBin
     h = geom_histogram(binwidth=1)
-    assert isinstance(h.geom, GeomBar) and type(h.position).__name__ == "PositionStack"
+    assert isinstance(h.geom, GeomBar) and type(h.position.inner).__name__ == "PositionStack"
     assert h.stat.params["binwidth"] == 1 and h.mapping["y"] == after_stat("count")
     f = geom_freqpoly(bins=10)
     assert isinstance(f.geom, GeomPath) and f.stat.params["pad"] is True
