@@ -2,7 +2,8 @@
 
 * :func:`geom_ribbon` -- the band between ``aes(ymin=, ymax=)`` along ``x``.
 * :func:`geom_area` -- a ribbon from 0 to ``y`` (``setup_data`` sets ``ymin = 0``,
-  ``ymax = y``), stacked by default (``position="stack"``).
+  ``ymax = y``), aligned by ``stat_align`` and stacked by default
+  (``position="stack"``).
 
 Each group is sorted by ``x`` and drawn as one filled ``VMobject`` (clipped to the
 panel with :func:`~._clip.clip_polygon`); a row with a missing ``x``/``ymin``/
@@ -18,7 +19,6 @@ import numpy as np
 import pandas as pd
 from manim import VGroup, VMobject
 
-from ..positions import POSITIONS, Position, get_position
 from ..registry import register
 from ..theme import Theme, theme_default
 from ._clip import clip_polygon, panel_rect
@@ -58,6 +58,14 @@ def _runs(ok: np.ndarray) -> list[slice]:
         if b - a >= 2:
             out.append(slice(int(a), int(b)))
     return out
+
+
+def _not_padding(gdf: pd.DataFrame) -> np.ndarray:
+    """``False`` on ``stat_align``'s zero-height end rows (``align_padding``), which
+    are filled but left out of the upper/lower outlines (as in ggplot2)."""
+    if "align_padding" not in gdf.columns:
+        return np.ones(len(gdf), dtype=bool)
+    return ~gdf["align_padding"].fillna(False).to_numpy(dtype=bool)
 
 
 class GeomRibbon(Geom):
@@ -106,6 +114,7 @@ class GeomRibbon(Geom):
             x = pd.to_numeric(gdf["x"], errors="coerce").to_numpy(float)
             lo, hi = self._bounds(gdf)
             ok = np.isfinite(x) & np.isfinite(lo) & np.isfinite(hi)
+            edge = _not_padding(gdf)
             rings, lines = [], []
             for s in _runs(ok):
                 xs, los, his = x[s], lo[s], hi[s]
@@ -114,10 +123,11 @@ class GeomRibbon(Geom):
                 cx, cy = (rx, ry) if rect is None else clip_polygon(rx, ry, rect)
                 if len(cx) >= 3:
                     rings.append(transform_points(coord, cx, cy))
+                e = edge[s]
                 if outline_type in ("both", "upper"):
-                    lines.append((xs, his))
+                    lines.append((xs[e], his[e]))
                 if outline_type in ("both", "lower"):
-                    lines.append((xs, los))
+                    lines.append((xs[e], los[e]))
                 if outline_type == "full":
                     lines.append((np.append(rx, rx[0]), np.append(ry, ry[0])))
             fill = style_filled(
@@ -130,6 +140,8 @@ class GeomRibbon(Geom):
             pieces = []
             if color is not None:
                 for lx, ly in lines:
+                    if len(lx) < 2:
+                        continue
                     pieces.extend(clipped_path_points(coord, panel_params, lx, ly))
             if pieces:
                 outline = multi_path_mobject(pieces, color, num(first(gdf, "linewidth"), 3.0), 1.0)
@@ -146,57 +158,14 @@ class GeomRibbon(Geom):
         return filled_key(self.key_aes(data_row), theme, default_linewidth=3.0)
 
 
-class _DeferredPosition(Position):
-    """A named position looked up with :func:`~ggmanim.positions.get_position` only
-    when the build runs it, so ``geom_area()`` (default ``position="stack"``) can
-    be created before that position is registered. Delegates every pipeline hook
-    to the resolved position. (No ``name`` in the class body: not registered.)"""
-
-    def __init__(self, target: str, **params: Any) -> None:
-        super().__init__(**params)
-        self.target = target
-
-    def __repr__(self) -> str:
-        return f"position_{self.target}(deferred)"
-
-    def __eq__(self, other: object) -> bool:
-        return (
-            isinstance(other, _DeferredPosition)
-            and other.target == self.target
-            and other.params == self.params
-        )
-
-    __hash__ = None  # type: ignore[assignment]
-
-    def resolve(self) -> Position:
-        return get_position(self.target, **self.params)
-
-    def setup_params(self, data):
-        return self.resolve().setup_params(data)
-
-    def setup_data(self, data, params):
-        return self.resolve().setup_data(data, params)
-
-    def compute_layer(self, data, params, scales=None):
-        return self.resolve().compute_layer(data, params, scales)
-
-
-def _position(position: Any, default: str) -> Any:
-    """``position``, or a :class:`_DeferredPosition` when it is the geom's default
-    name and that position is not registered (yet)."""
-    if isinstance(position, str):
-        key = position[9:] if position.startswith("position_") else position
-        if key == default and key not in POSITIONS:
-            return _DeferredPosition(key)
-    return position
-
-
 class GeomArea(GeomRibbon):
     """Areas from 0 to ``y``: :meth:`setup_data` (transformed space) adds
     ``ymin = 0`` and ``ymax = y``, which the default ``position="stack"``
-    stacks. Drawn like :class:`GeomRibbon` with ``outline_type="upper"``."""
+    stacks. Drawn like :class:`GeomRibbon` with ``outline_type="upper"``.
+    The default stat is ``stat_align``."""
 
     required_aes = ("x", "y")
+    default_stat = "align"
     default_position = "stack"
     default_outline_type = "upper"
 
@@ -249,7 +218,7 @@ def geom_area(
     data=None,
     *,
     outline_type: str = "upper",
-    stat="identity",
+    stat="align",
     position="stack",
     inherit_aes: bool = True,
     name: str | None = None,
@@ -257,18 +226,18 @@ def geom_area(
 ):
     """Filled areas under ``aes(x, y)`` (from 0), stacked by group by default.
 
-    ``position="identity"`` overlaps the areas instead of stacking them. The
-    ``"stack"`` position is resolved when the plot is built. ``outline_type``
-    as for :func:`geom_ribbon` (default ``"upper"``)."""
+    The default ``stat="align"`` interpolates the groups onto a shared x grid so
+    they stack correctly even when observed at different x values;
+    ``stat="identity"`` draws the data as is. ``position="identity"`` overlaps the
+    areas instead of stacking them. ``outline_type`` as for :func:`geom_ribbon`
+    (default ``"upper"``)."""
     params["outline_type"] = _check_outline_type(outline_type)
     return make_layer(
         GeomArea(),
         mapping,
         data,
         stat=stat,
-        position=_position(
-            GeomArea.default_position if position is None else position, GeomArea.default_position
-        ),
+        position=position,
         inherit_aes=inherit_aes,
         name=name,
         params=params,

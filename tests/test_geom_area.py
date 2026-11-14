@@ -6,10 +6,8 @@ import pytest
 from manim import VGroup, VMobject
 
 from ggmanim import aes, coord_cartesian, coord_flip, geom_area, geom_ribbon, ggplot
-from ggmanim.build import BuildError
 from ggmanim.geoms import GeomArea, GeomRibbon
-from ggmanim.geoms.area import _DeferredPosition
-from ggmanim.positions import POSITIONS, Position
+from ggmanim.positions import POSITIONS
 from ggmanim.registry import COMPONENTS
 
 RIB = pd.DataFrame({"x": [2.0, 0.0, 1.0], "lo": [0.0, 1.0, 0.5], "hi": [2.0, 3.0, 2.5]})
@@ -138,7 +136,11 @@ def test_area_setup_data_from_zero():
 
 
 def test_area_identity_position():
-    g = ggplot(AREA, aes("x", "y", fill="g")).add(geom_area(position="identity")).build()
+    g = (
+        ggplot(AREA, aes("x", "y", fill="g"))
+        .add(geom_area(stat="identity", position="identity"))
+        .build()
+    )
     mob = g.layers[0]
     assert len(mob.marks) == 2
     want = g.panel.transform([0, 1, 2, 2, 1, 0], [1, 2, 1, 0, 0, 0])
@@ -155,57 +157,22 @@ def test_area_upper_outline_by_default():
     )
     fill, outline = g.layers[0].marks[0]
     assert len(outline.get_subpaths()) == 1
-    top = g.panel.transform([0, 1, 2], [1, 2, 1])
-    assert np.allclose(np.asarray(outline.get_subpaths()[0])[[0, 4, -1]], top, atol=1e-6)
+    # stat_align's zero-height padding rows are filled but not outlined
+    top = g.panel.transform([0, 2], [1, 1])
+    assert np.allclose(np.asarray(outline.get_subpaths()[0])[[0, -1]], top, atol=1e-6)
 
 
 def test_area_default_position_is_stack():
     layer = geom_area()
-    pos = layer.position
-    if isinstance(pos, _DeferredPosition):
-        assert pos.target == "stack"
-    else:
-        assert type(pos) is POSITIONS["stack"]
+    assert type(layer.position) is POSITIONS["stack"]
     assert GeomArea.default_position == "stack"
     assert type(geom_area(position="identity").position).__name__ == "PositionIdentity"
 
 
-@pytest.mark.skipif("stack" in POSITIONS, reason="position_stack is registered")
-def test_area_stack_unavailable_fails_at_build_not_construction():
-    p = ggplot(AREA, aes("x", "y", fill="g")).add(geom_area())  # constructing is fine
-    with pytest.raises(BuildError, match="stack"):
-        p.build()
-
-
-class _FakeStack(Position):
-    """Minimal stacker for the test: ymax cumulated per x in group order."""
-
-    def compute_panel(self, data, params, scales=None):
-        data = data.sort_values(["x", "group"], kind="stable").copy()
-        height = data["ymax"] - data["ymin"]
-        data["ymax"] = height.groupby(data["x"]).cumsum()
-        data["ymin"] = data["ymax"] - height
-        return data.sort_index()
-
-
-def test_area_deferred_stack_resolved_at_build(monkeypatch):
-    monkeypatch.delitem(POSITIONS, "stack", raising=False)
-    layer = geom_area()
-    assert isinstance(layer.position, _DeferredPosition)
-    monkeypatch.setitem(POSITIONS, "stack", _FakeStack)  # registered later
-    g = ggplot(AREA, aes("x", "y", fill="g")).add(layer).build()
-    data = g.layer_data[0]
-    top = data[data["group"] == 2]
-    assert list(top["ymin"]) == [1, 2, 1] and list(top["ymax"]) == [3, 3, 4]
-    want = g.panel.transform([0, 1, 2, 2, 1, 0], [3, 3, 4, 1, 2, 1])
-    assert np.allclose(_ring(_fill(g.layers[0].marks[1])), want, atol=1e-6)
-    assert g.panel.panel_params.y_range[1] >= 4  # scales retrained on stacked extents
-
-
-@pytest.mark.skipif("stack" not in POSITIONS, reason="position_stack not registered yet")
 def test_area_stacked_with_position_stack():
     g = ggplot(AREA, aes("x", "y", fill="g")).add(geom_area()).build()
     data = g.layer_data[0]
+    data = data[data["x"].isin([0, 1, 2])]
     tops = data.groupby("x")["ymax"].max().to_numpy()
     assert np.allclose(tops, [3, 3, 4])
     assert len(g.layers[0].marks) == 2
