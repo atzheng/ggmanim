@@ -23,7 +23,9 @@ Pipeline
    ==========  ===============================================================
 
    ``data`` holds the *raw* user data frames (``None`` entries removed): the plot
-   data and every layer's own data. A facet variable missing from every frame is
+   data and every layer's own data, each first passed through
+   :meth:`Facet.facet_data` (which may add computed facet columns, e.g.
+   ``facet_wrap({"big": fn})``). A facet variable missing from every frame is
    an error (raise :class:`ValueError`). Use :meth:`scale_ids` to fill
    ``SCALE_X``/``SCALE_Y`` from the ``scales=`` argument.
 
@@ -153,6 +155,12 @@ class Facet:
     def vars(self) -> list[str]:
         """Names of the facet variables (data columns), outermost first."""
         return []
+
+    def facet_data(self, data: pd.DataFrame) -> pd.DataFrame:
+        """Hook run by the build on the plot data and on every layer's raw data
+        before :meth:`compute_layout`: return ``data`` plus any computed facet
+        columns (never modify it in place). Default: ``data`` unchanged."""
+        return data
 
     def compute_layout(self, data: Sequence[pd.DataFrame]) -> pd.DataFrame:
         """The layout table (see the module docstring). Must be overridden."""

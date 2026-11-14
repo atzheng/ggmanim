@@ -23,10 +23,11 @@ Computed facets
 ---------------
 ``facets`` may be a dict ``{name: fn}`` (or a bare callable, named after the
 function) where ``fn(df)`` returns the facet values for a data frame, like
-``vars(big = cyl > 4)`` in ggplot2. The columns are added to the plot data and
-to the data of every layer already on the plot when the facet is added (layers
-whose data lack the columns ``fn`` needs are left alone, so they repeat in every
-panel). Add the facet after layers that bring their own data.
+``vars(big = cyl > 4)`` in ggplot2. The columns are computed at build time
+(:meth:`FacetWrap.facet_data`) on the plot data and on every layer's data, so
+layers added after the facet are split too; layers whose data lack the columns
+``fn`` needs repeat in every panel. The user's data frames are not modified, and
+computed columns are not available to aesthetics.
 """
 
 from __future__ import annotations
@@ -140,41 +141,20 @@ class FacetWrap(Facet):
         return f"facet_wrap({self.facets!r}, scales={self.scales!r})"
 
     # -- computed facets -------------------------------------------------------
-    def add_to(self, plot):
+    def facet_data(self, data: pd.DataFrame) -> pd.DataFrame:
+        """``data`` plus the computed facet columns that can be evaluated on it."""
         if not self.computed:
-            return plot._with_facet(self)
-        changes: dict[str, Any] = {}
-        if isinstance(plot.data, pd.DataFrame):
-            changes["data"] = self._augment(plot.data)
-        layers = []
-        for layer in plot.layers:
-            if isinstance(layer.data, pd.DataFrame):
-                layer = layer.replace(data=self._augment(layer.data))
-            elif callable(layer.data):
-                layer = layer.replace(data=self._augment_fn(layer.data))
-            layers.append(layer)
-        changes["layers"] = tuple(layers)
-        return plot._replace(**changes)._with_facet(self)
-
-    def _augment(self, df: pd.DataFrame) -> pd.DataFrame:
-        """``df`` plus the computed facet columns that can be evaluated on it."""
+            return data
         new = {}
         for name, fn in self.computed.items():
             try:
-                values = fn(df)
+                values = fn(data)
             except (KeyError, AttributeError):
                 continue  # this frame lacks what fn needs: repeat it in every panel
             if hasattr(values, "to_numpy"):
                 values = values.to_numpy()
             new[name] = values
-        return df.assign(**new) if new else df
-
-    def _augment_fn(self, fn: Callable) -> Callable:
-        def data(plot_data):
-            out = fn(plot_data)
-            return self._augment(out) if isinstance(out, pd.DataFrame) else out
-
-        return data
+        return data.assign(**new) if new else data
 
     # -- layout ----------------------------------------------------------------
     def vars(self) -> list[str]:
