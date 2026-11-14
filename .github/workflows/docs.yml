@@ -32,7 +32,10 @@ jobs:
             libcairo2-dev libpango1.0-dev pkg-config
 
       - name: Python dependencies
-        run: pip install -e '.[docs]'
+        run: pip install -e '.[docs,stats]'
+
+      - name: Render the gallery (docs/gallery/)
+        run: python scripts/render_gallery.py
 
       - name: Build (strict)
         run: mkdocs build --strict --site-dir site
