@@ -14,7 +14,7 @@ from . import build as _build  # noqa: F401  (the pipeline; registers guides)
 # -- generated exports (scripts/gen_exports.py) --
 from .aes import aes, after_stat
 from .coords import coord_cartesian, coord_fixed, coord_flip
-from .facets import facet_null, label_both, label_value, labeller
+from .facets import facet_grid, facet_null, label_both, label_value, labeller
 from .geoms import (
     annotate,
     arrow,
@@ -226,6 +226,7 @@ __all__ = [
     "coord_fixed",
     "coord_flip",
     "div_gradient_pal",
+    "facet_grid",
     "facet_null",
     "geom_abline",
     "geom_area",
