@@ -26,6 +26,16 @@ Minor grid lines (``scale.get_minor_breaks``) are drawn when
 ``theme.panel_grid_minor`` is true, styled by ``grid_minor_stroke_width`` /
 ``grid_minor_opacity``. A position scale's ``position`` (``"top"`` for x,
 ``"right"`` for y) moves its axis line, ticks, tick labels and title to that side.
+
+A scale's ``sec_axis`` (:func:`~ggmanim.scales.sec_axis.sec_axis` /
+:func:`~ggmanim.scales.sec_axis.dup_axis`, on continuous, log and date scales) is
+drawn on the side opposite its primary axis: ``panel.x_sec_ticks``,
+``x_sec_tick_labels``, ``x_sec_line``, ``x_sec_title``, ``x_sec_side`` (and ``y_``;
+screen orientation, like ``x_ticks``), with its breaks mapped onto the primary axis
+by :meth:`~ggmanim.scales.sec_axis.AxisSecondary.break_info`. The theme switches
+``axis_text_x_top``/``axis_text_y_right`` and ``axis_title_x_top``/
+``axis_title_y_right`` (``None``: inherit ``axis_text_x`` ...) control its labels
+and title on the top / right sides.
 Tick-label strings go through :func:`ggmanim.labels.render_label` (``"$...$"`` math
 -> Unicode superscripts with the Text engine; LaTeX specials escaped with Tex).
 
@@ -627,6 +637,17 @@ class CoordCartesian:
 
 # -- secondary axes (sec_axis / dup_axis) ----------------------------------------------
 _SEC_PARTS = ("sec_line", "sec_ticks", "sec_tick_labels")
+# theme switches for text on the top / right sides (ggplot2's axis.text.x.top ...)
+_SIDE_FIELDS = {("x", "top"): "x_top", ("y", "right"): "y_right"}
+
+
+def _sec_element(theme: Theme, element: str, axis: str, side: str) -> bool:
+    """Whether ``element`` (``"axis_text"``/``"axis_title"``) of the secondary axis on
+    ``side`` is drawn: ``theme.axis_text_x_top`` etc. for the top / right sides,
+    inheriting :meth:`Theme.axis_element` when ``None`` (or on bottom / left)."""
+    suffix = _SIDE_FIELDS.get((axis, side))
+    own = getattr(theme, f"{element}_{suffix}", None) if suffix else None
+    return theme.axis_element(element, axis) if own is None else bool(own)
 
 
 def _add_secondary_axes(
@@ -692,11 +713,11 @@ def _add_secondary_axes(
                         )
                     )
             gap = (tl if len(ticks) else 0.0) + theme.tick_label_buff
-            if theme.axis_element("axis_text", axis):
+            if _sec_element(theme, "axis_text", axis, side):
                 for p, s in zip(at, strings):
                     lab = _place_tick_label(_label(theme, s, axis), p, direction, gap, theme, axis)
                     tick_labels.add(lab)  # type: ignore[arg-type]
-            if theme.axis_element("axis_title", axis):
+            if _sec_element(theme, "axis_title", axis, side):
                 title = _make_title(theme, sec.title(_title(scale, labels, axis)))
             if title is not None:
                 corner = _c2p(axes, *((x0, edge) if axis == "x" else (edge, y0)))[0]
@@ -794,7 +815,7 @@ def _add_secondary_titles(
     lo = grid.axes.get_corner(DL)
     hi = grid.axes.get_corner(UR)
     grid.x_sec_title = grid.y_sec_title = None
-    if theme.axis_element("axis_title", "x"):
+    if _sec_element(theme, "axis_title", "x", "top" if sides[0] == "bottom" else "bottom"):
         t = _make_title(theme, _secondary_title_content(h_scale, labels, h_aes))
         if t is not None:
             t.next_to(
@@ -804,7 +825,7 @@ def _add_secondary_titles(
             )
             t.set_x((lo[0] + hi[0]) / 2)
             grid.x_sec_title = t
-    if theme.axis_element("axis_title", "y"):
+    if _sec_element(theme, "axis_title", "y", "right" if sides[1] == "left" else "left"):
         t = _make_title(theme, _secondary_title_content(v_scale, labels, v_aes))
         if t is not None:
             left = sides[1] == "right"

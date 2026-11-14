@@ -34,7 +34,18 @@ naive ones are taken to be UTC already. Date-time scales take ``timezone=`` (an 
 name such as ``"America/New_York"``, via the stdlib :mod:`zoneinfo`): breaks are
 then placed on that zone's calendar (local midnights, month starts ...) and labels
 show local time. Without it, the zone of tz-aware data is used when all such
-columns share one (as ggplot2 does), else UTC. Pure numpy/pandas; no manim imports.
+columns share one (as ggplot2 does), else UTC.
+
+Secondary axes
+--------------
+``sec_axis=`` takes :func:`~ggmanim.scales.sec_axis.sec_axis` /
+:func:`~ggmanim.scales.sec_axis.dup_axis` as on continuous scales. The transform
+works on days (date scales) or seconds (date-times) since the epoch, so
+``sec_axis(lambda t: t + 9 * 3600)`` is a second clock nine hours ahead; it may
+also return dates. Secondary ``breaks`` may be dates; breaks and labels are
+calendar ones, and ``labels=label_date("%H:%M", tz="Asia/Tokyo")`` shows the
+same instants in another zone (``dup_axis(labels=...)``). Pure numpy/pandas; no
+manim imports.
 """
 
 from __future__ import annotations
@@ -426,7 +437,7 @@ class ScaleDatePosition(ScaleContinuousPosition):
     ``date_minor_breaks`` (width strings such as ``"1 month"``), ``date_labels`` (a
     strftime format). ``limits``, ``breaks`` and ``minor_breaks`` sequences may hold
     dates, ``datetime64`` values or ISO strings. ``trans`` is fixed. ``timezone``
-    (date-times only): see the module docstring.
+    (date-times only) and ``sec_axis``: see the module docstring.
     """
 
     is_date = True
@@ -449,6 +460,7 @@ class ScaleDatePosition(ScaleContinuousPosition):
         date_labels: str | None = None,
         date_minor_breaks: str | None = None,
         timezone: Any = None,
+        sec_axis: Any = None,
     ) -> None:
         if timezone is not None and unit != "s":
             raise ValueError("timezone= applies to date-time scales (scale_*_datetime) only")
@@ -475,6 +487,7 @@ class ScaleDatePosition(ScaleContinuousPosition):
             if isinstance(limits, (str, _dt.date)) or len(limits) != 2:
                 raise ValueError(f"limits must be (lo, hi), got {limits!r}")
             limits = (_to_num(limits[0], unit), _to_num(limits[1], unit))
+        self._sec_source = sec_axis
         super().__init__(
             aesthetics,
             name=name,
@@ -487,6 +500,17 @@ class ScaleDatePosition(ScaleContinuousPosition):
             n_breaks=n_breaks,
             minor_breaks=minor_breaks,
             position=position,
+            sec_axis=self._bind_sec_axis(sec_axis, unit, tz),
+        )
+
+    @staticmethod
+    def _bind_sec_axis(sec: Any, unit: str, tz: Any) -> Any:
+        """``sec.bind(...)`` with date conversion and date-aware label binding."""
+        if sec is None or not callable(getattr(sec, "bind", None)):
+            return sec  # None, or invalid (rejected by ScaleContinuousPosition)
+        return sec.bind(
+            convert=lambda v: to_epoch(v, unit),
+            bind_labels=lambda f: _bind_labels(f, unit, tz),
         )
 
     def transform(self, values: Any) -> np.ndarray:
@@ -513,6 +537,8 @@ class ScaleDatePosition(ScaleContinuousPosition):
             self.labels = _bind_labels(self._user_labels, self.unit, tz)
         if date_minor_breaks is not None:
             self.minor_breaks = date_breaks_width(date_minor_breaks, self.unit, tz)
+        if getattr(self, "_sec_source", None) is not None:
+            self.sec_axis = self._bind_sec_axis(self._sec_source, self.unit, tz)
 
 
 # --------------------------------------------------------------------------- constructors
@@ -535,15 +561,17 @@ def scale_x_date(
     oob="censor",
     n_breaks=5,
     position=None,
+    sec_axis=None,
 ):
     """x scale for dates (days since 1970-01-01). ``date_breaks="1 month"``,
     ``date_labels="%b %Y"``, ``date_minor_breaks="1 week"``; ``limits`` may be dates or
-    ISO strings. See :class:`ScaleDatePosition`."""
+    ISO strings; ``sec_axis=dup_axis(...)`` / ``sec_axis(...)`` adds a secondary axis.
+    See :class:`ScaleDatePosition`."""
     return _date_scale(
         "x", "D", name=name, breaks=breaks, date_breaks=date_breaks, labels=labels,
         date_labels=date_labels, minor_breaks=minor_breaks,
         date_minor_breaks=date_minor_breaks, limits=limits, expand=expand, oob=oob,
-        n_breaks=n_breaks, position=position,
+        n_breaks=n_breaks, position=position, sec_axis=sec_axis,
     )  # fmt: skip
 
 
@@ -561,13 +589,14 @@ def scale_y_date(
     oob="censor",
     n_breaks=5,
     position=None,
+    sec_axis=None,
 ):
     """y scale for dates. See :func:`scale_x_date`."""
     return _date_scale(
         "y", "D", name=name, breaks=breaks, date_breaks=date_breaks, labels=labels,
         date_labels=date_labels, minor_breaks=minor_breaks,
         date_minor_breaks=date_minor_breaks, limits=limits, expand=expand, oob=oob,
-        n_breaks=n_breaks, position=position,
+        n_breaks=n_breaks, position=position, sec_axis=sec_axis,
     )  # fmt: skip
 
 
@@ -586,6 +615,7 @@ def scale_x_datetime(
     n_breaks=5,
     position=None,
     timezone=None,
+    sec_axis=None,
 ):
     """x scale for date-times (seconds since 1970-01-01 UTC). ``date_breaks="6 hours"``,
     ``date_labels="%H:%M"``; ``timezone="Europe/Paris"`` puts breaks and labels in that
@@ -594,7 +624,7 @@ def scale_x_datetime(
         "x", "s", name=name, breaks=breaks, date_breaks=date_breaks, labels=labels,
         date_labels=date_labels, minor_breaks=minor_breaks,
         date_minor_breaks=date_minor_breaks, limits=limits, expand=expand, oob=oob,
-        n_breaks=n_breaks, position=position, timezone=timezone,
+        n_breaks=n_breaks, position=position, timezone=timezone, sec_axis=sec_axis,
     )  # fmt: skip
 
 
@@ -613,11 +643,12 @@ def scale_y_datetime(
     n_breaks=5,
     position=None,
     timezone=None,
+    sec_axis=None,
 ):
     """y scale for date-times. See :func:`scale_x_datetime`."""
     return _date_scale(
         "y", "s", name=name, breaks=breaks, date_breaks=date_breaks, labels=labels,
         date_labels=date_labels, minor_breaks=minor_breaks,
         date_minor_breaks=date_minor_breaks, limits=limits, expand=expand, oob=oob,
-        n_breaks=n_breaks, position=position, timezone=timezone,
+        n_breaks=n_breaks, position=position, timezone=timezone, sec_axis=sec_axis,
     )  # fmt: skip

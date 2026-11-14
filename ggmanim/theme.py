@@ -157,6 +157,9 @@ class Theme:
         ``axis_line_y``: ``None`` inherits the global switch (``tick_labels``,
         ``axis_title``, ``ticks``, ``axis_line``); ``False`` blanks that element on
         one axis only, ``True`` forces it on (see :meth:`axis_element`).
+        ``axis_text_x_top``/``axis_text_y_right`` and ``axis_title_x_top``/
+        ``axis_title_y_right`` do the same for the text of a secondary axis
+        (``sec_axis``) on the top / right side (``None`` inherits ``axis_text_x`` ...).
 
         ``axis_text_x_angle``/``axis_text_y_angle``: tick-label rotation in degrees
         (counter-clockwise). ``axis_text_x_hjust``/``axis_text_x_vjust`` and
@@ -286,6 +289,15 @@ class Theme:
     axis_text_x_vjust: float | None = None
     axis_text_y_hjust: float | None = None
     axis_text_y_vjust: float | None = None
+
+    # ggplot2's axis.text.x.top / axis.text.y.right / axis.title.x.top /
+    # axis.title.y.right: switches for the tick labels and title of the axis on the
+    # top / right side. ``None`` inherits the per-axis switch (``axis_text_x`` ...),
+    # and through it the global one. Applied to secondary axes (sec_axis) drawn there.
+    axis_text_x_top: bool | None = None
+    axis_text_y_right: bool | None = None
+    axis_title_x_top: bool | None = None
+    axis_title_y_right: bool | None = None
     # endregion
 
     # region: grid
