@@ -12,7 +12,7 @@ from ..registry import register
 from ..theme import Theme, theme_default
 from ._clip import clip_polygon, panel_rect
 from ._rect import filled_key, orient_rings, rings_mobject, style_filled
-from .base import Geom, attach_marks, make_layer, transform_points
+from .base import Geom, attach_marks, make_layer, munch_path, transform_points
 
 __all__ = ["GeomPolygon", "geom_polygon"]
 
@@ -70,7 +70,7 @@ class GeomPolygon(Geom):
                 x = pd.to_numeric(part["x"], errors="coerce").to_numpy(float)
                 y = pd.to_numeric(part["y"], errors="coerce").to_numpy(float)
                 ok = np.isfinite(x) & np.isfinite(y)
-                x, y = x[ok], y[ok]
+                x, y = munch_path(coord, x[ok], y[ok], closed=True)
                 if rect is not None:
                     x, y = clip_polygon(x, y, rect)
                 if len(x) >= 3:

@@ -31,6 +31,7 @@ from .base import (
     first,
     make_layer,
     multi_path_mobject,
+    munch_path,
     num,
     resolve_color,
     transform_points,
@@ -120,6 +121,7 @@ class GeomRibbon(Geom):
                 xs, los, his = x[s], lo[s], hi[s]
                 rx = np.concatenate([xs, xs[::-1]])
                 ry = np.concatenate([his, los[::-1]])
+                rx, ry = munch_path(coord, rx, ry, closed=True)
                 cx, cy = (rx, ry) if rect is None else clip_polygon(rx, ry, rect)
                 if len(cx) >= 3:
                     rings.append(transform_points(coord, cx, cy))
@@ -142,7 +144,9 @@ class GeomRibbon(Geom):
                 for lx, ly in lines:
                     if len(lx) < 2:
                         continue
-                    pieces.extend(clipped_path_points(coord, panel_params, lx, ly))
+                    pieces.extend(
+                        clipped_path_points(coord, panel_params, *munch_path(coord, lx, ly))
+                    )
             if pieces:
                 outline = multi_path_mobject(pieces, color, num(first(gdf, "linewidth"), 3.0), 1.0)
                 mob = VGroup(fill, apply_linetype(outline, first(gdf, "linetype")))

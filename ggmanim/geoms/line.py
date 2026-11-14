@@ -21,6 +21,7 @@ from .base import (
     group_label,
     make_layer,
     multi_path_mobject,
+    munch_path,
     num,
     resolve_color,
 )
@@ -60,7 +61,7 @@ class GeomPath(Geom):
             if self.sort_by_x:
                 gdf = gdf.sort_values("x", kind="stable")
             pieces = clipped_path_points(
-                coord, panel_params, gdf["x"].to_numpy(float), gdf["y"].to_numpy(float)
+                coord, panel_params, *munch_path(coord, gdf["x"], gdf["y"])
             )
             color = resolve_color(first(gdf, "color"), fg)
             if varies_within(gdf):  # ggplot: one segment per vertex pair, styled by its start

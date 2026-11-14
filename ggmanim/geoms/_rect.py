@@ -32,7 +32,7 @@ from manim import Square, VGroup, VMobject
 from ..theme import Theme
 from ._clip import clip_rects, panel_rect
 from ._linetype import apply_linetype
-from .base import KEY_SIZE, num, resolve_color, transform_points
+from .base import KEY_SIZE, munch_rect_corners, num, resolve_color
 
 __all__ = [
     "ring_points",
@@ -164,7 +164,7 @@ def rect_corners(coord: Any, xmin, xmax, ymin, ymax) -> np.ndarray:
     xmin, xmax, ymin, ymax = (np.asarray(v, dtype=float).ravel() for v in (xmin, xmax, ymin, ymax))
     cx = np.stack([xmin, xmax, xmax, xmin], axis=1)
     cy = np.stack([ymin, ymin, ymax, ymax], axis=1)
-    return transform_points(coord, cx.ravel(), cy.ravel()).reshape(-1, 4, 3)
+    return munch_rect_corners(coord, cx, cy)
 
 
 def clipped_rects(

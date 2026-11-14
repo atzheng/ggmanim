@@ -451,7 +451,41 @@ def color_resolver(fallback: Any = None):
 
 # endregion
 
+
 # region: munching
+def munch_path(coord, x, y, closed: bool = False) -> tuple[np.ndarray, np.ndarray]:
+    """The path ``(x, y)`` (coord input space) ready for drawing under ``coord``:
+    unchanged for linear coords, else interpolated so that straight segments bend
+    with the coord (:func:`ggmanim.coords.coord_munch`). Geoms call it on paths and
+    polygon rings (``closed=True``) *before* clipping and ``coord.transform``."""
+    from ..coords import coord_munch
+
+    return coord_munch(coord, x, y, closed=closed)
+
+
+def munch_rect_corners(coord, cx, cy) -> np.ndarray:
+    """Scene rings ``(n, m, 3)`` of rectangles given by their input-space corners
+    ``cx``/``cy`` (``(n, 4)``, in drawing order). Linear coords: the 4 transformed
+    corners (``m = 4``). Non-linear coords: each rect becomes a polygon whose edges
+    are cut into the same number ``k`` of pieces (``m = 4k``, enough for the
+    longest edge; see :func:`munch_path`), so all rings share one shape."""
+    from ..coords import MUNCH_SEGMENTS, _munch_distance, is_linear
+
+    cx = np.asarray(cx, dtype=float).reshape(-1, 4)
+    cy = np.asarray(cy, dtype=float).reshape(-1, 4)
+    if is_linear(coord) or len(cx) == 0:
+        return transform_points(coord, cx.ravel(), cy.ravel()).reshape(-1, 4, 3)
+    rx, ry = np.concatenate([cx, cx[:, :1]], axis=1), np.concatenate([cy, cy[:, :1]], axis=1)
+    with np.errstate(invalid="ignore"):
+        d = np.concatenate([_munch_distance(coord, a, b) for a, b in zip(rx, ry)])
+    d = d[np.isfinite(d)]
+    k = int(np.clip(np.ceil(d.max() * MUNCH_SEGMENTS), 1, 200)) if len(d) else 1
+    t = np.arange(k) / k  # (k,) along each edge, from its start corner
+    mx = (cx[:, :, None] + (rx[:, 1:, None] - cx[:, :, None]) * t).reshape(len(cx), -1)
+    my = (cy[:, :, None] + (ry[:, 1:, None] - cy[:, :, None]) * t).reshape(len(cy), -1)
+    return transform_points(coord, mx.ravel(), my.ravel()).reshape(len(cx), -1, 3)
+
+
 # endregion
 
 

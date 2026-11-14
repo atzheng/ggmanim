@@ -66,6 +66,7 @@ PACKAGES = ("facets", "geoms", "positions", "scales", "stats")
 TOP_LEVEL: tuple[tuple[str, tuple[str, ...]], ...] = (
     ("aes", ("aes", "after_stat")),
     ("coords", ("coord_",)),
+    ("coords_trans", ("coord_",)),
     ("facets", ("facet_",)),
     ("geoms", ("geom_",)),
     ("guides", ("guide_", "guides")),
