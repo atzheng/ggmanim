@@ -213,7 +213,9 @@ def assign_panels(layers: list[LayerData], plot=None) -> pd.DataFrame:
     ``facet.facet_data`` (computed facet columns; the result replaces
     ``LayerData.raw``), ``facet.compute_layout`` sees them, and
     ``facet.map_data`` gets each layer's evaluated aesthetics plus the
-    facet-variable columns of its raw data (dropped again afterwards). Empty
+    facet-variable columns of its raw data (dropped again afterwards); an
+    aesthetic column named like a facet variable (``facet_wrap("x")``) is
+    renamed while ``map_data`` runs, so only the raw data's column facets. Empty
     layers (``geom_function`` without data) get ``PANEL`` after the stat, which
     runs once per panel for them. Returns the layout table.
     """
@@ -245,21 +247,20 @@ def assign_panels(layers: list[LayerData], plot=None) -> pd.DataFrame:
         raw = ld.raw if isinstance(ld.raw, pd.DataFrame) else pd.DataFrame()
         extra = [v for v in facet.vars() if v in raw.columns]
         df = ld.data
+        hidden = {v: f"..facet_aes.{v}" for v in facet.vars() if v in df.columns}
+        if hidden:  # an aesthetic named like a facet variable: out of map_data's way
+            df = df.rename(columns=hidden)
         if extra:
-            clash = [v for v in extra if v in df.columns]
-            if clash:
-                raise BuildError(
-                    f"{ld.label}: facet variable(s) {clash} have the name of an aesthetic "
-                    f"column; rename the data column(s)"
-                )
             if len(raw) != len(df):
                 raise BuildError(
                     f"{ld.label}: cannot facet: the aesthetics have {len(df)} rows but the "
                     f"data has {len(raw)}"
                 )
             df = df.assign(**{v: raw[v].to_numpy() for v in extra})
-        df = facet.map_data(df, layout)
-        ld.data = df.drop(columns=extra).reset_index(drop=True)
+        df = facet.map_data(df, layout).drop(columns=extra)
+        if hidden:
+            df = df.rename(columns={tmp: v for v, tmp in hidden.items()})
+        ld.data = df.reset_index(drop=True)
     return layout
 
 
