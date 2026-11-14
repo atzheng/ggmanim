@@ -277,3 +277,78 @@ def test_positions_do_not_mutate_input(bars):
         params = pos.setup_params(data)
         pos.compute_layer(pos.setup_data(data, params), params, {})
         pd.testing.assert_frame_equal(data, before)
+
+
+# -- position strings with arguments; geom_jitter's home (ggm-8ax) --------------------
+
+
+@pytest.mark.parametrize(
+    "spec, cls, params",
+    [
+        ("dodge(width=0.8)", PositionDodge, {"width": 0.8}),
+        ("position_dodge(width=0.8)", PositionDodge, {"width": 0.8}),
+        (" stack( vjust=0.5, reverse=True ) ", PositionStack, {"vjust": 0.5, "reverse": True}),
+        ("nudge(y=-0.1)", PositionNudge, {"x": 0.0, "y": -0.1}),
+        ("nudge(0.2)", PositionNudge, {"x": 0.2, "y": 0.0}),
+        ("jitter(width=0.1, height=None, seed=3)", PositionJitter, None),
+        ("dodge2(padding=0.2)", PositionDodge2, None),
+    ],
+)
+def test_get_position_string_arguments(spec, cls, params):
+    from ggmanim.positions import get_position
+
+    pos = get_position(spec)
+    assert type(pos) is cls
+    if params is not None:
+        assert {k: pos.params[k] for k in params} == params
+
+
+def test_get_position_string_arguments_in_layers(pts):
+    lyr = geom_col(position="dodge(width=0.5)")
+    assert isinstance(lyr.position, PositionDodge) and lyr.position.params["width"] == 0.5
+    a = ggplot(pts, aes("x", "y")).geom_point(position="jitter(width=0.1, seed=5)").build()
+    b = ggplot(pts, aes("x", "y")).geom_point(position=position_jitter(width=0.1, seed=5)).build()
+    pd.testing.assert_frame_equal(a.layer_data[0], b.layer_data[0])
+
+
+@pytest.mark.parametrize(
+    "spec",
+    [
+        "dodge(width=__import__('os').getcwd())",
+        "dodge(width=1 + 1)",
+        "dodge(**{'width': 1})",
+        "a.b(width=1)",
+        "dodge(",
+        "dodge; import os",
+    ],
+)
+def test_get_position_string_rejects_non_literals(spec):
+    from ggmanim.positions import get_position
+
+    with pytest.raises(ValueError, match="parse position"):
+        get_position(spec)
+
+
+def test_get_position_string_errors():
+    from ggmanim.positions import get_position, parse_position
+
+    assert parse_position("dodge(1, width=2)") == ("dodge", (1,), {"width": 2})
+    with pytest.raises(ValueError, match="Unknown position"):
+        get_position("wobble(width=1)")
+    with pytest.raises(TypeError, match="width given twice"):
+        get_position("dodge(width=1)", width=2)
+    with pytest.raises(TypeError):
+        get_position("dodge(nope=1)")
+
+
+def test_geom_jitter_lives_in_geoms():
+    import ggmanim
+    import ggmanim.geoms
+    import ggmanim.positions
+    from ggmanim.geoms.jitter import geom_jitter as gj
+    from ggmanim.registry import COMPONENTS
+
+    assert ggmanim.geom_jitter is gj and ggmanim.geoms.geom_jitter is gj
+    assert COMPONENTS["geom_jitter"] is gj and geom_jitter is gj
+    assert "geom_jitter" not in ggmanim.positions.__all__
+    assert isinstance(gj(position="jitter(width=0.2)").position, PositionJitter)

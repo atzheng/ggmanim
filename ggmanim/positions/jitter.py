@@ -1,4 +1,5 @@
-"""``position_jitter``, ``position_jitterdodge`` and ``geom_jitter``.
+"""``position_jitter`` and ``position_jitterdodge`` (``geom_jitter`` lives in
+:mod:`ggmanim.geoms.jitter`).
 
 Jitter adds uniform random noise to the x and y of every row (all x-like columns
 get the row's x offset, all y-like columns its y offset, so bar extents and error
@@ -19,7 +20,6 @@ from typing import Any
 import numpy as np
 import pandas as pd
 
-from ..registry import register
 from ..scales.continuous import X_AESTHETICS, Y_AESTHETICS
 from .base import Position
 from .dodge import collide_setup, pos_dodge
@@ -29,9 +29,7 @@ __all__ = [
     "PositionJitterdodge",
     "position_jitter",
     "position_jitterdodge",
-    "geom_jitter",
 ]
-__toplevel__ = ["geom_jitter"]
 
 #: Aesthetics ``position_jitterdodge`` can dodge by (one must be mapped).
 DODGE_AES = ("fill", "color", "colour", "linetype", "shape", "size", "alpha")
@@ -225,37 +223,4 @@ def position_jitterdodge(
         dodge_width=dodge_width,
         reverse=reverse,
         seed=seed,
-    )
-
-
-@register
-def geom_jitter(
-    mapping=None,
-    data=None,
-    *,
-    stat="identity",
-    position="jitter",
-    width: float | None = None,
-    height: float | None = None,
-    seed: int | None = None,
-    inherit_aes: bool = True,
-    name: str | None = None,
-    **params,
-):
-    """Points with ``position_jitter(width, height, seed)`` (ggplot2's
-    ``geom_jitter``): shorthand for ``geom_point(position=position_jitter(...))``."""
-    from ..geoms.point import geom_point  # lazy: ggmanim.geoms imports positions
-
-    if position == "jitter" and (width is not None or height is not None or seed is not None):
-        position = PositionJitter(width=width, height=height, seed=seed)
-    elif width is not None or height is not None or seed is not None:
-        raise ValueError("specify either `position` or `width`/`height`/`seed`, not both")
-    return geom_point(
-        mapping,
-        data,
-        stat=stat,
-        position=position,
-        inherit_aes=inherit_aes,
-        name=name,
-        **params,
     )

@@ -6,15 +6,16 @@ generated from each module's ``__all__`` by ``scripts/gen_exports.py``.
 """
 
 # -- generated exports (scripts/gen_exports.py) --
-from .base import POSITIONS, Position, PositionIdentity, get_position, position_identity
-from .dodge import PositionDodge, PositionDodge2, position_dodge, position_dodge2
-from .jitter import (
-    PositionJitter,
-    PositionJitterdodge,
-    geom_jitter,
-    position_jitter,
-    position_jitterdodge,
+from .base import (
+    POSITIONS,
+    Position,
+    PositionIdentity,
+    get_position,
+    parse_position,
+    position_identity,
 )
+from .dodge import PositionDodge, PositionDodge2, position_dodge, position_dodge2
+from .jitter import PositionJitter, PositionJitterdodge, position_jitter, position_jitterdodge
 from .nudge import PositionNudge, position_nudge
 from .stack import PositionFill, PositionStack, position_fill, position_stack
 
@@ -29,8 +30,8 @@ __all__ = [
     "PositionJitterdodge",
     "PositionNudge",
     "PositionStack",
-    "geom_jitter",
     "get_position",
+    "parse_position",
     "position_dodge",
     "position_dodge2",
     "position_fill",

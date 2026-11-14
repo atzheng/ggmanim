@@ -42,6 +42,7 @@ from .geoms import (
     geom_hex,
     geom_histogram,
     geom_hline,
+    geom_jitter,
     geom_label,
     geom_line,
     geom_linerange,
@@ -107,7 +108,6 @@ from .palettes import (
 )
 from .plot import GGManim, ggplot, labs, xlab, ylab
 from .positions import (
-    geom_jitter,
     position_dodge,
     position_dodge2,
     position_fill,
