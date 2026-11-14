@@ -619,7 +619,37 @@ animation ends the scene holds `t.plot`, so transitions chain. See
 [`examples/transitions.py`](examples/transitions.py) (scatter between years,
 re-sorting bars, a looping 4-state GIF, a line reveal).
 
-Not yet: `ValueTracker`-driven rebuilds.
+Live plots (`ggmanim.live`) update a built plot frame by frame without rebuilding
+its axes, text or legend. Their position limits must be fixed (`xlim`/`ylim`, scale
+`limits=`, or `coord_cartesian(xlim=, ylim=)`), since the panel is not rebuilt:
+
+| ggmanim | notes |
+|---|---|
+| `p.with_data(df)` | immutable copy of the spec with new plot data |
+| `plot = build_live(p)`; `plot.update_data(df)` | marks move in place (same objects, keyed by `key`); identity stats only; use inside `add_updater` |
+| `always_rebuild(p)` | `always_redraw` with a cached panel: layers recomputed every frame, e.g. `geom_function(fun=lambda x, a=tracker: ...)` |
+| `LivePlot(lambda: spec)` | holds the spec (or a spec factory); `.refresh()`, `.update_data(df)`, `.updater()` |
+
+```python
+from manim import ValueTracker
+from ggmanim.live import always_rebuild, build_live
+
+pts = ggplot(df52, aes("gdp", "life")).add(geom_point(), name="points").xlim(0, 8).ylim(30, 80)
+live = build_live(pts)
+dot = live.mark("points", 0)
+live.update_data(df52.assign(life=[45, 55, 50]))  # moves the dots
+assert live.mark("points", 0) is dot
+
+a = ValueTracker(1.0)
+wave = ggplot().geom_function(fun=lambda x, a=a: a.get_value() * np.sin(x)).xlim(0, 6.3).ylim(-2, 2)
+curve = always_rebuild(wave)  # self.add(curve); self.play(a.animate.set_value(2))
+```
+
+Cost: a full rebuild (`p.with_data(df).build()`) lays out all the text again
+and is slow per frame. An in-place update only re-runs the numpy steps and the
+updated geoms. When rows are added or removed (keys change), that one layer's
+mobject is replaced, still without touching any text. See
+[`examples/live_plot.py`](examples/live_plot.py) and the `ggmanim.live` docstring.
 
 ## Development
 
