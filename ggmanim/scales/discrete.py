@@ -20,7 +20,15 @@ import numpy as np
 import pandas as pd
 from manim import ManimColor
 
-from ..palettes import LINETYPES, SHAPES, Palette, as_manim_color, hue_pal, resolve_palette
+from ..palettes import (
+    LINETYPES,
+    SHAPES,
+    Palette,
+    as_manim_color,
+    hue_pal,
+    resolve_palette,
+    viridis_pal,
+)
 from ..registry import register
 from .base import Scale
 
@@ -419,6 +427,8 @@ def default_scale_for(aesthetic: str, values: Any) -> Scale | None:
     :func:`.range.default_range_scale`); numeric colour/fill get the ggplot2
     default gradient (:class:`~.colour.ScaleContinuousColour`). Returns ``None``
     for aesthetics that have no default scale (their values are used as is).
+    Ordered categoricals (``pd.Categorical(..., ordered=True)``) mapped to
+    colour/fill get ``viridis_d`` (ggplot2's ``scale_colour_ordinal``).
     Raises ``TypeError`` for numeric shape/linetype.
     """
     aes = normalise_aesthetic(aesthetic)
@@ -437,4 +447,12 @@ def default_scale_for(aesthetic: str, values: Any) -> Scale | None:
             f"A continuous (numeric) variable cannot be mapped to {aes!r}; "
             "convert it to a category first, e.g. df[col].astype('category')."
         )
+    if aes in COLOUR_AESTHETICS and _is_ordered(values):
+        return ScaleDiscrete(aes, palette=viridis_pal())
     return ScaleDiscrete(aes, palette=_DEFAULT_PALETTES[aes])
+
+
+def _is_ordered(values: Any) -> bool:
+    """True for an ordered pandas categorical (``Series`` or ``Categorical``)."""
+    dtype = getattr(values, "dtype", None)
+    return isinstance(dtype, pd.CategoricalDtype) and bool(dtype.ordered)

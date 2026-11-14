@@ -947,14 +947,16 @@ def assemble(
     subtitle = _text(theme, labels.get("subtitle"), theme.axis_title_size, "subtitle")
     caption = _text(theme, labels.get("caption"), theme.axis_text_size, "caption")
     left, right = _title_edges(panel, legend, theme)
+    # titles/caption clear the legend too (ggplot2's title row spans the whole table)
+    body = VGroup(panel, legend) if len(legend) else panel
     if subtitle is not None:
-        subtitle.next_to(panel, UP, buff=0.2)
+        subtitle.next_to(body, UP, buff=0.2)
         subtitle.set_x(left, direction=LEFT)
     if title is not None:
-        title.next_to(subtitle if subtitle is not None else panel, UP, buff=0.2)
+        title.next_to(subtitle if subtitle is not None else body, UP, buff=0.2)
         title.set_x(left, direction=LEFT)
     if caption is not None:
-        caption.next_to(panel, DOWN, buff=0.2)
+        caption.next_to(body, DOWN, buff=0.2)
         caption.set_x(right, direction=RIGHT)
     plot = GGPlot(
         panel=panel,
