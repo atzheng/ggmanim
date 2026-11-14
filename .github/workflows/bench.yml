@@ -1,0 +1,50 @@
+name: Benchmarks
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  bench:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: pyproject.toml
+
+      - name: System dependencies (cairo, pango)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            libcairo2-dev libpango1.0-dev pkg-config
+
+      - name: Python dependencies
+        run: pip install -e '.[dev]'
+
+      # Soft threshold: slower-than-baseline timings are reported as warnings,
+      # never failures (the baseline was written on a different machine).
+      - name: Run benchmarks
+        run: |
+          python benchmarks/bench.py -r 3 \
+            --json "$RUNNER_TEMP/bench.json" \
+            --compare benchmarks/baseline.json --threshold 1.5 \
+            | tee "$RUNNER_TEMP/bench.txt"
+          {
+            echo '```'
+            cat "$RUNNER_TEMP/bench.txt"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload results
+        uses: actions/upload-artifact@v4
+        with:
+          name: bench
+          path: |
+            ${{ runner.temp }}/bench.json
+            ${{ runner.temp }}/bench.txt

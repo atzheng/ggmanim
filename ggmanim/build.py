@@ -263,17 +263,20 @@ def setup_position_scales(plot, layers: list[LayerData]) -> dict[str, Any]:
     dtype, see :func:`_position_scale`), trained on the
     raw position columns of every layer; then those columns -> transformed space."""
     scales = {"x": _position_scale(plot, "x", layers), "y": _position_scale(plot, "y", layers)}
+    checked: set[tuple[int, str]] = set()
     for ld in layers:
         for axis, cols in ld.layer.geom.position_aes_for_training(ld.data).items():
             for c in cols:
                 _check_numeric(ld, c, scales[axis])
+                checked.add((ld.index, c))
                 scales[axis].train(ld.data[c])
     for ld in layers:
-        df = ld.data.copy()
+        df = ld.data.copy(deep=False)  # whole columns are replaced, never written into
         for axis, aes_names in POSITION_AES.items():
             for c in aes_names:
                 if c in df.columns:
-                    _check_numeric(ld, c, scales[axis])
+                    if (ld.index, c) not in checked:
+                        _check_numeric(ld, c, scales[axis])
                     with np.errstate(all="ignore"):
                         df[c] = _pre_stat_map(scales[axis], df[c])
         ld.data = df
@@ -303,7 +306,7 @@ def setup_panel_scales(plot, layers: list[LayerData], layout: pd.DataFrame) -> d
                 for p, idx in groups:
                     panel_scales[p][axis].train(ld.data.loc[idx, c])
     for ld in layers:
-        df = ld.data.copy()
+        df = ld.data.copy(deep=False)
         groups = _by_panel(df)
         for axis, aes_names in POSITION_AES.items():
             for c in aes_names:
@@ -469,12 +472,14 @@ def map_non_position(plot, layers: list[LayerData]) -> dict[str, Any]:
             except TypeError as e:
                 raise BuildError(f"{ld.label}: aesthetic {aes_name!r}: {e}") from e
         scales[aes_name] = scale
-    for aes_name, scale in scales.items():
-        for ld in layers:
-            if aes_name in ld.data.columns and len(ld.data):
-                df = ld.data.copy()
-                df[aes_name] = _mapped_column(scale.map(df[aes_name]), df.index)
-                ld.data = df
+    for ld in layers:  # one (shallow) copy per layer
+        todo = [a for a in scales if a in ld.data.columns and len(ld.data)]
+        if not todo:
+            continue
+        df = ld.data.copy(deep=False)
+        for aes_name in todo:
+            df[aes_name] = _mapped_column(scales[aes_name].map(df[aes_name]), df.index)
+        ld.data = df
     return scales
 
 
@@ -553,7 +558,7 @@ def train_position_scales(
             for c in aes_names:
                 if c in df.columns:
                     if not changed:
-                        df, changed = df.copy(), True
+                        df, changed = df.copy(deep=False), True
                     df[c] = scales[axis].map_transformed(df[c])
         ld.data = df
 
@@ -572,7 +577,7 @@ def _train_panel_scales(layers: list[LayerData], panel_scales: dict[int, dict]) 
         groups = _by_panel(ld.data)
         if not groups:
             continue
-        df = ld.data.copy()
+        df = ld.data.copy(deep=False)
         for axis, aes_names in POSITION_AES.items():
             for c in aes_names:
                 if c in df.columns:
@@ -641,6 +646,17 @@ def _scale_title(scale, labels: dict[str, Any], aes: str):
     return name if name is not None else labels.get(aes)
 
 
+def _measure_key(scales: dict, visible: tuple[bool, bool], strips) -> tuple:
+    """What a pass-1 panel's measurements depend on: its scale objects, which
+    axes it draws and the sides (and depth) of its strips."""
+    return (
+        id(scales["x"]),
+        id(scales["y"]),
+        tuple(visible),
+        tuple((side, len(labels)) for side, labels in strips),
+    )
+
+
 def build_panels(
     plot,
     layout: pd.DataFrame,
@@ -657,7 +673,8 @@ def build_panels(
     the grid) and no tick marks/labels where ``facet.draw_axes`` says so (inner
     panels with shared scales). Panels are built twice: a first build measures
     the tick labels and strips round each plotting area, the second uses the
-    sizes that leave room for them. ``facet.draw_panels`` adds the strips and
+    sizes that leave room for them (the first build is made once per kind of
+    panel, see :func:`_measure_key`). ``facet.draw_panels`` adds the strips and
     places the panels; the shared axis titles go round the grid."""
     facet = _facet(plot)
     coord = plot.coord if plot.coord is not None else CoordCartesian()
@@ -694,13 +711,27 @@ def build_panels(
     thickness = _facet_base.strip_thickness(theme, specs)
     ext = {}
     params = {}
+    # Panels with the same scales, axes and strip sides (strip *text* does not
+    # matter: strips span the panel and are ``thickness`` deep) measure the same,
+    # so pass 1 builds one panel per such kind; ``first`` is reused for its kind.
+    measured: dict[tuple, tuple] = {}
+    spare: Any = first  # built at the nominal size with every axis drawn, no strips
+    spare_kind = _measure_key(sc1, (True, True), [])[:3]
     for p in panel_ids:
-        panel = make(p, *nominal, visible[p])
-        strips = _facet_base.add_strips(
-            panel, specs.get(p, []), thickness, theme, visible[p], sides
-        )
-        ext[p] = _facet_layout.extents(VGroup(panel, strips), panel.axes)
-        params[p] = panel.panel_params
+        key = _measure_key(panel_scales[p], visible[p], specs.get(p, []))
+        if key not in measured:
+            if spare is not None and key[:3] == spare_kind:
+                panel, spare = spare, None
+            else:
+                panel = make(p, *nominal, visible[p])
+            strips = _facet_base.add_strips(
+                panel, specs.get(p, []), thickness, theme, visible[p], sides
+            )
+            measured[key] = (
+                _facet_layout.extents(VGroup(panel, strips), panel.axes),
+                panel.panel_params,
+            )
+        ext[p], params[p] = measured[key]
     col_w, row_w = facet.panel_weights(layout, params)
     widths, heights = _facet_layout.track_sizes(
         layout,

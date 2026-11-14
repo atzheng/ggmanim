@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import numpy as np
 from manim import ORIGIN, VGroup, VMobject
 
 from ..registry import register
@@ -12,9 +13,11 @@ from ._markers import make_marker
 from .base import (
     Geom,
     attach_marks,
+    color_resolver,
     finite_rows,
     make_layer,
     num,
+    num_array,
     resolve_color,
     transform_points,
 )
@@ -46,19 +49,45 @@ class GeomPoint(Geom):
         rect = panel_rect(coord, panel_params)
         fg = theme.get_foreground()
         pts = transform_points(coord, data["x"].to_numpy(float), data["y"].to_numpy(float))
+        radius = num_array(data["size"], 0.06)
         box = None
+        inside = None
         if rect is not None:  # clip="on": markers are clipped to the panel
             box = scene_box(coord, rect)
-            keep = near_box(pts, box, marker_extent([num(v, 0.06) for v in data["size"]]))
-            data, pts = data[keep], pts[keep]
-        dots = VGroup()
+            ext = marker_extent(radius)
+            keep = near_box(pts, box, ext)
+            data, pts, radius = data[keep], pts[keep], radius[keep]
+            inside = near_box(pts, box, -ext[keep])  # surely unclipped: skip clip_marker
+        color_of, fill_of = color_resolver(fg), color_resolver()
+        alpha = num_array(data["alpha"], 1.0)
+        if inside is None:
+            inside = np.ones(len(pts), dtype=bool)
+        rows = zip(
+            pts,
+            data["shape"].tolist(),
+            radius,
+            data["color"].tolist(),
+            data["fill"].tolist(),
+            alpha,
+            inside.tolist(),
+        )
+        marks = []
         drawn = []
-        for i, (p, row) in enumerate(zip(pts, data.to_dict("records"))):
-            dot = self._dot(p, row, fg)
-            shown = dot if box is None else clip_marker(dot, box)  # None: fully clipped
+        for i, (p, shape, r, color, fill, a, ok) in enumerate(rows):
+            color = color_of(color)
+            dot = make_marker(
+                shape,
+                p,
+                radius=float(r),
+                color=color if color is not None else fg,
+                fill=fill_of(fill),
+                alpha=float(a),
+            )
+            shown = dot if ok or box is None else clip_marker(dot, box)  # None: clipped away
             if shown is not None:
-                dots.add(shown)
+                marks.append(shown)
                 drawn.append(i)
+        dots = VGroup(*marks)  # one add: VGroup.add per mark is quadratic
         return attach_marks(dots, data.iloc[drawn], per="row")
 
     @staticmethod
