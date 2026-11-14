@@ -7,6 +7,7 @@ from manim import LEFT, RIGHT, Line, VGroup, VMobject
 
 from ..registry import register
 from ..theme import Theme, theme_default
+from ._labels import direct_label
 from ._linetype import apply_linetype
 from ._segments import segmented_path, varies_within
 from .base import (
@@ -18,7 +19,6 @@ from .base import (
     finite_rows,
     first,
     group_label,
-    make_label,
     make_layer,
     multi_path_mobject,
     num,
@@ -74,9 +74,12 @@ class GeomPath(Geom):
                     pieces, color, num(first(gdf, "linewidth"), 3.0), num(first(gdf, "alpha"), 1.0)
                 )
                 paths.add(apply_linetype(path, first(gdf, "linetype")))
-            lab = make_label(theme, group_label(label, i, gid), color)
-            if lab is not None and pieces:
-                labels.add(lab.next_to(pieces[-1][-1], RIGHT, buff=0.1))
+            if pieces:  # direct label right of the last visible point
+                lab = direct_label(
+                    theme, group_label(label, i, gid), color, pieces[-1][-1], nudge=(0.1, 0.0)
+                )
+                if lab is not None:
+                    labels.add(lab)
         return attach_marks(assemble(paths, labels), data, per="group")
 
     def draw_key(self, data_row, theme: Theme | None = None) -> VMobject:
@@ -114,7 +117,8 @@ def geom_path(
     per group (unlike :func:`geom_line`, which sorts each group by x first).
 
     ``label=`` (str or Mobject for every group, a list in group order, or a dict
-    group id -> label) is drawn at each group's last point in the group's colour.
+    group id -> label) is drawn at each group's last point in the group's colour
+    (a *direct label*, drawn like ``geom_text``; see :mod:`ggmanim.geoms._labels`).
     """
     return make_layer(
         GeomPath(),
@@ -142,7 +146,8 @@ def geom_line(
     """Lines connecting observations in order of x, one per group.
 
     ``label=`` (str or Mobject for every group, a list in group order, or a dict
-    group id -> label) is drawn at each group's last point in the group's colour.
+    group id -> label) is drawn at each group's last point in the group's colour
+    (a *direct label*, drawn like ``geom_text``; see :mod:`ggmanim.geoms._labels`).
     """
     return make_layer(
         GeomLine(),

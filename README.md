@@ -357,8 +357,11 @@ roadmap.
 | `geom_smooth(method = "lm")` | `geom_smooth(method="lm", degree=1)` | polynomial fits, SE ribbon |
 | `geom_function(fun = f)` | `geom_function(f)` | |
 | `geom_hline()`, `geom_vline()` | same | take part in axis limits |
+| `geom_text(aes(label = n))`, `geom_label()` | `geom_text(aes(label="n"))`, `geom_label()` | `size=3.88` = `theme.axis_text_size`; `hjust`/`vjust` incl. `"inward"`; `angle` in degrees; `nudge_x`/`nudge_y`; `check_overlap`; `parse=True` → `MathTex` (tex engine) |
+| `annotate("text", x, y, label = ...)` | `annotate("text", x=..., y=..., label=...)` | any geom (`"point"`, `"vline"` ...); never inherits aesthetics |
+| `directlabels` package | `geom_line(label=[...])` | direct labels on line/path/function/smooth/vline/hline, drawn like `geom_text` |
 
-Not yet: `geom_histogram`, `geom_area`/`ribbon`, `geom_text`/`label`, `geom_boxplot`,
+Not yet: `geom_histogram`, `geom_area`/`ribbon`, `geom_boxplot`,
 `geom_violin`, `geom_density`, `geom_rect`/`tile`, `geom_segment`, error bars.
 
 <!-- section: stats -->
