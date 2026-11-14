@@ -397,13 +397,23 @@ with `space="free_y"`, a non-faceted reference layer repeated in every panel, an
 an animation revealing the panels one by one (`manim -ql -s -a
 examples/gallery_facets.py`).
 
+[`examples/gallery_geoms.py`](examples/gallery_geoms.py) has one scene per
+geom/stat/position idea: stacked and dodged bars with their counts written on them, a
+histogram with density curves, violin + boxplot + jitter, a step chart with
+error bars, a stacked area, a tile heatmap, an annotated scatter
+(text/label/segment/rect), loess vs lm, 2-D density contours, and nine of them on
+one frame (`GeomsOverview`). It reuses the plots and data of the per-feature examples
+(`histograms.py`, `distributions.py`, `areas_heatmap.py`, `annotations.py`,
+`smoothers.py`, `two_d.py`), which have more scenes each, as do `positions.py`
+and `intervals.py`.
+
 CI renders every `examples/*.py` (`scripts/render_examples.sh`) on every push and
 uploads the PNGs as the `examples` artifact.
 
 ## ggplot2 → ggmanim cheat sheet
 
 Everything below is supported; names and arguments follow ggplot2 unless noted.
-Each section ends with what is not there yet; see [PLAN.md](PLAN.md) for the
+A section's last line lists what is not there yet, if anything; see [PLAN.md](PLAN.md) for the
 roadmap.
 
 | ggplot2 | ggmanim | notes |
@@ -418,28 +428,27 @@ roadmap.
 | ggplot2 | ggmanim | notes |
 |---|---|---|
 | `geom_point()`, `geom_line()`, `geom_path()` | same | `size` = radius in scene units |
-| `geom_col()`, `geom_bar(stat = "identity")` | `geom_col()`, `geom_bar()` | identity heights only |
+| `geom_col()`, `geom_bar(stat = "identity")` | `geom_col()`, `geom_bar(stat="identity")` | stacked by default; plain `geom_bar()` counts (see Stats) |
 | `geom_smooth(method = "lm")` | `geom_smooth(method="lm", degree=1)` | polynomial fits, SE ribbon |
 | `geom_function(fun = f)` | `geom_function(f)` | |
 | `geom_hline()`, `geom_vline()` | same | take part in axis limits |
 | `geom_text(aes(label = n))`, `geom_label()` | `geom_text(aes(label="n"))`, `geom_label()` | `size=3.88` = `theme.axis_text_size`; `hjust`/`vjust` incl. `"inward"`; `angle` in degrees; `nudge_x`/`nudge_y`; `check_overlap`; `parse=True` → `MathTex` (tex engine) |
 | `annotate("text", x, y, label = ...)` | `annotate("text", x=..., y=..., label=...)` | any geom (`"point"`, `"vline"` ...); never inherits aesthetics |
 | `directlabels` package | `geom_line(label=[...])` | direct labels on line/path/function/smooth/vline/hline, drawn like `geom_text` |
-| `geom_ribbon(aes(ymin, ymax))`, `geom_area()` | same | `outline_type`; area stacks by default (`position="stack"`) |
+| `geom_ribbon(aes(ymin, ymax))`, `geom_area()` | same | `outline_type`; area stacks by default (`position="stack"`), groups aligned on a shared x grid by `stat_align` |
 | `geom_rect()`, `geom_tile()` | same | tile `width`/`height` default to the data resolution |
 | `geom_raster()` | same | one mobject per fill colour on a regular grid (fast heatmaps) |
 | `geom_polygon(aes(group, subgroup))` | same | `subgroup` rings are holes (even-odd fill) |
 | `geom_step(direction = "hv")` | same | `"hv"`, `"vh"`, `"mid"` |
-| `geom_segment(arrow = arrow())`, `geom_curve(curvature)` | same | `arrow(length=)` in scene units; curves are circular arcs (`angle = curvature * pi`) |
+| `geom_segment(arrow = arrow())`, `geom_curve(curvature, angle, ncp)` | same | `arrow(length=)` in scene units; curves follow grid's `curveGrob`, shaped in scene space |
 | `geom_abline(slope, intercept)` | same | trains no scale; slope/intercept in transformed units (as ggplot2) |
 | `geom_errorbar()`, `geom_errorbarh()`, `geom_linerange()`, `geom_pointrange()`, `geom_crossbar()` | same | `orientation="y"` (or `xmin`/`xmax`) for horizontal |
-| `stat_summary(fun.data = mean_se)` | `stat_summary(fun_data="mean_se")` | also `mean_cl_normal`, `mean_sdl`, `median_hilow`, `fun`/`fun_min`/`fun_max`; `stat_summary_bin()` |
 | `geom_boxplot(outlier.colour, notch, varwidth, staplewidth)` | `geom_boxplot(outlier_color=..., notch=True, varwidth=True, staplewidth=0.5)` | dodged by `position_dodge2`; `outliers=False` hides them; horizontal when `y` is discrete |
 | `geom_violin(scale, trim, draw_quantiles)` | same | `scale="area"`/`"count"`/`"width"`; dodged by `position_dodge` |
 | `geom_density(adjust, bw, kernel, bounds)` | same | outline only unless `fill` is set; `alpha` is the fill's |
 | `geom_rug(sides = "bl", length = unit(0.03, "npc"))` | `geom_rug(sides="bl", length=None)` | `length` in scene units (default 3% of the panel); `outside=True` |
 
-Not yet: `geom_dotplot`; `stat_align` for `geom_area`.
+Not yet: `geom_dotplot`, `geom_spoke`, `geom_quantile`, `geom_blank`, `geom_sf`/`geom_map`.
 
 <!-- section: stats -->
 ### Stats
@@ -459,7 +468,8 @@ Not yet: `geom_dotplot`; `stat_align` for `geom_area`.
 | `geom_hex(bins = 30)`, `stat_bin_hex()` | same | hexbin lattice; hexagons tessellate exactly in data units |
 | `geom_density_2d()`, `geom_density_2d_filled()` | same (`geom_density2d` too) | `MASS::kde2d` (`n=100`, `h`, `adjust`); `contour_var`; `contour=False` gives the grid |
 | `geom_contour(aes(z = z))`, `geom_contour_filled()` | `geom_contour(aes(z="z"))`, `geom_contour_filled()` | numpy marching squares; `bins`/`binwidth`/`breaks`; filled `level` is an ordered category `"(lo, hi]"` |
-
+| `stat_summary(fun.data = mean_se)` | `stat_summary(fun_data="mean_se")` | default geom `pointrange`; also `mean_cl_normal`, `mean_sdl`, `median_hilow`, `fun`/`fun_min`/`fun_max`; `orientation="y"`; `stat_summary_bin()` |
+| `stat_align()` | same | `geom_area`'s default stat: interpolates every group onto the union of x so stacks have no gaps |
 | `stat_boxplot(coef = 1.5)` | same | quantile type 7, whiskers to the last point within `coef * IQR`; `weight` gives weighted quantiles |
 | `stat_density(bw = "nrd0", adjust, kernel, n = 512, bounds)` | same; `bounds=(0, np.inf)` | matches R's `density()` (numpy FFT); `bw` `"nrd0"`, `"nrd"`/`"scott"`, a number or a callable; `after_stat("count")`, `"scaled"` |
 | `stat_ydensity(scale, trim, quantiles)` | same | the violins' densities, plus `violinwidth` |
@@ -479,7 +489,8 @@ Not yet: `orientation="y"` for `stat_count`/`stat_bin`; `bw = "ucv"`/`"bcv"`/`"S
 | `position_jitterdodge(jitter.width, jitter.height, dodge.width)` | `position_jitterdodge(jitter_width, jitter_height, dodge_width)` | needs a mapped fill/colour/... |
 | `position_nudge(x, y)` | same | offsets in transformed units |
 
-Positions accept a name (`position="dodge"`), a class or an instance
+Positions accept a name (`position="dodge"`), a name with arguments
+(`position="dodge(width=0.8)"`), a class or an instance
 (`position=position_dodge(width=0.8)`). See `examples/positions.py`.
 
 <!-- section: scales -->
