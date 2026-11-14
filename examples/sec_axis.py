@@ -56,7 +56,14 @@ def make_log():
     return (
         ggplot(df, aes("mass", "rate"))
         .add(geom_point(color="#4C9BE8", alpha=0.8))
-        .add(scale_x_log10(name="mass (kg)", sec_axis=dup_axis()))
+        .add(
+            scale_x_log10(
+                name="mass (kg)",
+                breaks=[0.1, 1, 10, 100, 1000],
+                labels=["0.1", "1", "10", "100", "1000"],
+                sec_axis=dup_axis(),
+            )
+        )
         .add(labs(title="scale_x_log10 + dup_axis()"))
     )
 
@@ -87,7 +94,7 @@ def make_ratio():
                 name="percent",
                 sec_axis=sec_axis(lambda p: p / 100, name="fraction"),
             ),
-            labs(title="secondary labels: primary formatter"),
+            labs(title="percent / fraction"),
         )
     )
 
