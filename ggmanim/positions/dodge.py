@@ -11,6 +11,10 @@ other, each keeping a share of the overlap proportional to its own width, with
 ``preserve="total"`` (default) lets all the rows at one x share its full width;
 ``preserve="single"`` gives every row the width of one slot of the busiest x in
 the panel, so bars have equal widths everywhere.
+
+Horizontal layers (a ``flipped_aes`` column that is true, e.g. horizontal
+boxplots and violins) are dodged along y per y position: as in ggplot2, the data
+is flipped (``x <-> y``, ``xmin <-> ymin`` ...), dodged, and flipped back.
 """
 
 from __future__ import annotations
@@ -21,6 +25,7 @@ from typing import Any
 import numpy as np
 import pandas as pd
 
+from ..stats.boxplot import flip_names
 from .base import Position
 
 __all__ = ["PositionDodge", "PositionDodge2", "position_dodge", "position_dodge2"]
@@ -28,6 +33,34 @@ __all__ = ["PositionDodge", "PositionDodge2", "position_dodge", "position_dodge2
 
 def _num(s: pd.Series) -> np.ndarray:
     return pd.to_numeric(s, errors="coerce").to_numpy(dtype=float)
+
+
+def _is_flipped(data: pd.DataFrame) -> bool:
+    """Whether ``data`` is a horizontal layer: its first non-missing
+    ``flipped_aes`` is true (ggplot2's ``has_flipped_aes`` for positions)."""
+    if "flipped_aes" not in data.columns:
+        return False
+    flags = data["flipped_aes"].dropna()
+    return bool(flags.iloc[0]) if len(flags) else False
+
+
+def _flip(data: pd.DataFrame, flipped: bool) -> pd.DataFrame:
+    """``data`` with x-like and y-like columns swapped when ``flipped``."""
+    return flip_names(data) if flipped else data
+
+
+def _flip_scales(scales: dict[str, Any] | None, flipped: bool) -> dict[str, Any] | None:
+    """``scales`` with ``"x"`` and ``"y"`` swapped when ``flipped``."""
+    if not flipped or scales is None:
+        return scales
+    return {**scales, "x": scales.get("y"), "y": scales.get("x")}
+
+
+def _add_x(data: pd.DataFrame) -> pd.DataFrame:
+    """Add ``x`` as the middle of ``xmin``/``xmax`` when it is missing."""
+    if "x" not in data.columns and {"xmin", "xmax"} <= set(data.columns):
+        data = data.assign(x=(_num(data["xmin"]) + _num(data["xmax"])) / 2)
+    return data
 
 
 def _check_preserve(preserve: str) -> str:
@@ -99,23 +132,31 @@ class PositionDodge(Position):
         super().__init__(width=width, preserve=_check_preserve(preserve), reverse=reverse)
 
     def setup_params(self, data: pd.DataFrame) -> dict[str, Any]:
+        flipped = _is_flipped(data)
+        data = _flip(data, flipped)
         width = self.params.get("width")
         if width is None and "xmin" not in data.columns and "xmax" not in data.columns:
             warnings.warn("Width not defined. Set with `position_dodge(width = ...)`", stacklevel=2)
         n = None
         if self.params.get("preserve") == "single" and len(data):
             n = _max_groups_per_x(data)
-        return {"width": width, "n": n, "reverse": bool(self.params.get("reverse", False))}
+        return {
+            "width": width,
+            "n": n,
+            "reverse": bool(self.params.get("reverse", False)),
+            "flipped_aes": flipped,
+        }
 
     def setup_data(self, data: pd.DataFrame, params: dict[str, Any]) -> pd.DataFrame:
         data = super().setup_data(data, params)
-        if "x" not in data.columns and {"xmin", "xmax"} <= set(data.columns):
-            data = data.assign(x=(_num(data["xmin"]) + _num(data["xmax"])) / 2)
-        return data
+        flipped = params.get("flipped_aes", False)
+        return _flip(_add_x(_flip(data, flipped)), flipped)
 
     def compute_panel(
         self, data: pd.DataFrame, params: dict[str, Any], scales: dict[str, Any] | None = None
     ) -> pd.DataFrame:
+        flipped = params.get("flipped_aes", False)
+        data = _flip(data, flipped)
         index = data.index
         data, width = collide_setup(data.reset_index(drop=True), params["width"], params["reverse"])
         key = _num(data["xmin"])
@@ -123,7 +164,7 @@ class PositionDodge(Position):
             pos_dodge(part, width, params["n"])
             for _, part in data.groupby(key, sort=False, dropna=False)
         ]
-        return _restore(pieces, index)
+        return _flip(_restore(pieces, index), flipped)
 
 
 def _max_groups_per_x(data: pd.DataFrame) -> int:
@@ -217,6 +258,8 @@ class PositionDodge2(Position):
         )
 
     def setup_params(self, data: pd.DataFrame) -> dict[str, Any]:
+        flipped = _is_flipped(data)
+        data = _flip(data, flipped)
         n = None
         if self.params.get("preserve") == "single" and len(data):
             n = _max_rows_per_x(data)
@@ -225,21 +268,23 @@ class PositionDodge2(Position):
             "n": n,
             "padding": float(self.params.get("padding", 0.1)),
             "reverse": bool(self.params.get("reverse", False)),
+            "flipped_aes": flipped,
         }
 
     def setup_data(self, data: pd.DataFrame, params: dict[str, Any]) -> pd.DataFrame:
         data = super().setup_data(data, params)
-        if "x" not in data.columns and {"xmin", "xmax"} <= set(data.columns):
-            data = data.assign(x=(_num(data["xmin"]) + _num(data["xmax"])) / 2)
-        return data
+        flipped = params.get("flipped_aes", False)
+        return _flip(_add_x(_flip(data, flipped)), flipped)
 
     def compute_panel(
         self, data: pd.DataFrame, params: dict[str, Any], scales: dict[str, Any] | None = None
     ) -> pd.DataFrame:
+        flipped = params.get("flipped_aes", False)
+        data = _flip(data, flipped)
         index = data.index
         data, _ = collide_setup(data.reset_index(drop=True), params["width"], params["reverse"])
         out = pos_dodge2(data, params["n"], params["padding"])
-        return _restore([out], index)
+        return _flip(_restore([out], index), flipped)
 
 
 def position_dodge(

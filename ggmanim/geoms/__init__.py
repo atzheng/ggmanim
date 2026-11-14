@@ -21,7 +21,7 @@ from .contour import (
     geom_contour_filled,
 )
 from .count import GeomCount, geom_count
-from .density import GeomDensity, geom_density
+from .density import DensityLayer, GeomDensity, geom_density
 from .density2d import (
     GeomDensity2d,
     GeomDensity2dFilled,
@@ -39,13 +39,16 @@ from .interval import (
     GeomErrorbarh,
     GeomLinerange,
     GeomPointrange,
+    clipped_segments,
     draw_crossbar,
     flip_data,
+    flip_panel,
     geom_crossbar,
     geom_errorbar,
     geom_errorbarh,
     geom_linerange,
     geom_pointrange,
+    style,
 )
 from .jitter import geom_jitter
 from .line import GeomLine, GeomPath, geom_line, geom_path
@@ -63,6 +66,7 @@ from .vline import GeomHline, GeomVline, geom_hline, geom_vline
 
 __all__ = [
     "ArrowSpec",
+    "DensityLayer",
     "Geom",
     "GeomAbline",
     "GeomArea",
@@ -107,9 +111,11 @@ __all__ = [
     "annotate",
     "arrow",
     "attach_marks",
+    "clipped_segments",
     "draw_crossbar",
     "draw_oriented_polygons",
     "flip_data",
+    "flip_panel",
     "geom_abline",
     "geom_area",
     "geom_bar",
@@ -160,5 +166,6 @@ __all__ = [
     "resolution",
     "resolve_color",
     "stairstep",
+    "style",
 ]
 # -- end generated --

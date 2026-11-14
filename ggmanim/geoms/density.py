@@ -10,30 +10,51 @@ alpha=0.4)`` gives overlapping translucent densities. The default position is
 ``"identity"`` (``stat_density()`` stacks).
 
 ``orientation="y"`` estimates the density of ``y`` and draws it along the y
-axis (``x = after_stat("density")``).
+axis (``x = after_stat("density")``). Without ``orientation``, a density with
+``y`` but no ``x`` mapped -- in the layer *or the plot* mapping -- is horizontal
+too: the default mapping is added by :class:`DensityLayer` when the layer is
+merged with the plot mapping.
 """
 
 from __future__ import annotations
 
+import dataclasses
 from collections.abc import Mapping
 from typing import Any
 
 import pandas as pd
 from manim import VMobject
 
+from ..aes import Aes
+from ..layer import Layer
 from ..registry import register
 from ..stats.boxplot import resolve_flipped
-from ..stats.density import density_mapping
+from ..stats.density import StatDensity, density_mapping
 from ..theme import Theme, theme_default
 from ._rect import filled_key
 from .area import GeomArea, _check_outline_type
 from .base import make_layer
 
-__all__ = ["GeomDensity", "geom_density"]
+__all__ = ["DensityLayer", "GeomDensity", "geom_density"]
 
 
 def _is_flipped(data: pd.DataFrame, params: Mapping[str, Any]) -> bool:
     return resolve_flipped(data, None, params.get("orientation"), main_is_orthogonal=False)
+
+
+class DensityLayer(Layer):
+    """A :class:`~ggmanim.layer.Layer` that adds the density default mapping
+    (:func:`~ggmanim.stats.density.density_mapping`) *after* merging with the
+    plot mapping, so the orientation follows the plot-level ``aes`` too:
+    ``ggplot(df, aes(y="v")) + geom_density()`` is horizontal."""
+
+    @classmethod
+    def from_layer(cls, layer: Layer) -> DensityLayer:
+        """``layer`` as a :class:`DensityLayer` (same fields)."""
+        return cls(**{f.name: getattr(layer, f.name) for f in dataclasses.fields(layer)})
+
+    def resolve_mapping(self, plot_mapping: Aes | None) -> Aes:
+        return density_mapping(super().resolve_mapping(plot_mapping), self.params)
 
 
 class GeomDensity(GeomArea):
@@ -96,13 +117,11 @@ def geom_density(
     """Kernel density curves (ggplot2's ``geom_density``); see
     :mod:`ggmanim.geoms.density` and :mod:`ggmanim.stats.density`.
 
-    Stat params: ``bw`` (``"nrd0"``, ``"nrd"``/``"scott"``, a number or a
-    callable), ``adjust``, ``kernel``, ``n`` (512), ``trim``, ``bounds``.
+    Stat params: ``bw`` (``"nrd0"``, ``"nrd"``/``"scott"``, ``"ucv"``, ``"bcv"``,
+    ``"SJ"``/``"sj-dpi"``, a number or a callable), ``adjust``, ``kernel``, ``n`` (512), ``trim``, ``bounds``.
     ``outline_type`` as for :func:`~ggmanim.geoms.area.geom_ribbon`."""
     params["outline_type"] = _check_outline_type(outline_type)
-    if stat in ("density", "stat_density"):
-        mapping = density_mapping(mapping, params)
-    return make_layer(
+    layer = make_layer(
         GeomDensity(),
         mapping,
         data,
@@ -112,3 +131,4 @@ def geom_density(
         name=name,
         params=params,
     )
+    return DensityLayer.from_layer(layer) if isinstance(layer.stat, StatDensity) else layer

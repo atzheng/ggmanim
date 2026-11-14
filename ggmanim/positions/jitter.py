@@ -12,6 +12,11 @@ is pure) while two layers with the same data jitter differently.
 
 Defaults follow ggplot2: ``width``/``height`` are 40% of the resolution of the
 data (on a discrete axis the resolution is 1, so points stay within their level).
+
+``position_jitter`` treats x and y alike, so it needs no orientation.
+``position_jitterdodge`` flips horizontal layers (a true ``flipped_aes`` column)
+like :func:`~ggmanim.positions.dodge.position_dodge`: it dodges along y and its
+``jitter_width`` applies to y, as in ggplot2.
 """
 
 from __future__ import annotations
@@ -24,7 +29,7 @@ import pandas as pd
 
 from ..scales.continuous import X_AESTHETICS, Y_AESTHETICS
 from .base import Position
-from .dodge import collide_setup, pos_dodge
+from .dodge import _flip, _flip_scales, _is_flipped, collide_setup, pos_dodge
 
 __all__ = [
     "PositionJitter",
@@ -148,6 +153,9 @@ class PositionJitterdodge(Position):
 
     def setup_params(self, data: pd.DataFrame) -> dict[str, Any]:
         params = dict(self.params)
+        flipped = _is_flipped(data)
+        params["flipped_aes"] = flipped
+        data = _flip(data, flipped)
         if len(data) and not any(a in data.columns for a in DODGE_AES):
             raise ValueError(
                 "position_jitterdodge() requires at least one aesthetic to dodge by "
@@ -169,13 +177,16 @@ class PositionJitterdodge(Position):
             return data
         width = params.get("jitter_width")
         if width is None:
-            width = 0.4 * _resolution(data, "x", scales)
+            flipped = params.get("flipped_aes", False)
+            width = 0.4 * _resolution(_flip(data, flipped), "x", _flip_scales(scales, flipped))
         params = {**params, "_jitter": float(width) / (params["ndodge"] + 2)}
         return super().compute_layer(data, params, scales)
 
     def compute_panel(
         self, data: pd.DataFrame, params: dict[str, Any], scales: dict[str, Any] | None = None
     ) -> pd.DataFrame:
+        flipped = params.get("flipped_aes", False)
+        data = _flip(data, flipped)
         index = data.index
         work, width = collide_setup(
             data.reset_index(drop=True), params["dodge_width"], params["reverse"]
@@ -188,7 +199,7 @@ class PositionJitterdodge(Position):
         dx, dy = jitter_offsets(len(work), params["_jitter"], float(params["jitter_height"]), seed)
         out = shift_positions(work, dx, dy)
         out.index = index
-        return out
+        return _flip(out, flipped)
 
 
 def position_jitter(

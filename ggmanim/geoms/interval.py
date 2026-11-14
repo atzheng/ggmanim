@@ -26,7 +26,10 @@ Clipping (``clip="on"``) is done in transformed space with
 clipped like ``geom_point`` markers.
 
 :func:`draw_crossbar` is the reusable crossbar drawing (``geom_boxplot`` draws its
-box with it).
+box with it). The building blocks are public too, for geoms written the same
+way (``geom_boxplot``, ``geom_violin``): :func:`flip_panel` (orientation),
+:func:`clipped_segments` (clipped line segments as scene points) and
+:func:`style` (stroke colour, alpha, linewidth and linetype from a row).
 """
 
 from __future__ import annotations
@@ -72,6 +75,9 @@ __all__ = [
     "geom_crossbar",
     "draw_crossbar",
     "flip_data",
+    "flip_panel",
+    "clipped_segments",
+    "style",
 ]
 
 _SWAP = {
@@ -111,7 +117,11 @@ class _FlippedCoord:
         return transform_points(self._coord, y, x)
 
 
-def _flip_panel(coord: Any, panel_params: Any) -> tuple[Any, Any]:
+def flip_panel(coord: Any, panel_params: Any) -> tuple[Any, Any]:
+    """``(coord, panel_params)`` for drawing a horizontal layer in the vertical
+    orientation: the coord's ``transform(x, y)`` calls the real one with
+    ``(y, x)`` and the panel's ``x_range``/``y_range`` are swapped (``None``
+    stays ``None``). Use it on :func:`flip_data`-ed rows."""
     pp = None
     if panel_params is not None:
         pp = SimpleNamespace(x_range=panel_params.y_range, y_range=panel_params.x_range)
@@ -143,7 +153,7 @@ def _widths(data: pd.DataFrame, params: Mapping[str, Any], discrete: bool) -> np
     return np.broadcast_to(np.asarray(width, dtype=float), x.shape).copy()
 
 
-def _style(mob: VMobject, row: Mapping[str, Any], fg: Any, linewidth: float) -> VMobject:
+def style(mob: VMobject, row: Mapping[str, Any], fg: Any, linewidth: float) -> VMobject:
     """Stroke ``mob`` with the row's colour/alpha, then dash it (``linetype``)."""
     color: Any = resolve_color(row.get("color"), fg)
     mob.set_fill(opacity=0)
@@ -151,7 +161,7 @@ def _style(mob: VMobject, row: Mapping[str, Any], fg: Any, linewidth: float) -> 
     return apply_linetype(mob, row.get("linetype"))
 
 
-def _clipped_segments(coord, rect, x0, y0, x1, y1) -> list[np.ndarray]:
+def clipped_segments(coord, rect, x0, y0, x1, y1) -> list[np.ndarray]:
     """The visible parts of the segments ``(x0, y0) -> (x1, y1)`` (transformed
     space) as a list of ``(2, 3)`` scene-point arrays."""
     x0, y0, x1, y1 = (np.atleast_1d(np.asarray(v, dtype=float)) for v in (x0, y0, x1, y1))
@@ -226,7 +236,7 @@ class _IntervalGeom(Geom):
         data = self.use_defaults(data, params)
         if flipped:
             data = flip_data(data)
-            coord, panel_params = _flip_panel(coord, panel_params)
+            coord, panel_params = flip_panel(coord, panel_params)
         data = finite_rows(data, [c for c in self.vertical_aes if c != "y"])
         marks, drawn = self._draw_rows(data, panel_params, coord, theme, params)
         return attach_marks(marks, drawn, per="row")
@@ -256,10 +266,10 @@ class GeomLinerange(_IntervalGeom):
         fg = theme.get_foreground()
         out, drawn = VGroup(), []
         for i, row in enumerate(data.to_dict("records")):
-            pieces = _clipped_segments(coord, rect, row["x"], row["ymin"], row["x"], row["ymax"])
+            pieces = clipped_segments(coord, rect, row["x"], row["ymin"], row["x"], row["ymax"])
             if pieces:
                 mob = multi_path_mobject(pieces, None, 2.0, 1.0)
-                out.add(_style(mob, row, fg, num(row.get("linewidth"), 2.0)))
+                out.add(style(mob, row, fg, num(row.get("linewidth"), 2.0)))
                 drawn.append(i)
         return out, data.iloc[drawn]
 
@@ -306,10 +316,10 @@ class GeomPointrange(GeomLinerange):
         out, drawn = VGroup(), []
         for i, row in enumerate(data.to_dict("records")):
             parts = VGroup()
-            pieces = _clipped_segments(coord, rect, row["x"], row["ymin"], row["x"], row["ymax"])
+            pieces = clipped_segments(coord, rect, row["x"], row["ymin"], row["x"], row["ymax"])
             if pieces:
                 mob = multi_path_mobject(pieces, None, 2.0, 1.0)
-                parts.add(_style(mob, row, fg, num(row.get("linewidth"), 2.0)))
+                parts.add(style(mob, row, fg, num(row.get("linewidth"), 2.0)))
             if np.isfinite(num(row.get("y"), np.nan)):
                 p = transform_points(coord, row["x"], row["y"])[0]
                 dot: VMobject | None = self._point(p, row, fg, fatten)
@@ -345,12 +355,10 @@ class GeomErrorbar(_IntervalGeom):
         out, drawn = VGroup(), []
         for i, row in enumerate(data.to_dict("records")):
             x, lo, hi, a, b = row["x"], row["ymin"], row["ymax"], row["xmin"], row["xmax"]
-            pieces = _clipped_segments(
-                coord, rect, [a, x, a], [hi, lo, lo], [b, x, b], [hi, hi, lo]
-            )
+            pieces = clipped_segments(coord, rect, [a, x, a], [hi, lo, lo], [b, x, b], [hi, hi, lo])
             if pieces:
                 mob = multi_path_mobject(pieces, None, 2.0, 1.0)
-                out.add(_style(mob, row, fg, num(row.get("linewidth"), 2.0)))
+                out.add(style(mob, row, fg, num(row.get("linewidth"), 2.0)))
                 drawn.append(i)
         return out, data.iloc[drawn]
 
@@ -364,7 +372,7 @@ class GeomErrorbar(_IntervalGeom):
             np.array([[-w, -h, 0], [w, -h, 0]]),
         ]
         mob = multi_path_mobject(pts, None, 2.0, 1.0)
-        mob = _style(mob, row, theme.get_foreground(), num(row.get("linewidth"), 2.0))
+        mob = style(mob, row, theme.get_foreground(), num(row.get("linewidth"), 2.0))
         return mob
 
 
@@ -431,7 +439,7 @@ def draw_crossbar(
     """
     theme = theme if theme is not None else theme_default()
     if flipped:
-        coord, panel_params = _flip_panel(coord, panel_params)
+        coord, panel_params = flip_panel(coord, panel_params)
     rows = rows.copy()
     for k, v in GeomCrossbar.default_aes.items():
         if k not in rows.columns:
@@ -466,10 +474,10 @@ def draw_crossbar(
         parts = VGroup(box)
         m = num(row.get(middle), np.nan)
         if np.isfinite(m):
-            pieces = _clipped_segments(coord, rect, row["xmin"], m, row["xmax"], m)
+            pieces = clipped_segments(coord, rect, row["xmin"], m, row["xmax"], m)
             if pieces:
                 line = multi_path_mobject(pieces, None, 2.0, 1.0)
-                parts.add(_style(line, row, fg, lw * fatten))
+                parts.add(style(line, row, fg, lw * fatten))
         out.add(parts)
         drawn.append(i)
     return out, rows.iloc[drawn]

@@ -263,7 +263,6 @@ def stat_boxplot(
 ):
     """Boxplot statistics drawn with ``geom`` (default ``geom_boxplot``); see
     :mod:`ggmanim.stats.boxplot`. Returns a layer."""
-    from ..geoms.boxplot import oriented  # geoms import manim: keep stats free of it
     from ..geoms.count import stat_layer
 
     return stat_layer(
@@ -271,7 +270,7 @@ def stat_boxplot(
         geom,
         mapping,
         data,
-        position=oriented(position),
+        position=position,
         inherit_aes=inherit_aes,
         name=name,
         params={"coef": coef, **params},
