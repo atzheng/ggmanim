@@ -10,6 +10,8 @@ import re as _re
 
 # -- generated exports (scripts/gen_exports.py) --
 from .base import GROUPING_AES, NO_GROUP, Stat, add_group, get_stat, is_discrete, scale_limits
+from .bin import StatBin, bin_breaks, bin_breaks_bins, bin_breaks_width, stat_bin
+from .count import StatCount, stat_count
 from .ecdf import StatEcdf, stat_ecdf
 from .function import StatFunction, evaluate_function, stat_function
 from .identity import StatIdentity, stat_identity
@@ -33,6 +35,8 @@ __all__ = [
     "GROUPING_AES",
     "NO_GROUP",
     "Stat",
+    "StatBin",
+    "StatCount",
     "StatEcdf",
     "StatFunction",
     "StatIdentity",
@@ -44,6 +48,9 @@ __all__ = [
     "StatSummaryBin",
     "StatUnique",
     "add_group",
+    "bin_breaks",
+    "bin_breaks_bins",
+    "bin_breaks_width",
     "evaluate_function",
     "get_stat",
     "is_discrete",
@@ -54,6 +61,8 @@ __all__ = [
     "ppoints",
     "qnorm",
     "scale_limits",
+    "stat_bin",
+    "stat_count",
     "stat_ecdf",
     "stat_function",
     "stat_identity",

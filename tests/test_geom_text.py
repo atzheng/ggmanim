@@ -23,7 +23,6 @@ from ggmanim.geoms._labels import (
 from ggmanim.layer import Layer
 from ggmanim.registry import COMPONENTS
 from ggmanim.scales import scale_x_continuous, scale_y_continuous
-from ggmanim.stats import STATS
 from ggmanim.theme import theme_default
 
 DF = pd.DataFrame({"x": [1.0, 2.0, 3.0], "y": [1.0, 4.0, 9.0], "name": ["a", "bb", "ccc"]})
@@ -164,8 +163,7 @@ def test_counts_on_bars_identity():
         assert lab.get_center()[0] == pytest.approx(bar.get_center()[0], abs=1e-6)
 
 
-@pytest.mark.skipif("count" not in STATS, reason="stat_count not merged yet")
-def test_counts_on_bars_after_stat_count():  # pragma: no cover - until stat_count lands
+def test_counts_on_bars_after_stat_count():
     df = pd.DataFrame({"cut": list("aabbbc")})
     m = (
         ggplot(df, aes("cut"))

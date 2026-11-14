@@ -384,8 +384,11 @@ Not yet: `geom_histogram`, `geom_boxplot`, `geom_violin`, `geom_density`;
 | `stat_ecdf(pad = TRUE)` | `stat_ecdf(pad=True)` | step line from the panel's left edge (0) to its right edge (1) |
 | `geom_qq()`, `geom_qq_line()`, `stat_qq(distribution = qt, dparams = list(df = 5))` | same; `distribution=scipy.stats.t.ppf, dparams={"df": 5}` | normal by default; the line passes through the quartiles |
 | `geom_count()`, `stat_sum()`, `stat_unique()` | same | `size=after_stat("n")` by default; `after_stat("prop")` too |
+| `geom_bar()`, `stat_count()` | same | counts rows per x (strings per level); `y=after_stat("count")`/`"prop"`; `weight` aesthetic; stacked by default |
+| `geom_histogram(binwidth, bins, center, boundary, breaks, closed, pad)`, `stat_bin()` | same | bin edges as ggplot2's; `after_stat("density")`, `"ncount"`, `"ndensity"`; bins in transformed space on log x; warns when `bins = 30` is defaulted |
+| `geom_freqpoly(binwidth = 1)` | same | `stat_bin(pad=True)` drawn as a path, one per group |
 
-Not yet: `stat_count`, `stat_bin`, `stat_summary`, `stat_density`, `stat_boxplot`.
+Not yet: `stat_density`, `stat_boxplot`; `orientation="y"` for `stat_count`/`stat_bin`.
 
 <!-- section: positions -->
 ### Positions
