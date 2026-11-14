@@ -16,6 +16,7 @@ from .aes import aes, after_stat
 from .coords import coord_cartesian, coord_fixed, coord_flip
 from .geoms import (
     annotate,
+    geom_area,
     geom_bar,
     geom_col,
     geom_function,
@@ -24,8 +25,13 @@ from .geoms import (
     geom_line,
     geom_path,
     geom_point,
+    geom_polygon,
+    geom_raster,
+    geom_rect,
+    geom_ribbon,
     geom_smooth,
     geom_text,
+    geom_tile,
     geom_vline,
 )
 from .guides import (
@@ -190,6 +196,7 @@ __all__ = [
     "coord_fixed",
     "coord_flip",
     "div_gradient_pal",
+    "geom_area",
     "geom_bar",
     "geom_col",
     "geom_function",
@@ -199,8 +206,13 @@ __all__ = [
     "geom_line",
     "geom_path",
     "geom_point",
+    "geom_polygon",
+    "geom_raster",
+    "geom_rect",
+    "geom_ribbon",
     "geom_smooth",
     "geom_text",
+    "geom_tile",
     "geom_vline",
     "ggplot",
     "gradient_n_pal",

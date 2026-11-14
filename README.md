@@ -360,9 +360,13 @@ roadmap.
 | `geom_text(aes(label = n))`, `geom_label()` | `geom_text(aes(label="n"))`, `geom_label()` | `size=3.88` = `theme.axis_text_size`; `hjust`/`vjust` incl. `"inward"`; `angle` in degrees; `nudge_x`/`nudge_y`; `check_overlap`; `parse=True` → `MathTex` (tex engine) |
 | `annotate("text", x, y, label = ...)` | `annotate("text", x=..., y=..., label=...)` | any geom (`"point"`, `"vline"` ...); never inherits aesthetics |
 | `directlabels` package | `geom_line(label=[...])` | direct labels on line/path/function/smooth/vline/hline, drawn like `geom_text` |
+| `geom_ribbon(aes(ymin, ymax))`, `geom_area()` | same | `outline_type`; area stacks by default (`position="stack"`) |
+| `geom_rect()`, `geom_tile()` | same | tile `width`/`height` default to the data resolution |
+| `geom_raster()` | same | one mobject per fill colour on a regular grid (fast heatmaps) |
+| `geom_polygon(aes(group, subgroup))` | same | `subgroup` rings are holes (even-odd fill) |
 
-Not yet: `geom_histogram`, `geom_area`/`ribbon`, `geom_boxplot`,
-`geom_violin`, `geom_density`, `geom_rect`/`tile`, `geom_segment`, error bars.
+Not yet: `geom_histogram`, `geom_boxplot`, `geom_violin`, `geom_density`,
+`geom_segment`, error bars; `stat_align` for `geom_area`.
 
 <!-- section: stats -->
 ### Stats
