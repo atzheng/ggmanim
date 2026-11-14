@@ -7,6 +7,11 @@ performant, idiomatic implementation of as much of ggplot2 as is sensible in man
 Status of each phase is tracked in beads (`bd list`). Phase 1 is the refactor and
 lands first, alone.
 
+**Status (2026-11-13):** Phases 0–2 complete (862 tests; `examples/gallery.py`).
+Phases 3–8 are beaded as epics ggm-2m8 (geoms/stats/positions), ggm-913 (facets),
+ggm-aji (coords), ggm-bam (performance), ggm-ifn (animation), ggm-xll (docs/release).
+Section 1 below describes the pre-Phase-1 prototype and is kept for history.
+
 ## 1. Current state (as of 2026-11-13)
 
 `ggmanim/GGManim.py` (504 lines) implements 7 geoms as methods on one mutable

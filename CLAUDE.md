@@ -50,21 +50,64 @@ bd close <id>         # Complete work
 - If push fails, resolve and retry until it succeeds
 <!-- END BEADS INTEGRATION -->
 
-
 ## Build & Test
 
-_Add your build and test commands here_
-
 ```bash
-# Example:
-# npm install
-# npm test
+uv venv .venv && uv pip install -p .venv/bin/python -e '.[dev]'   # or: pip install -e '.[dev]'
+.venv/bin/ruff check . && .venv/bin/ruff format --check .
+.venv/bin/mypy
+.venv/bin/python -m pytest -q
+.venv/bin/manim -ql -s examples/basic.py Basic                      # render one example
 ```
+
+All four must pass before a PR. Tests build mobjects without rendering; no LaTeX
+is needed (text engine defaults to Pango `Text`).
 
 ## Architecture Overview
 
-_Add a brief overview of your project architecture_
+ggplot2's grammar on manim. The spec is immutable (`ggplot.add()` returns a new
+plot); `build.py` is a pure pipeline spec → `GGPlot` mobject (see its module
+docstring for the numbered steps). Components register with `registry.register`
+and get chaining methods for free.
+
+- `aes.py`, `plot.py`, `layer.py` — spec, mapping, layers
+- `geoms/`, `stats/`, `positions/` — one module per geom/stat/position; `base.py` holds the contracts
+- `scales/` — pure numpy, no manim imports; `breaks.py`, `labels.py` for ticks
+- `coords.py`, `facets/` — panel construction and layout
+- `guides*.py`, `theme.py`, `palettes.py` — legends, appearance, colours
+- `mobjects.py` — `GGPlot` (the built result), `animate.py`/`live.py` — animation helpers
+- `PLAN.md` — roadmap; beads carry the per-task detail (`bd show <id>`)
 
 ## Conventions & Patterns
 
-_Add your project-specific conventions here_
+- Follow ggplot2 names and argument semantics; `colour`/`color` both accepted.
+- Scales/stats never import manim. Geoms draw through `coord.transform` only.
+- Sizes are scene units; text goes through `theme.make_text`.
+- Every geom's `draw_panel` returns a `VGroup` and calls `attach_marks` so
+  animations can address marks by row/key.
+- numpy-style docstrings; `ruff` (E,F,W,I,B,UP) and `mypy` clean.
+
+## Parallel work rules
+
+Several beads are worked at once on separate branches. To keep merges clean:
+
+1. **One bead = one branch `bead/<id>` = one PR**, rebased on `main` before opening.
+   Claim with `bd update <id> --claim`; close only after merge.
+2. **Touch only the files your bead's DESIGN notes list** (`bd show <id>`). If you
+   need a change elsewhere, make the smallest adapter in your own module and file
+   a follow-up bead (`bd create ... --deps discovered-from:<id>`).
+3. **Add, don't edit.** New geoms/stats/scales/positions/facets go in new modules
+   with their own `__all__`. Never hand-edit the generated export blocks in
+   `ggmanim/__init__.py` or subpackage `__init__.py` files: run
+   `python scripts/gen_exports.py`. On a merge conflict there, re-run it.
+4. **Region markers.** Shared files (`theme.py`, `geoms/base.py`, `mobjects.py`,
+   `coords.py`, README cheat sheet) contain `# region: <name>` blocks. Add lines
+   only inside the region named in your bead, at its end.
+5. **`build.py` is owned by one bead at a time** (see the bead's DESIGN). Do not
+   touch it otherwise.
+6. **Tests and examples are per bead**: `tests/test_<feature>.py`,
+   `examples/<feature>.py` (CI renders every `examples/*.py`). Edit an existing
+   test only if your bead changes that behaviour, and say so in the PR.
+7. **No drive-by changes**: no renames, reformatting, import reordering or
+   docstring edits outside your hunks.
+8. Record decisions and gotchas in the bead (`bd comment`), not in chat.
