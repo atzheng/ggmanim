@@ -443,6 +443,7 @@ Not yet: `guide_axis`, `guide_bins`.
 | ggplot2 | ggmanim | notes |
 |---|---|---|
 | `facet_null()` | same | the default: one panel |
+| `facet_grid(rows ~ cols, scales, space, margins, switch)` | `facet_grid(rows="drv", cols="cyl")` / `facet_grid("drv ~ cyl")` | rows/cols take a name, list, `"a + b"` or `"."`; free scales are per column (x) / row (y); `space="free_x"` sizes columns by their range; `margins=True` adds `"(all)"` panels; `switch="x"/"y"/"both"` |
 | `label_value`, `label_both`, `labeller(var = ...)` | same | strip labellers; `labeller(am={0: "auto"}, cyl=label_both)` |
 | `theme(panel.spacing, strip.background, strip.text, strip.placement)` | `theme(panel_spacing=, panel_spacing_x/_y=, strip_background=, strip_text_size=, strip_text_color=, strip_placement=)` | `panel_width`/`panel_height` size the whole grid |
 | faceted plot object | `plot.panels[(row, col)]`, `plot.strips`, `plot.layers[name].panel(row, col)` | `plot.panel`/`plot.axes` are the first panel; custom facets subclass `ggmanim.facets.Facet` |

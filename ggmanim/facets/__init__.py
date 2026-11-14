@@ -6,16 +6,20 @@ public module's ``__all__`` by ``scripts/gen_exports.py``.
 
 # -- generated exports (scripts/gen_exports.py) --
 from .base import LAYOUT_COLUMNS, Facet, PanelGrid, PanelLayers
+from .grid import MARGIN_LABEL, FacetGrid, facet_grid
 from .labellers import as_labeller, label_both, label_value, labeller
 from .null import FacetNull, facet_null
 
 __all__ = [
     "Facet",
+    "FacetGrid",
     "FacetNull",
     "LAYOUT_COLUMNS",
+    "MARGIN_LABEL",
     "PanelGrid",
     "PanelLayers",
     "as_labeller",
+    "facet_grid",
     "facet_null",
     "label_both",
     "label_value",
