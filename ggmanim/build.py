@@ -5,10 +5,15 @@ Mirrors ggplot2's ``ggplot_build`` + ``ggplot_gtable``, one function per step
 
 1. :func:`resolve_layers` -- layer data/mapping (``inherit_aes``), evaluate the
    aesthetics, ``add_group``.
-2. :func:`assign_panels` -- add the ``PANEL`` column (one panel in Phase 1).
+2. :func:`assign_panels` -- the facet's layout table (``plot.facet``, default
+   :class:`~ggmanim.facets.FacetNull`) and the ``PANEL`` column of every layer
+   (``facet.map_data``; see :mod:`ggmanim.facets.base` for the facet contract).
 3. :func:`setup_position_scales` -- per-build position scales, *pre-stat* training
-   on the raw layer data, then x-/y-like columns -> transformed space.
-   :func:`compute_stats` -- ``stat.compute_layer`` per layer, then ``after_stat``.
+   on the raw layer data, then x-/y-like columns -> transformed space. With
+   several panels :func:`setup_panel_scales` does this per panel
+   (``facet.init_scales``: one shared scale when fixed, clones when free).
+   :func:`compute_stats` -- ``stat.compute_layer`` per layer (per panel, with
+   that panel's scales), then ``after_stat``.
 4. :func:`map_non_position` -- train (on every layer) and map the non-position
    aesthetics: colour/fill/shape/linetype through discrete scales (numeric
    colour/fill through continuous colour gradients), size/alpha/linewidth through
@@ -21,8 +26,10 @@ Mirrors ggplot2's ``ggplot_build`` + ``ggplot_gtable``, one function per step
    layers contribute only their intercepts) and apply ``oob``. As in ggplot2,
    positions run *after* ``setup_data`` so they see bar extents
    (``xmin``/``xmax``/``ymin``/``ymax``).
-7. :func:`build_panel` -- ``coord.build`` -> :class:`~ggmanim.coords.CartesianPanel`.
-8. :func:`draw_layers` -- ``geom.draw_panel`` per layer.
+7. :func:`build_panel` -- ``coord.build`` -> :class:`~ggmanim.coords.CartesianPanel`;
+   with several panels :func:`build_panels` builds one per layout row and lays
+   them out with strips (:class:`~ggmanim.facets.PanelGrid`).
+8. :func:`draw_layers` -- ``geom.draw_panel`` per layer (per panel).
 9. :func:`assemble` -- legends, titles, the :class:`~ggmanim.mobjects.GGPlot`.
 
 :func:`build_plot` runs them all. It is pure: scales are cloned per build, layer
@@ -47,6 +54,9 @@ from . import stats as _stats  # noqa: F401
 from . import theme as _theme  # noqa: F401
 from .aes import Aes, AfterStat
 from .coords import CartesianPanel, CoordCartesian
+from .facets import Facet, FacetNull, PanelGrid, PanelLayers
+from .facets import _layout as _facet_layout
+from .facets import base as _facet_base
 from .guides import build_legends, place_legends  # also registers guides()
 from .layer import Layer
 from .positions import get_position
@@ -64,6 +74,7 @@ __all__ = [
     "resolve_layers",
     "assign_panels",
     "setup_position_scales",
+    "setup_panel_scales",
     "compute_stats",
     "map_non_position",
     "apply_positions",
@@ -71,6 +82,7 @@ __all__ = [
     "train_position_scales",
     "default_labels",
     "build_panel",
+    "build_panels",
     "draw_layers",
     "assemble",
     "fit_to_frame",
@@ -91,6 +103,8 @@ class LayerData:
     layer: Layer
     mapping: Aes
     data: pd.DataFrame = field(default_factory=pd.DataFrame)
+    #: the layer's resolved user data (facet variables are read from it)
+    raw: pd.DataFrame | None = None
 
     @property
     def key(self):
@@ -133,19 +147,63 @@ def resolve_layers(plot) -> list[LayerData]:
         except Exception as e:  # callables, length mismatches ...
             raise BuildError(f"{ld.label}: could not evaluate aesthetics: {e}") from e
         ld.data = add_group(df.reset_index(drop=True))
+        ld.raw = raw
         out.append(ld)
     return out
 
 
 # --------------------------------------------------------------------------- 2
-def assign_panels(layers: list[LayerData]) -> None:
-    """Add ``PANEL = 1`` to every non-empty layer (facets slot in here later).
+def _facet(plot) -> Facet:
+    facet = getattr(plot, "facet", None) if plot is not None else None
+    return facet if facet is not None else FacetNull()
 
-    Empty layers (``geom_function`` without data) get ``PANEL`` after the stat.
+
+def assign_panels(layers: list[LayerData], plot=None) -> pd.DataFrame:
+    """Compute the facet's layout table and add ``PANEL`` to every non-empty layer.
+
+    Without a facet (or ``plot=None``) every non-empty layer gets ``PANEL = 1``.
+    Otherwise ``facet.compute_layout`` sees the plot data and each layer's own
+    data, and ``facet.map_data`` gets each layer's evaluated aesthetics plus the
+    facet-variable columns of its raw data (dropped again afterwards). Empty
+    layers (``geom_function`` without data) get ``PANEL`` after the stat, which
+    runs once per panel for them. Returns the layout table.
     """
+    facet = _facet(plot)
+    frames = [plot.data] if plot is not None and isinstance(plot.data, pd.DataFrame) else []
+    frames += [ld.raw for ld in layers if isinstance(ld.raw, pd.DataFrame)]
+    try:
+        layout = facet.compute_layout(frames)
+    except (ValueError, KeyError, TypeError) as e:
+        raise BuildError(f"{facet!r}: {e}") from e
+    missing = [c for c in _facet_base.LAYOUT_COLUMNS if c not in layout.columns]
+    if missing:
+        raise BuildError(f"{facet!r}: layout table lacks column(s) {missing}")
+    layout = layout.reset_index(drop=True)
     for ld in layers:
-        if len(ld.data):
-            ld.data = ld.data.assign(PANEL=1)
+        if not len(ld.data):
+            continue
+        if facet.is_null:
+            ld.data = facet.map_data(ld.data, layout)
+            continue
+        raw = ld.raw if isinstance(ld.raw, pd.DataFrame) else pd.DataFrame()
+        extra = [v for v in facet.vars() if v in raw.columns]
+        df = ld.data
+        if extra:
+            clash = [v for v in extra if v in df.columns]
+            if clash:
+                raise BuildError(
+                    f"{ld.label}: facet variable(s) {clash} have the name of an aesthetic "
+                    f"column; rename the data column(s)"
+                )
+            if len(raw) != len(df):
+                raise BuildError(
+                    f"{ld.label}: cannot facet: the aesthetics have {len(df)} rows but the "
+                    f"data has {len(raw)}"
+                )
+            df = df.assign(**{v: raw[v].to_numpy() for v in extra})
+        df = facet.map_data(df, layout)
+        ld.data = df.drop(columns=extra).reset_index(drop=True)
+    return layout
 
 
 # --------------------------------------------------------------------------- 3
@@ -222,6 +280,45 @@ def setup_position_scales(plot, layers: list[LayerData]) -> dict[str, Any]:
     return scales
 
 
+def _by_panel(df: pd.DataFrame) -> list[tuple[int, pd.Index]]:
+    """``[(PANEL, row index), ...]`` of ``df`` (sorted by panel)."""
+    if "PANEL" not in df.columns or not len(df):
+        return []
+    return [(int(p), idx) for p, idx in df.groupby("PANEL", sort=True).groups.items()]
+
+
+def setup_panel_scales(plot, layers: list[LayerData], layout: pd.DataFrame) -> dict[int, dict]:
+    """Per-panel version of :func:`setup_position_scales`: ``{PANEL: {"x", "y"}}``
+    from ``facet.init_scales`` (one shared scale per ``SCALE_X``/``SCALE_Y`` id),
+    each trained on its panel's raw position columns; then those columns ->
+    transformed space with the panel's scales."""
+    facet = _facet(plot)
+    proto = {"x": _position_scale(plot, "x", layers), "y": _position_scale(plot, "y", layers)}
+    panel_scales = facet.init_scales(layout, proto["x"], proto["y"])
+    for ld in layers:
+        groups = _by_panel(ld.data)
+        for axis, cols in ld.layer.geom.position_aes_for_training(ld.data).items():
+            for c in cols:
+                _check_numeric(ld, c, proto[axis])
+                for p, idx in groups:
+                    panel_scales[p][axis].train(ld.data.loc[idx, c])
+    for ld in layers:
+        df = ld.data.copy()
+        groups = _by_panel(df)
+        for axis, aes_names in POSITION_AES.items():
+            for c in aes_names:
+                if c in df.columns and groups:
+                    _check_numeric(ld, c, proto[axis])
+                    parts = []
+                    for p, idx in groups:
+                        with np.errstate(all="ignore"):
+                            mapped = _pre_stat_map(panel_scales[p][axis], df.loc[idx, c])
+                        parts.append(pd.Series(np.asarray(mapped), index=idx))
+                    df[c] = pd.concat(parts).reindex(df.index)
+        ld.data = df
+    return panel_scales
+
+
 def _pre_stat_map(scale, values):
     """Data -> transformed space before the stat. With user ``limits`` the scale's
     ``oob`` applies here (ggplot2: ``xlim()`` censors *before* the stat, so a smooth
@@ -260,14 +357,46 @@ def _remove_missing_for_stat(ld: LayerData, stat) -> None:
         ld.data = ld.data[ok].reset_index(drop=True)
 
 
-def compute_stats(layers: list[LayerData], scales: dict[str, Any]) -> None:
-    """``stat.compute_layer`` per layer, then evaluate ``after_stat`` aesthetics."""
+def _compute_layer_panels(
+    ld: LayerData, stat, panel_scales: dict[int, dict], layout: pd.DataFrame | None
+) -> pd.DataFrame:
+    """``stat.compute_layer`` once per panel with that panel's scales; an empty
+    layer is computed for every panel of ``layout`` (e.g. ``geom_function``)."""
+    pieces = []
+    if len(ld.data):
+        for p, idx in _by_panel(ld.data):
+            res = stat.compute_layer(ld.data.loc[idx], panel_scales[p], **stat.params)
+            pieces.append(res if "PANEL" in res.columns else res.assign(PANEL=p))
+    else:
+        panels = layout["PANEL"] if layout is not None else sorted(panel_scales)
+        for p in (int(v) for v in panels):
+            res = stat.compute_layer(ld.data, panel_scales[p], **stat.params)
+            if len(res):
+                pieces.append(res.assign(PANEL=p))
+    if not pieces:
+        return stat.compute_layer(ld.data, panel_scales[min(panel_scales)], **stat.params)
+    return pd.concat(pieces, ignore_index=True)
+
+
+def compute_stats(
+    layers: list[LayerData],
+    scales: dict[str, Any],
+    panel_scales: dict[int, dict] | None = None,
+    layout: pd.DataFrame | None = None,
+) -> None:
+    """``stat.compute_layer`` per layer, then evaluate ``after_stat`` aesthetics.
+
+    With ``panel_scales`` (several panels) the stat runs per ``PANEL`` with that
+    panel's scales (:func:`_compute_layer_panels`)."""
     for ld in layers:
         stat = ld.layer.stat
         if stat is not None:
             _remove_missing_for_stat(ld, stat)
             try:
-                df = stat.compute_layer(ld.data, scales, **stat.params)
+                if panel_scales is not None:
+                    df = _compute_layer_panels(ld, stat, panel_scales, layout)
+                else:
+                    df = stat.compute_layer(ld.data, scales, **stat.params)
             except BuildError:
                 raise
             except Exception as e:
@@ -367,29 +496,50 @@ def setup_geom_data(layers: list[LayerData], scales: dict[str, Any] | None = Non
 
 
 # --------------------------------------------------------------------------- 6
-def apply_positions(layers: list[LayerData], scales: dict[str, Any] | None = None) -> None:
+def apply_positions(
+    layers: list[LayerData],
+    scales: dict[str, Any] | None = None,
+    panel_scales: dict[int, dict] | None = None,
+) -> None:
     """Run each layer's position adjustment (after :func:`setup_geom_data`).
 
     ``pos.setup_params(data)``, ``pos.setup_data(data, params)``, then
     ``pos.compute_layer(data, params, scales)`` (split by ``PANEL``); see
     :mod:`ggmanim.positions.base`. ``position_identity`` returns the data
     unchanged. ``scales`` are the build's position scales (read-only here; they
-    are retrained afterwards by :func:`train_position_scales`)."""
+    are retrained afterwards by :func:`train_position_scales`). With
+    ``panel_scales`` each panel's rows are adjusted with that panel's scales."""
     for ld in layers:
         pos = get_position(ld.layer.position)
         try:
             params = pos.setup_params(ld.data)
             data = pos.setup_data(ld.data, params)
-            ld.data = pos.compute_layer(data, params, scales)
+            groups = _by_panel(data) if panel_scales is not None else []
+            if groups and panel_scales is not None:
+                pieces = [
+                    pos.compute_layer(data.loc[idx], params, panel_scales[p]) for p, idx in groups
+                ]
+                ld.data = pd.concat(pieces, ignore_index=True)
+            else:
+                ld.data = pos.compute_layer(data, params, scales)
         except BuildError:
             raise
         except Exception as e:
             raise BuildError(f"{ld.label}: {type(pos).__name__} failed: {e}") from e
 
 
-def train_position_scales(layers: list[LayerData], scales: dict[str, Any]) -> None:
+def train_position_scales(
+    layers: list[LayerData],
+    scales: dict[str, Any],
+    panel_scales: dict[int, dict] | None = None,
+) -> None:
     """Reset and retrain x/y on the columns each geom draws (transformed space),
-    then apply each scale's ``oob`` policy to those columns."""
+    then apply each scale's ``oob`` policy to those columns. With
+    ``panel_scales`` every panel's scales are trained on (and applied to) that
+    panel's rows only."""
+    if panel_scales is not None:
+        _train_panel_scales(layers, panel_scales)
+        return
     for s in scales.values():
         s.reset()
     for ld in layers:
@@ -405,6 +555,35 @@ def train_position_scales(layers: list[LayerData], scales: dict[str, Any]) -> No
                     if not changed:
                         df, changed = df.copy(), True
                     df[c] = scales[axis].map_transformed(df[c])
+        ld.data = df
+
+
+def _train_panel_scales(layers: list[LayerData], panel_scales: dict[int, dict]) -> None:
+    unique = {id(s): s for sc in panel_scales.values() for s in sc.values()}
+    for s in unique.values():
+        s.reset()
+    for ld in layers:
+        groups = _by_panel(ld.data)
+        for axis, cols in ld.layer.geom.position_aes_for_training(ld.data).items():
+            for c in cols:
+                for p, idx in groups:
+                    panel_scales[p][axis].train_transformed(ld.data.loc[idx, c])
+    for ld in layers:
+        groups = _by_panel(ld.data)
+        if not groups:
+            continue
+        df = ld.data.copy()
+        for axis, aes_names in POSITION_AES.items():
+            for c in aes_names:
+                if c in df.columns:
+                    parts = [
+                        pd.Series(
+                            np.asarray(panel_scales[p][axis].map_transformed(df.loc[idx, c])),
+                            index=idx,
+                        )
+                        for p, idx in groups
+                    ]
+                    df[c] = pd.concat(parts).reindex(df.index)
         ld.data = df
 
 
@@ -439,20 +618,148 @@ def build_panel(
     return coord.build(scales["x"], scales["y"], theme, labels, has_legend=has_legend)
 
 
+def _axis_side(scale, default: str) -> str:
+    """``"top"``/``"right"`` when a position scale asks for the far side (as
+    ``coords`` decides it), else ``default``."""
+    far = {"bottom": ("top", "right"), "left": ("right", "top")}[default]
+    pos = getattr(scale, "position", None) or default
+    return ("top" if default == "bottom" else "right") if pos in far else default
+
+
+def _shared_title(content: Any, theme: Theme) -> Mobject | None:
+    if content is None:
+        return None
+    if isinstance(content, Mobject):
+        return content.copy()
+    if str(content) == "":
+        return None
+    return theme.make_text(content, **theme.text_style("axis_title"))
+
+
+def _scale_title(scale, labels: dict[str, Any], aes: str):
+    name = getattr(scale, "name", None) if scale is not None else None
+    return name if name is not None else labels.get(aes)
+
+
+def build_panels(
+    plot,
+    layout: pd.DataFrame,
+    panel_scales: dict[int, dict],
+    theme: Theme,
+    labels: dict[str, Any],
+    has_legend: bool,
+) -> PanelGrid:
+    """One :class:`CartesianPanel` per layout row, laid out in a grid.
+
+    ``coord.build`` gets each panel's scales and a per-panel theme: its size
+    (``panel_width``/``panel_height``; the whole grid fits ``theme.panel_size``
+    with ``theme.panel_spacing`` between panels), no axis titles (drawn once for
+    the grid) and no tick marks/labels where ``facet.draw_axes`` says so (inner
+    panels with shared scales). Panels are built twice: a first build measures
+    the tick labels and strips round each plotting area, the second uses the
+    sizes that leave room for them. ``facet.draw_panels`` adds the strips and
+    places the panels; the shared axis titles go round the grid."""
+    facet = _facet(plot)
+    coord = plot.coord if plot.coord is not None else CoordCartesian()
+    nrow, ncol = int(layout["ROW"].max()), int(layout["COL"].max())
+    total = theme.panel_size(has_legend)
+    spacing = _facet_base.panel_spacing(theme)
+    panel_ids = [int(p) for p in layout["PANEL"]]
+    cells = {int(r.PANEL): (int(r.ROW), int(r.COL)) for r in layout.itertuples(index=False)}
+
+    def make(p: int, w: float, h: float, vis: tuple[bool, bool]) -> CartesianPanel:
+        changes: dict[str, Any] = {
+            "panel_width": w,
+            "panel_height": h,
+            "axis_title_x": False,
+            "axis_title_y": False,
+        }
+        if not vis[0]:
+            changes.update(axis_text_x=False, axis_ticks_x=False)
+        if not vis[1]:
+            changes.update(axis_text_y=False, axis_ticks_y=False)
+        sc = panel_scales[p]
+        return coord.build(sc["x"], sc["y"], theme.replace(**changes), labels, has_legend=False)
+
+    # pass 1: nominal sizes, to learn the orientation and measure decorations
+    nominal = (total[0] / ncol, total[1] / nrow)
+    first = make(panel_ids[0], *nominal, (True, True))
+    flipped = bool(getattr(first, "flipped", False))
+    sc1 = panel_scales[panel_ids[0]]
+    h_scale, v_scale = (sc1["y"], sc1["x"]) if flipped else (sc1["x"], sc1["y"])
+    sides = (_axis_side(h_scale, "bottom"), _axis_side(v_scale, "left"))
+    h_col, v_col = ("SCALE_Y", "SCALE_X") if flipped else ("SCALE_X", "SCALE_Y")
+    visible = facet.draw_axes(layout, h_col, v_col, *sides)
+    specs = facet.strips(layout)
+    thickness = _facet_base.strip_thickness(theme, specs)
+    ext = {}
+    params = {}
+    for p in panel_ids:
+        panel = make(p, *nominal, visible[p])
+        strips = _facet_base.add_strips(
+            panel, specs.get(p, []), thickness, theme, visible[p], sides
+        )
+        ext[p] = _facet_layout.extents(VGroup(panel, strips), panel.axes)
+        params[p] = panel.panel_params
+    col_w, row_w = facet.panel_weights(layout, params)
+    widths, heights = _facet_layout.track_sizes(
+        layout,
+        ext,
+        total,
+        spacing,
+        col_w,
+        row_w,
+        strip_ext=_facet_base.strip_extents(specs, thickness),
+    )
+
+    # pass 2: final sizes
+    panels = {
+        p: make(p, widths[cells[p][1] - 1], heights[cells[p][0] - 1], visible[p]) for p in panel_ids
+    }
+    grid = facet.draw_panels(panels, layout, theme, widths, heights, visible, sides)
+
+    # axis titles, once for the whole grid (theme "x" = the horizontal axis)
+    if flipped:
+        h_content = _scale_title(sc1["y"], labels, "y")
+        v_content = _scale_title(sc1["x"], labels, "x")
+    else:
+        h_content = _scale_title(sc1["x"], labels, "x")
+        v_content = _scale_title(sc1["y"], labels, "y")
+    x_title = _shared_title(h_content, theme) if theme.axis_element("axis_title", "x") else None
+    y_title = _shared_title(v_content, theme) if theme.axis_element("axis_title", "y") else None
+    grid.add_titles(x_title, y_title, theme, sides)
+    return grid
+
+
 # --------------------------------------------------------------------------- 8
 def draw_layers(
-    layers: list[LayerData], panel: CartesianPanel, theme: Theme
+    layers: list[LayerData], panel: CartesianPanel | PanelGrid, theme: Theme
 ) -> list[tuple[Any, Mobject]]:
     """``geom.draw_panel`` per layer -> ``[(key, mobject), ...]`` in layer order.
 
     Rows with missing / oob-censored positions are dropped first
-    (``geom.handle_na``: one "removed n rows" warning per layer unless ``na_rm``)."""
-    out = []
+    (``geom.handle_na``: one "removed n rows" warning per layer unless ``na_rm``).
+
+    With a :class:`~ggmanim.facets.PanelGrid` each layer is drawn once per panel
+    on that panel's rows; the mobject is a :class:`~ggmanim.facets.PanelLayers`
+    (one group per panel, ``.panel(row, col)``, ``.marks`` in panel order)."""
+    out: list[tuple[Any, Mobject]] = []
     for ld in layers:
         geom, params = ld.layer.geom, ld.layer.params
         data = geom.handle_na(ld.data, params, ld.label) if hasattr(geom, "handle_na") else ld.data
-        mob = geom.draw_panel(data, panel.panel_params, panel, theme, **params)
-        out.append((ld.key, mob))
+        if not isinstance(panel, PanelGrid):
+            mob = geom.draw_panel(data, panel.panel_params, panel, theme, **params)
+            out.append((ld.key, mob))
+            continue
+        cells = {
+            int(r.PANEL): (int(r.ROW), int(r.COL)) for r in panel.layout.itertuples(index=False)
+        }
+        has_panel = "PANEL" in data.columns
+        parts = {}
+        for p, pan in panel.panel_ids.items():
+            rows = data[data["PANEL"] == p] if has_panel else data.iloc[0:0]
+            parts[cells[p]] = geom.draw_panel(rows, pan.panel_params, pan, theme, **params)
+        out.append((ld.key, PanelLayers(parts)))
     return out
 
 
@@ -480,7 +787,9 @@ def _text(theme: Theme, content: Any, size: float, element: str | None = None) -
     return theme.make_text(str(content), **style)
 
 
-def _title_edges(panel: CartesianPanel, legend: VGroup, theme: Theme) -> tuple[float, float]:
+def _title_edges(
+    panel: CartesianPanel | PanelGrid, legend: VGroup, theme: Theme
+) -> tuple[float, float]:
     """``(left, right)`` x that titles/captions align to (``plot_title_position``)."""
     if getattr(theme, "plot_title_position", "panel") == "plot":
         whole = VGroup(panel, legend) if len(legend) else panel
@@ -504,7 +813,12 @@ def _plot_background(content: Mobject, theme: Theme) -> Mobject | None:
 
 
 def assemble(
-    panel: CartesianPanel, drawn, legends: list, theme: Theme, labels: dict[str, Any], **extra
+    panel: CartesianPanel | PanelGrid,
+    drawn,
+    legends: list,
+    theme: Theme,
+    labels: dict[str, Any],
+    **extra,
 ):
     """Lay out the panel, layers, legend and titles in a GGPlot, centred in the
     frame (see :func:`fit_to_frame`)."""
@@ -573,7 +887,9 @@ def build_plot(plot, *, theme: Theme | None = None):
         theme = plot.theme if plot.theme is not None else theme_default()
 
     layers = resolve_layers(plot)
-    assign_panels(layers)
+    layout = assign_panels(layers, plot)
+    if not _facet(plot).is_null:
+        return _build_faceted(plot, layers, layout, theme)
     pos_scales = setup_position_scales(plot, layers)
     compute_stats(layers, pos_scales)
     np_scales = map_non_position(plot, layers)
@@ -594,3 +910,35 @@ def build_plot(plot, *, theme: Theme | None = None):
         scales={**pos_scales, **np_scales},
         layer_data={ld.key: ld.data for ld in layers},
     )
+
+
+def _build_faceted(plot, layers: list[LayerData], layout: pd.DataFrame, theme: Theme):
+    """:func:`build_plot` for a facet with a layout table (any number of panels):
+    per-panel position scales, stats and positions; :func:`build_panels`."""
+    facet = _facet(plot)
+    panel_scales = setup_panel_scales(plot, layers, layout)
+    first = panel_scales[min(panel_scales)]
+    compute_stats(layers, first, panel_scales, layout)
+    np_scales = map_non_position(plot, layers)
+    setup_geom_data(layers, first)
+    apply_positions(layers, first, panel_scales)
+    train_position_scales(layers, first, panel_scales)
+    for ld in layers:
+        ld.data = facet.finish_data(ld.data, layout)
+
+    labels = default_labels(plot, layers)
+    legends = make_legends(plot, layers, np_scales, theme, labels)
+    grid = build_panels(plot, layout, panel_scales, theme, labels, has_legend=bool(legends))
+    drawn = draw_layers(layers, grid, theme)
+    out = assemble(
+        grid,
+        drawn,
+        legends,
+        theme,
+        labels,
+        scales={**first, **np_scales},
+        layer_data={ld.key: ld.data for ld in layers},
+    )
+    cells = {int(r.PANEL): (int(r.ROW), int(r.COL)) for r in layout.itertuples(index=False)}
+    out._attach_panel_grid(grid, {cells[p]: dict(s) for p, s in panel_scales.items()})
+    return out

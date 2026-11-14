@@ -105,6 +105,39 @@ class GGPlot(VGroup):
     # endregion
 
     # region: facets
+    # Faceted plots (ggmanim.facets): the build passes a PanelGrid as ``panel``
+    # and then calls _attach_panel_grid, so ``panel``/``axes``/``panel_params``
+    # are the first panel's while the grid stays the submobject.
+    _panel_grid: Any = None
+    panel_scales: dict = {}
+
+    @property
+    def panels(self) -> dict:
+        """``{(row, col): CartesianPanel}``; ``{(1, 1): panel}`` without facets."""
+        if self._panel_grid is None:
+            return {(1, 1): self.panel}
+        return dict(self._panel_grid.panels)
+
+    @property
+    def strips(self) -> VGroup:
+        """``VGroup`` of every facet strip (empty without facets)."""
+        if self._panel_grid is None:
+            return VGroup()
+        return self._panel_grid.strips
+
+    @property
+    def panel_grid(self):
+        """The :class:`~ggmanim.facets.PanelGrid` of a faceted plot, else ``None``."""
+        return self._panel_grid
+
+    def _attach_panel_grid(self, grid, panel_scales: dict | None = None) -> None:
+        first = next(iter(grid.panel_ids.values()))
+        self._panel_grid = grid
+        self.panel = first
+        self.axes = first.axes
+        self.panel_params = first.panel_params
+        self.panel_scales = dict(panel_scales or {})
+
     # endregion
 
     # region: animation

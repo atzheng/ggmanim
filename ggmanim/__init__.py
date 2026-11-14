@@ -14,6 +14,7 @@ from . import build as _build  # noqa: F401  (the pipeline; registers guides)
 # -- generated exports (scripts/gen_exports.py) --
 from .aes import aes, after_stat
 from .coords import coord_cartesian, coord_fixed, coord_flip
+from .facets import facet_null, label_both, label_value, labeller
 from .geoms import (
     annotate,
     arrow,
@@ -225,6 +226,7 @@ __all__ = [
     "coord_fixed",
     "coord_flip",
     "div_gradient_pal",
+    "facet_null",
     "geom_abline",
     "geom_area",
     "geom_bar",
@@ -266,6 +268,7 @@ __all__ = [
     "hcl_to_hex",
     "hsv_pal",
     "hue_pal",
+    "label_both",
     "label_comma",
     "label_currency",
     "label_date",
@@ -275,7 +278,9 @@ __all__ = [
     "label_number",
     "label_percent",
     "label_scientific",
+    "label_value",
     "label_wrap",
+    "labeller",
     "labs",
     "mean_cl_normal",
     "mean_sdl",
