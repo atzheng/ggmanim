@@ -57,14 +57,14 @@ Phase 2 baseline vs after ggm-bam.1, same machine, best of 5 (seconds):
 
 | scenario | pipeline before | pipeline after | build before | build after | build speed-up |
 |---|---:|---:|---:|---:|---:|
-| scatter_100 | 0.0011 | 0.0013 | 0.060 | 0.061 | 1.0x |
-| scatter_1k | 0.0011 | 0.0011 | 0.143 | 0.122 | 1.2x |
-| scatter_10k | 0.0013 | 0.0012 | 1.496 | 0.742 | 2.0x |
-| lines_1k_grouped | 0.0025 | 0.0024 | 0.180 | 0.157 | 1.1x |
-| col_500 | 0.132 | 0.125 | 0.263 | 0.255 | 1.0x |
-| tile_50x50 | 0.012 | 0.011 | 0.480 | 0.477 | 1.0x |
-| facet_3x3 | 0.035 | 0.034 | 0.818 | 0.611 | 1.3x |
-| legend_heavy | 0.0052 | 0.0030 | 0.349 | 0.330 | 1.1x |
+| scatter_100 | 0.0011 | 0.0011 | 0.060 | 0.058 | 1.0x |
+| scatter_1k | 0.0011 | 0.0010 | 0.143 | 0.118 | 1.2x |
+| scatter_10k | 0.0012 | 0.0012 | 1.472 | 0.731 | 2.0x |
+| lines_1k_grouped | 0.0023 | 0.0022 | 0.156 | 0.152 | 1.0x |
+| col_500 | 0.125 | 0.122 | 0.252 | 0.246 | 1.0x |
+| tile_50x50 | 0.011 | 0.011 | 0.477 | 0.470 | 1.0x |
+| facet_3x3 | 0.034 | 0.035 | 0.788 | 0.621 | 1.3x |
+| legend_heavy | 0.0033 | 0.0031 | 0.342 | 0.327 | 1.0x |
 
 See `PROFILE.md` for the 10k-scatter profile. Known remaining hot spots
 (outside this bead's files): `position_stack` on `col_500` (~0.12 s of the

@@ -8,7 +8,7 @@ silicon). Profiling roughly doubles every time; use `bench.py` for timings.
 
 | | Phase 2 baseline | after ggm-bam.1 | speed-up |
 |---|---:|---:|---:|
-| `build` (bench, best of 5) | 1.496 s | 0.742 s | 2.0x |
+| `build` (bench, best of 5) | 1.472 s | 0.731 s | 2.0x |
 | profiled self time outside manim (ggmanim, pandas, numpy) | 0.384 s | 0.190 s | 2.0x |
 | profiled self time inside manim (incl. `copy.deepcopy`) | 2.828 s | 2.061 s | 1.4x |
 | data pipeline, steps 1-6 (bench) | 1.3 ms | 1.2 ms | ~1x |
