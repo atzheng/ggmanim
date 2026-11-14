@@ -11,6 +11,7 @@ from .annotate import annotate
 from .area import GeomArea, GeomRibbon, geom_area, geom_ribbon
 from .base import KEY_SIZE, Geom, attach_marks, group_label, make_layer, resolve_color
 from .col import GeomCol, geom_bar, geom_col, resolution
+from .count import GeomCount, geom_count
 from .function import GeomFunction, geom_function
 from .interval import (
     GeomCrossbar,
@@ -29,6 +30,7 @@ from .interval import (
 from .line import GeomLine, GeomPath, geom_line, geom_path
 from .point import GeomPoint, geom_point
 from .polygon import GeomPolygon, geom_polygon
+from .qq import GeomQq, GeomQqLine, geom_qq, geom_qq_line
 from .rect import GeomRaster, GeomRect, GeomTile, geom_raster, geom_rect, geom_tile
 from .segment import ArrowSpec, GeomCurve, GeomSegment, arrow, geom_curve, geom_segment
 from .smooth import GeomSmooth, geom_smooth
@@ -42,6 +44,7 @@ __all__ = [
     "GeomAbline",
     "GeomArea",
     "GeomCol",
+    "GeomCount",
     "GeomCrossbar",
     "GeomCurve",
     "GeomErrorbar",
@@ -55,6 +58,8 @@ __all__ = [
     "GeomPoint",
     "GeomPointrange",
     "GeomPolygon",
+    "GeomQq",
+    "GeomQqLine",
     "GeomRaster",
     "GeomRect",
     "GeomRibbon",
@@ -74,6 +79,7 @@ __all__ = [
     "geom_area",
     "geom_bar",
     "geom_col",
+    "geom_count",
     "geom_crossbar",
     "geom_curve",
     "geom_errorbar",
@@ -87,6 +93,8 @@ __all__ = [
     "geom_point",
     "geom_pointrange",
     "geom_polygon",
+    "geom_qq",
+    "geom_qq_line",
     "geom_raster",
     "geom_rect",
     "geom_ribbon",

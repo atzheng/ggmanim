@@ -181,7 +181,7 @@ def test_smooth_requires_aes_and_known_method():
     with pytest.raises(ValueError, match="y"):
         stat_smooth().compute(pd.DataFrame({"x": [1, 2]}))
     with pytest.raises(NotImplementedError):
-        stat_smooth(method="loess").compute(pd.DataFrame({"x": [1, 2, 3], "y": [1, 2, 3]}))
+        stat_smooth(method="no-such-method").compute(pd.DataFrame({"x": [1, 2, 3], "y": [1, 2, 3]}))
 
 
 def test_compute_layer_ignores_unknown_params():

@@ -379,6 +379,11 @@ Not yet: `geom_histogram`, `geom_boxplot`, `geom_violin`, `geom_density`;
 | ggplot2 | ggmanim | notes |
 |---|---|---|
 | `stat_identity()`, `stat_smooth()`, `stat_function()` | same | `after_stat("var")` maps computed variables |
+| `geom_smooth(method = "loess", span = .75)` | `geom_smooth(method="loess", span=0.75)` | matches R's `loess` (numpy only); `method="auto"`: loess below 1000 rows, else lm |
+| `geom_smooth(method = lm, method.args = ...)`, `fullrange = TRUE` | `geom_smooth(method=f, method_args={...})`, `fullrange=True` | `f(x, y, **args)` returns `predict(xgrid) -> fit` or `(fit, se)` |
+| `stat_ecdf(pad = TRUE)` | `stat_ecdf(pad=True)` | step line from the panel's left edge (0) to its right edge (1) |
+| `geom_qq()`, `geom_qq_line()`, `stat_qq(distribution = qt, dparams = list(df = 5))` | same; `distribution=scipy.stats.t.ppf, dparams={"df": 5}` | normal by default; the line passes through the quartiles |
+| `geom_count()`, `stat_sum()`, `stat_unique()` | same | `size=after_stat("n")` by default; `after_stat("prop")` too |
 
 Not yet: `stat_count`, `stat_bin`, `stat_summary`, `stat_density`, `stat_boxplot`.
 
