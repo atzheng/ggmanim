@@ -6,6 +6,11 @@ Rows are stacked per x position (``xmin`` when present, else ``x``) and per
 group ends up on top, as in ggplot2 (``reverse=True`` flips this). Negative values
 are stacked separately, downwards from 0. ``position_fill`` additionally divides
 each stack by its total so it spans ``[0, 1]`` (``[-1, 0]`` for negatives).
+
+Horizontal layers (a ``flipped_aes`` column that is true, e.g. written by
+``stat_align(orientation="y")`` or ``geom_area(orientation="y")``) are stacked
+along x per y position: as in ggplot2, the data is flipped (``x <-> y``,
+``xmin <-> ymin`` ...), stacked, and flipped back.
 """
 
 from __future__ import annotations
@@ -15,6 +20,7 @@ from typing import Any
 import numpy as np
 import pandas as pd
 
+from ..stats.boxplot import flip_names
 from .base import Position
 
 __all__ = ["PositionStack", "PositionFill", "position_stack", "position_fill"]
@@ -26,6 +32,20 @@ def _stack_var(data: pd.DataFrame) -> str | None:
     if "y" in data.columns:
         return "y"
     return None
+
+
+def _is_flipped(data: pd.DataFrame) -> bool:
+    """Whether ``data`` is a horizontal layer: its first non-missing
+    ``flipped_aes`` is true (ggplot2's ``has_flipped_aes`` for positions, minus
+    the discrete-scale guess)."""
+    if "flipped_aes" not in data.columns:
+        return False
+    flags = data["flipped_aes"].dropna()
+    return bool(flags.iloc[0]) if len(flags) else False
+
+
+def _flip(data: pd.DataFrame, flipped: bool) -> pd.DataFrame:
+    return flip_names(data) if flipped else data
 
 
 def _num(data: pd.DataFrame, col: str) -> np.ndarray:
@@ -125,8 +145,10 @@ class PositionStack(Position):
         super().__init__(vjust=vjust, reverse=reverse)
 
     def setup_params(self, data: pd.DataFrame) -> dict[str, Any]:
+        flipped = _is_flipped(data)
         return {
-            "var": _stack_var(data),
+            "var": _stack_var(_flip(data, flipped)),
+            "flipped_aes": flipped,
             "vjust": float(self.params.get("vjust", 1.0)),
             "reverse": bool(self.params.get("reverse", False)),
             "fill": self.fill,
@@ -137,7 +159,8 @@ class PositionStack(Position):
         var = params["var"]
         if var is None or len(data) == 0:
             return data
-        data = data.copy()
+        flipped = params.get("flipped_aes", False)
+        data = _flip(data, flipped).copy()
         if var == "y":
             data["ymax"] = data["y"]
         else:
@@ -145,19 +168,21 @@ class PositionStack(Position):
             if "ymin" in data.columns:
                 ymin = pd.to_numeric(data["ymin"], errors="coerce")
                 data["ymax"] = ymax.where(ymax != 0, ymin)
-        return data
+        return _flip(data, flipped)
 
     def compute_panel(
         self, data: pd.DataFrame, params: dict[str, Any], scales: dict[str, Any] | None = None
     ) -> pd.DataFrame:
+        flipped = params.get("flipped_aes", False)
+        data = _flip(data, flipped)
         if params["var"] is None or "y" not in data.columns:
-            return data
+            return _flip(data, flipped)
         index = data.index
         out = _stack_frame(
             data.reset_index(drop=True), params["vjust"], params["fill"], params["reverse"]
         )
         out.index = index
-        return out
+        return _flip(out, flipped)
 
 
 class PositionFill(PositionStack):
