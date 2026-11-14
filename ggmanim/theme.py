@@ -368,6 +368,14 @@ class Theme:
     strip_text_color: Any | None = None
     strip_margin: float = 0.08
     strip_placement: str = "inside"
+
+    def _validate_facets(self) -> None:
+        """Checks for the facet fields (called by ``__post_init__``)."""
+        if self.strip_placement not in ("inside", "outside"):
+            raise ValueError(
+                f"strip_placement must be 'inside' or 'outside', got {self.strip_placement!r}"
+            )
+
     # endregion
 
     # region: coords
@@ -439,6 +447,7 @@ class Theme:
         kw = self.legend_key_width
         if kw is not None and not (_is_number(kw) and np.isfinite(kw) and kw > 0):
             raise ValueError(f"legend_key_width must be a number > 0 or None, got {kw!r}")
+        self._validate_facets()
 
     # -- backward compatibility ----------------------------------------------
     @property
