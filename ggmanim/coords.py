@@ -1121,6 +1121,16 @@ def _munch_distance(coord: Any, x: np.ndarray, y: np.ndarray) -> np.ndarray:
     return np.hypot(d[:, 0], d[:, 1])
 
 
+def _munch_counts(
+    coord: Any, xs: np.ndarray, ys: np.ndarray, segments: int = MUNCH_SEGMENTS
+) -> np.ndarray:
+    """Pieces each segment ``i -> i+1`` of the path ``(xs, ys)`` is cut into by
+    :func:`coord_munch` (``>= 1``; ``1`` for a segment with a non-finite length)."""
+    with np.errstate(invalid="ignore"):
+        d = _munch_distance(coord, xs, ys) * segments
+        return np.where(np.isfinite(d), np.clip(np.ceil(d), 1, _MUNCH_MAX), 1).astype(int)
+
+
 def coord_munch(
     coord: Any, x: Any, y: Any, *, closed: bool = False, segments: int = MUNCH_SEGMENTS
 ) -> tuple[np.ndarray, np.ndarray]:
@@ -1134,6 +1144,10 @@ def coord_munch(
     segment. ``closed=True`` also munches the closing edge (polygons); the result
     is still a ring without the first vertex repeated.
 
+    A coord with ``squish_input(x, y)`` (:class:`~ggmanim.coords_trans.TransPanel`)
+    first moves values it draws at a panel edge (``0`` under ``log``) to that
+    edge's input value, so the munched path does not pass beyond the edge.
+
     Returns float arrays ``(x, y)``: unchanged (copies) when the coord is linear
     or the path has fewer than two vertices. Segments with a non-finite end are
     not subdivided, so NaN path breaks survive.
@@ -1142,11 +1156,12 @@ def coord_munch(
     xs, ys = xs.ravel(), ys.ravel()
     if is_linear(coord) or len(xs) < 2:
         return xs.copy(), ys.copy()
+    squish = getattr(coord, "squish_input", None)
+    if squish is not None:  # values drawn at a panel edge -> that edge's input value
+        xs, ys = (np.asarray(v, dtype=float).ravel() for v in squish(xs, ys))
     if closed:
         xs, ys = np.append(xs, xs[0]), np.append(ys, ys[0])
-    with np.errstate(invalid="ignore"):
-        d = _munch_distance(coord, xs, ys) * segments
-        n = np.where(np.isfinite(d), np.clip(np.ceil(d), 1, _MUNCH_MAX), 1).astype(int)
+    n = _munch_counts(coord, xs, ys, segments)
     seg = np.repeat(np.arange(len(n)), n)
     t = (np.arange(n.sum()) - np.repeat(np.cumsum(n) - n, n)) / np.repeat(n, n)
     with np.errstate(invalid="ignore"):

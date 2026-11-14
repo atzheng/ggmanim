@@ -65,6 +65,17 @@ def axis_visibility(
     return out
 
 
+def space_ranges(panel_params) -> tuple[tuple[float, float], tuple[float, float]]:
+    """``(horizontal, vertical)`` drawn axis ranges of a panel, for
+    ``facet_grid(space="free")``: in the *drawn* space (a coord's transformed
+    ``trans_x_range``/``trans_y_range`` when it has them, as under
+    ``coord_trans``) and orientation (swapped under ``coord_flip``)."""
+    pp = panel_params
+    x = getattr(pp, "trans_x_range", None) or pp.x_range
+    y = getattr(pp, "trans_y_range", None) or pp.y_range
+    return (y, x) if getattr(pp, "flipped", False) else (x, y)
+
+
 def area_box(panel: Mobject) -> tuple[np.ndarray, np.ndarray]:
     """``(lower-left, upper-right)`` of a panel's plotting area (its ``axes``)."""
     area = getattr(panel, "axes", panel)

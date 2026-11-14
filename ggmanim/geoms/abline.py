@@ -7,6 +7,8 @@ not extend it). Each line is evaluated at the panel's x limits in *transformed*
 space and clipped to the panel, so on a log scale the line is straight on
 screen and ``slope``/``intercept`` are in transformed units (ggplot2's
 behaviour: ``scale_x_log10`` + ``geom_abline(slope=1)`` is ``log10 y = log10 x``).
+Under a non-linear coord (``coord_trans``, ``coord_polar``) the line is
+munched, so it bends with the coord.
 """
 
 from __future__ import annotations
@@ -20,12 +22,14 @@ from ..registry import register
 from ..theme import Theme, theme_default
 from ._clip import clip_segments, panel_rect
 from ._linetype import apply_linetype
+from ._segments import munched_segment
 from .base import (
     KEY_SIZE,
     Geom,
     attach_marks,
     finite_rows,
     make_layer,
+    multi_path_mobject,
     num,
     resolve_color,
     transform_points,
@@ -56,6 +60,8 @@ class GeomAbline(Geom):
         icpt = data["intercept"].to_numpy(float)
         x0, x1 = (float(v) for v in panel_params.x_range)
         y0, y1 = icpt + slope * x0, icpt + slope * x1
+        if not getattr(coord, "is_linear", True):
+            return self._draw_munched(data, panel_params, coord, fg, x0, x1, y0, y1)
         rect = panel_rect(coord, panel_params)
         if rect is None:
             t0, t1 = np.zeros(len(data)), np.ones(len(data))
@@ -76,6 +82,24 @@ class GeomAbline(Geom):
                 stroke_opacity=num(row.get("alpha"), 1.0),
             )
             lines.add(apply_linetype(line, row.get("linetype")))
+            drawn.append(i)
+        return attach_marks(lines, data.iloc[drawn], per="row")
+
+    def _draw_munched(self, data, panel_params, coord, fg, x0, x1, y0, y1) -> VMobject:
+        """Non-linear coords: each line munched into a curve (ggplot2 draws an
+        abline as a segment, which ``coord_munch`` bends)."""
+        lines, drawn = VGroup(), []
+        for i, row in enumerate(data.to_dict("records")):
+            pieces, _, _ = munched_segment(coord, panel_params, x0, y0[i], x1, y1[i])
+            if not pieces:
+                continue
+            path = multi_path_mobject(
+                pieces,
+                resolve_color(row.get("color"), fg),
+                num(row.get("linewidth"), 2.0),
+                num(row.get("alpha"), 1.0),
+            )
+            lines.add(apply_linetype(path, row.get("linetype")))
             drawn.append(i)
         return attach_marks(lines, data.iloc[drawn], per="row")
 

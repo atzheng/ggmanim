@@ -16,6 +16,7 @@ from ._batch import draw_segments_fast, use_fast
 from ._clip import clip_polyline, clip_segments, inside, panel_rect
 from ._linetype import apply_linetype
 from ._marker_clip import scene_box
+from ._segments import munched_segment
 from .base import (
     KEY_SIZE,
     Geom,
@@ -147,6 +148,8 @@ class GeomSegment(Geom):
                     "(arrowheads are drawn per mark)",
                     stacklevel=2,
                 )
+        elif not getattr(coord, "is_linear", True):
+            pass  # batched marks are straight: munched segments are drawn per row
         elif use_fast(fast, data, theme, type(self).__name__):
             return draw_segments_fast(
                 data,
@@ -160,6 +163,8 @@ class GeomSegment(Geom):
         fg = theme.get_foreground()
         x0, y0 = data["x"].to_numpy(float), data["y"].to_numpy(float)
         x1, y1 = data["xend"].to_numpy(float), data["yend"].to_numpy(float)
+        if not getattr(coord, "is_linear", True):
+            return self._draw_munched(data, panel_params, coord, fg, arrow, x0, y0, x1, y1)
         rect = panel_rect(coord, panel_params)
         if rect is None:
             t0, t1 = np.zeros(len(x0)), np.ones(len(x0))
@@ -190,6 +195,37 @@ class GeomSegment(Geom):
                 alpha,
             )
             out.add(mob)
+            drawn.append(i)
+        return attach_marks(out, data.iloc[drawn], per="row")
+
+    def _draw_munched(self, data, panel_params, coord, fg, arrow, x0, y0, x1, y1) -> VGroup:
+        """Non-linear coords: each segment munched into a curve (ggplot2 draws
+        segments as munched paths there), clipped, heads along the end tangents."""
+        out, drawn = VGroup(), []
+        for i, row in enumerate(data.to_dict("records")):
+            pieces, keep0, keep1 = munched_segment(coord, panel_params, x0[i], y0[i], x1[i], y1[i])
+            if not pieces:
+                continue
+            color = resolve_color(row.get("color"), fg)
+            width = num(row.get("linewidth"), 2.0)
+            alpha = num(row.get("alpha"), 1.0)
+            line = apply_linetype(
+                multi_path_mobject(pieces, color, width, alpha), row.get("linetype")
+            )
+            first, last = pieces[0], pieces[-1]
+            out.add(
+                _with_heads(
+                    line,
+                    arrow,
+                    first[0] if keep0 else None,
+                    first[0] - first[1],
+                    last[-1] if keep1 else None,
+                    last[-1] - last[-2],
+                    color,
+                    width,
+                    alpha,
+                )
+            )
             drawn.append(i)
         return attach_marks(out, data.iloc[drawn], per="row")
 
@@ -313,6 +349,39 @@ def curve_points(
     return np.column_stack([xy, np.full(len(xy), a[2] if len(a) > 2 else 0.0)])
 
 
+def bend_along(pts: np.ndarray, path: np.ndarray) -> np.ndarray:
+    """Carry the curve ``pts`` (scene points from ``path[0]`` to ``path[-1]``)
+    over from its straight chord onto the polyline ``path`` (the munched image
+    of the chord under a non-linear coord): a point at fraction ``s`` along the
+    chord and offset ``h`` to its left goes to fraction ``s`` of ``path``'s arc
+    length, offset ``h * arc / chord`` along the local left normal. The ends
+    stay put; ``pts`` is returned unchanged when ``path`` is degenerate."""
+    pts = np.asarray(pts, dtype=float)
+    path = np.asarray(path, dtype=float)
+    a, b = path[0], path[-1]
+    u = (b - a)[:2]
+    chord = float(np.hypot(*u))
+    steps = np.diff(path[:, :2], axis=0)
+    seg = np.hypot(steps[:, 0], steps[:, 1])
+    arc = float(seg.sum())
+    if len(path) < 2 or chord <= 0 or arc <= 0 or not np.isfinite(path).all():
+        return pts
+    rel = pts[:, :2] - a[:2]
+    frac = rel @ u / chord**2
+    h = (u[0] * rel[:, 1] - u[1] * rel[:, 0]) / chord * (arc / chord)
+    cum = np.concatenate([[0.0], np.cumsum(seg)])
+    at = np.clip(frac, 0.0, 1.0) * arc
+    k = np.clip(np.searchsorted(cum, at, side="right") - 1, 0, len(seg) - 1)
+    keep = seg > 0
+    tangent = steps / np.where(keep, seg, 1.0)[:, None]
+    base = path[k, :2] + tangent[k] * (at - cum[k])[:, None]
+    normal = np.column_stack([-tangent[k, 1], tangent[k, 0]])
+    out = pts.copy()
+    out[:, :2] = base + h[:, None] * normal
+    out[0], out[-1] = pts[0], pts[-1]
+    return out
+
+
 class GeomCurve(GeomSegment):
     """Curved segments from ``(x, y)`` to ``(xend, yend)`` shaped like ggplot2's
     (grid's ``curveGrob``, see :func:`curve_points`): computed in scene space
@@ -322,7 +391,11 @@ class GeomCurve(GeomSegment):
     left, ``0`` is straight. ``angle`` (degrees, default ``90`` = symmetric) skews
     the curve towards the start (``< 90``) or the end (``> 90``); ``ncp`` (default
     ``5``) is the number of control points -- more gives a rounder curve. Each
-    mark is a polyline, clipped to the panel in scene space."""
+    mark is a polyline, clipped to the panel in scene space.
+
+    Under a non-linear coord the curve is bent along the munched image of the
+    straight segment (:func:`bend_along`; ggplot2 instead warns and keeps the
+    scene-space curve), so ``curvature=0`` matches :func:`geom_segment`."""
 
     extra_params: tuple[str, ...] = ("arrow", "lineend", "curvature", "angle", "ncp")
 
@@ -346,6 +419,9 @@ class GeomCurve(GeomSegment):
         b = transform_points(coord, data["xend"].to_numpy(float), data["yend"].to_numpy(float))
         rect = panel_rect(coord, panel_params)
         box = scene_box(coord, rect) if rect is not None else None
+        from ..coords import coord_munch
+
+        linear = getattr(coord, "is_linear", True)
         out, drawn = VGroup(), []
         for i, row in enumerate(data.to_dict("records")):
             color: Any = resolve_color(row.get("color"), fg)
@@ -354,6 +430,10 @@ class GeomCurve(GeomSegment):
             if np.allclose(a[i], b[i]):
                 continue
             pts = curve_points(a[i], b[i], float(curvature), angle, int(ncp))
+            if not linear:  # follow the munched image of the chord
+                mx, my = coord_munch(coord, [row["x"], row["xend"]], [row["y"], row["yend"]])
+                chord = transform_points(coord, mx, my)
+                pts = chord if len(pts) == 2 else bend_along(pts, chord)
             # outward tangents at both ends
             start_dir, end_dir = pts[0] - pts[1], pts[-1] - pts[-2]
             start, end = a[i], b[i]
