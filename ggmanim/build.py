@@ -217,7 +217,9 @@ def assign_panels(layers: list[LayerData], plot=None) -> pd.DataFrame:
     aesthetic column named like a facet variable (``facet_wrap("x")``) is
     renamed while ``map_data`` runs, so only the raw data's column facets. Empty
     layers (``geom_function`` without data) get ``PANEL`` after the stat, which
-    runs once per panel for them. Returns the layout table.
+    runs once per panel for them. The coord may adjust the layout
+    (``coord.setup_layout``: :func:`coord_flip` swaps ``SCALE_X``/``SCALE_Y``).
+    Returns the layout table.
     """
     facet = _facet(plot)
     frames = []
@@ -238,6 +240,9 @@ def assign_panels(layers: list[LayerData], plot=None) -> pd.DataFrame:
     if missing:
         raise BuildError(f"{facet!r}: layout table lacks column(s) {missing}")
     layout = layout.reset_index(drop=True)
+    setup_layout = getattr(getattr(plot, "coord", None), "setup_layout", None)
+    if setup_layout is not None:  # coord_flip swaps SCALE_X/SCALE_Y (ggplot2)
+        layout = setup_layout(layout)
     for ld in layers:
         if not len(ld.data):
             continue
@@ -763,9 +768,15 @@ def build_panels(
             _coords._keep_axes(panel, *vis)
         return panel
 
+    def measure(p: int, vis: tuple[bool, ...]) -> CartesianPanel:
+        # pass 1 only measures: crowded discrete labels are judged at the final size
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore", message=r"\d+ discrete [xy]-axis labels overlap")
+            return make(p, *nominal, vis)
+
     # pass 1: nominal sizes, to learn the orientation and measure decorations
     nominal = (total[0] / ncol, total[1] / nrow)
-    first = make(panel_ids[0], *nominal, (True, True, True, True))
+    first = measure(panel_ids[0], (True, True, True, True))
     flipped = bool(getattr(first, "flipped", False))
     sc1 = panel_scales[panel_ids[0]]
     h_scale, v_scale = (sc1["y"], sc1["x"]) if flipped else (sc1["x"], sc1["y"])
@@ -795,7 +806,7 @@ def build_panels(
             if spare is not None and key[:3] == spare_kind:
                 panel, spare = spare, None
             else:
-                panel = make(p, *nominal, drawn[p])
+                panel = measure(p, drawn[p])
             strips = _facet_base.add_strips(
                 panel, specs.get(p, []), thickness, theme, visible[p], sides
             )

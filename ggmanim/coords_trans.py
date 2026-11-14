@@ -19,7 +19,7 @@ The transform is applied by the coord at drawing time, not by the scales::
 from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Any
 
 import numpy as np
@@ -209,6 +209,16 @@ class _TransScale:
     def get_minor_breaks(self, limits: Any = None) -> np.ndarray:
         return self.minor_pairs()[1]
 
+    # break thinning (coords.fit_breaks, ggm-udx): delegate to the real scale
+    def has_default_breaks(self) -> bool:
+        cls = type(self._scale)
+        if not (hasattr(cls, "has_default_breaks") and hasattr(cls, "with_n_breaks")):
+            return False
+        return bool(self._scale.has_default_breaks())
+
+    def with_n_breaks(self, n: int) -> _TransScale:
+        return _TransScale(self._scale.with_n_breaks(n), self._trans, self._range)
+
 
 class CoordTrans(CoordCartesian):
     """Transformed cartesian coordinates (ggplot2's ``coord_trans``).
@@ -336,8 +346,41 @@ class CoordTrans(CoordCartesian):
         assert isinstance(panel, TransPanel)
         panel.trans_x, panel.trans_y = self.trans_x, self.trans_y
         panel.trans_range = (fx._range, fy._range)
-        panel.panel_params = self.setup_panel_params(x_scale, y_scale)
+        panel.panel_params = _thinned_like(
+            self.setup_panel_params(x_scale, y_scale), panel.panel_params, fx, fy
+        )
         return panel
+
+
+def _thinned_like(pp: PanelParams, drawn: PanelParams, fx: Any, fy: Any) -> PanelParams:
+    """Input-space ``pp`` with the breaks the panel draws: ``drawn`` holds the
+    transformed-space breaks after :func:`~ggmanim.coords.fit_breaks` thinned them.
+    Where an axis was thinned, its breaks are mapped back through the transform's
+    inverse (see :func:`_back`)."""
+    out: dict[str, Any] = {}
+    for ax, f in (("x", fx), ("y", fy)):
+        t_breaks = getattr(drawn, f"{ax}_breaks")
+        if len(t_breaks) == len(getattr(pp, f"{ax}_breaks")):
+            continue
+        known = getattr(pp, f"{ax}_breaks") + getattr(pp, f"{ax}_minor_breaks")
+        out[f"{ax}_breaks"] = _back(t_breaks, f._trans, known)
+        out[f"{ax}_labels"] = getattr(drawn, f"{ax}_labels")
+        out[f"{ax}_minor_breaks"] = _back(getattr(drawn, f"{ax}_minor_breaks"), f._trans, known)
+    return replace(pp, **out) if out else pp
+
+
+def _back(t: Sequence[float], trans: Any, known: Sequence[float]) -> tuple[float, ...]:
+    """Transformed values -> input space, each snapped to a ``known`` value it
+    matches, else rounded to 12 significant digits (``log10`` round trips give
+    ``50.0``, not ``50.00000000000001``)."""
+    ref = np.asarray(known, dtype=float)
+    with np.errstate(all="ignore"):
+        v = np.asarray(trans.inverse(np.asarray(t, dtype=float)), dtype=float)
+    out = []
+    for a in v:
+        near = ref[np.abs(ref - a) <= 1e-9 * max(1.0, abs(a))]
+        out.append(float(near[0]) if len(near) else float(f"{a:.12g}"))
+    return tuple(out)
 
 
 @register
