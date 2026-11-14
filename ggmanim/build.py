@@ -209,15 +209,24 @@ def assign_panels(layers: list[LayerData], plot=None) -> pd.DataFrame:
     """Compute the facet's layout table and add ``PANEL`` to every non-empty layer.
 
     Without a facet (or ``plot=None``) every non-empty layer gets ``PANEL = 1``.
-    Otherwise ``facet.compute_layout`` sees the plot data and each layer's own
-    data, and ``facet.map_data`` gets each layer's evaluated aesthetics plus the
+    Otherwise the plot data and each layer's raw data first go through
+    ``facet.facet_data`` (computed facet columns; the result replaces
+    ``LayerData.raw``), ``facet.compute_layout`` sees them, and ``facet.map_data`` gets each layer's evaluated aesthetics plus the
     facet-variable columns of its raw data (dropped again afterwards). Empty
     layers (``geom_function`` without data) get ``PANEL`` after the stat, which
     runs once per panel for them. Returns the layout table.
     """
     facet = _facet(plot)
-    frames = [plot.data] if plot is not None and isinstance(plot.data, pd.DataFrame) else []
-    frames += [ld.raw for ld in layers if isinstance(ld.raw, pd.DataFrame)]
+    frames = []
+    try:
+        if plot is not None and isinstance(plot.data, pd.DataFrame):
+            frames.append(facet.facet_data(plot.data))
+        for ld in layers:
+            if isinstance(ld.raw, pd.DataFrame):
+                ld.raw = facet.facet_data(ld.raw)
+                frames.append(ld.raw)
+    except (ValueError, KeyError, TypeError) as e:
+        raise BuildError(f"{facet!r}: {e}") from e
     try:
         layout = facet.compute_layout(frames)
     except (ValueError, KeyError, TypeError) as e:
