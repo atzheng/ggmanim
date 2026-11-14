@@ -131,6 +131,16 @@ chaining keeps working, and the built mobject preserves `["axes"]/["layers"]/["l
 
 Each phase ends with tests green and at least one example rendered.
 
+### Working in parallel
+Phases 3–7 are worked as many beads at once, each on its own branch. The rules
+(one bead = one branch = one PR, touch only the files in the bead's DESIGN, new
+features in new modules, add inside your `# region:` only, regenerate export blocks
+with `scripts/gen_exports.py`, one test file and one `examples/<feature>.py` per
+bead) are in [CLAUDE.md](CLAUDE.md#parallel-work-rules). The hooks that make this
+possible landed in ggm-nym: generated exports, region markers, the `Position`
+registry (`build.apply_positions`), `attach_marks` + the `key` aesthetic, and CI
+rendering every `examples/*.py`.
+
 ### Phase 0 — Project hygiene
 - `pyproject.toml`; deps `manim>=0.19`, `pandas>=2`, `numpy`; extra `[stats]` → `scipy`.
 - `ruff` (lint+format), `mypy`, `pytest`; GitHub Actions running tests headless (no LaTeX).

@@ -9,7 +9,16 @@ from manim import Polygon, Square, VGroup, VMobject
 from ..registry import register
 from ..theme import Theme, theme_default
 from ._clip import clip_rects, panel_rect
-from .base import KEY_SIZE, Geom, finite_rows, make_layer, num, resolve_color, transform_points
+from .base import (
+    KEY_SIZE,
+    Geom,
+    attach_marks,
+    finite_rows,
+    make_layer,
+    num,
+    resolve_color,
+    transform_points,
+)
 
 __all__ = ["GeomCol", "geom_col", "geom_bar", "resolution"]
 
@@ -26,8 +35,8 @@ def resolution(x) -> float:
 
 
 class GeomCol(Geom):
-    """Bars. ``draw_panel`` returns a ``VGroup`` with one ``Polygon`` per (finite)
-    row, in data order.
+    """Bars. ``draw_panel`` returns a ``VGroup`` with one ``Polygon`` per (finite,
+    visible) row, in data order (``.marks``/``.keys``: one per drawn row).
 
     :meth:`setup_data` (run by the pipeline after the stat, in transformed space)
     adds ``xmin = x - width/2``, ``xmax = x + width/2``, ``ymin = min(y, 0)``,
@@ -97,7 +106,7 @@ class GeomCol(Geom):
         bars = VGroup()
         for c, row in zip(corners, data.to_dict("records")):
             bars.add(self._bar(Polygon(*c), row, theme))
-        return bars
+        return attach_marks(bars, data, per="row")
 
     @staticmethod
     def _bar(poly: VMobject, row, theme) -> VMobject:

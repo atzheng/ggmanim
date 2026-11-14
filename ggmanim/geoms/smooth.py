@@ -13,6 +13,7 @@ from ._segments import segmented_path, varies_within
 from .base import (
     KEY_SIZE,
     assemble,
+    attach_marks,
     clipped_path_points,
     finite_rows,
     first,
@@ -95,7 +96,7 @@ class GeomSmooth(GeomLine):
             lab = make_label(theme, group_label(label, i, gid), label_color)
             if lab is not None and pieces:
                 labels.add(lab.next_to(pieces[-1][-1], RIGHT, buff=0.1))
-        return assemble(groups, labels)
+        return attach_marks(assemble(groups, labels), data, per="group")
 
     def draw_key(self, data_row, theme: Theme | None = None) -> VMobject:
         theme = theme if theme is not None else theme_default()

@@ -1,10 +1,12 @@
 """Geoms: turn computed layer data into manim mobjects.
 
 See :mod:`ggmanim.geoms.base` for the contract with the build pipeline and
-legend guides.
+legend guides. One public module per geom family; the export block below is
+generated from each module's ``__all__`` by ``scripts/gen_exports.py``.
 """
 
-from .base import KEY_SIZE, Geom, make_layer
+# -- generated exports (scripts/gen_exports.py) --
+from .base import KEY_SIZE, Geom, attach_marks, group_label, make_layer, resolve_color
 from .col import GeomCol, geom_bar, geom_col, resolution
 from .function import GeomFunction, geom_function
 from .line import GeomLine, GeomPath, geom_line, geom_path
@@ -14,24 +16,28 @@ from .vline import GeomHline, GeomVline, geom_hline, geom_vline
 
 __all__ = [
     "Geom",
-    "GeomPoint",
-    "GeomPath",
-    "GeomLine",
     "GeomCol",
-    "GeomVline",
-    "GeomHline",
     "GeomFunction",
+    "GeomHline",
+    "GeomLine",
+    "GeomPath",
+    "GeomPoint",
     "GeomSmooth",
+    "GeomVline",
     "KEY_SIZE",
+    "attach_marks",
+    "geom_bar",
+    "geom_col",
+    "geom_function",
+    "geom_hline",
+    "geom_line",
+    "geom_path",
+    "geom_point",
+    "geom_smooth",
+    "geom_vline",
+    "group_label",
     "make_layer",
     "resolution",
-    "geom_point",
-    "geom_path",
-    "geom_line",
-    "geom_col",
-    "geom_bar",
-    "geom_vline",
-    "geom_hline",
-    "geom_function",
-    "geom_smooth",
+    "resolve_color",
 ]
+# -- end generated --

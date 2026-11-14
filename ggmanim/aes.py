@@ -8,6 +8,11 @@ evaluated on the stat's output. ggplot2 spellings are normalised
 An explicit ``None`` value means "unset this aesthetic": when a layer mapping is
 merged over the plot mapping, ``aes(color=None)`` removes an inherited
 ``color``. Omitted ``x``/``y`` are simply absent.
+
+``key`` (``aes(key="id")``) is a pass-through aesthetic that identifies marks for
+animation (gganimate-style): it is never scaled, never defines groups, is carried
+through stats when constant within a group, and ends up in ``mob.keys`` of the
+drawn layer (see :func:`ggmanim.geoms.base.attach_marks`).
 """
 
 from __future__ import annotations
@@ -178,6 +183,9 @@ def aes(x: Any = _MISSING, y: Any = _MISSING, **kwargs) -> Aes:
 
     >>> aes("wt", "mpg", colour="cyl")
     aes(x='wt', y='mpg', color='cyl')
+
+    Any aesthetic name is accepted, including the pass-through ``key`` used to
+    match marks across animations (``aes("x", "y", key="id")``).
     """
     d: dict[str, Any] = {}
     if x is not _MISSING:

@@ -58,6 +58,8 @@ uv venv .venv && uv pip install -p .venv/bin/python -e '.[dev]'   # or: pip inst
 .venv/bin/mypy
 .venv/bin/python -m pytest -q
 .venv/bin/manim -ql -s examples/basic.py Basic                      # render one example
+.venv/bin/python scripts/gen_exports.py            # regenerate export blocks (--check: verify)
+MANIM=.venv/bin/manim scripts/render_examples.sh /tmp/media   # render every examples/*.py
 ```
 
 All four must pass before a PR. Tests build mobjects without rendering; no LaTeX
@@ -72,11 +74,17 @@ and get chaining methods for free.
 
 - `aes.py`, `plot.py`, `layer.py` — spec, mapping, layers
 - `geoms/`, `stats/`, `positions/` — one module per geom/stat/position; `base.py` holds the contracts
+  (`Geom` + `attach_marks`, `Stat`, `Position` + `get_position`/`POSITIONS`); `stats.STATS` is
+  derived from the exported `Stat*` classes, `positions.POSITIONS` from `Position.name`
 - `scales/` — pure numpy, no manim imports; `breaks.py`, `labels.py` for ticks
-- `coords.py`, `facets/` — panel construction and layout
+- `coords.py` — panel construction (`CoordCartesian`, flip, fixed)
+- `facets/` — facet specs and panel layout (empty package until the facet beads)
 - `guides*.py`, `theme.py`, `palettes.py` — legends, appearance, colours
 - `mobjects.py` — `GGPlot` (the built result), `animate.py`/`live.py` — animation helpers
 - `PLAN.md` — roadmap; beads carry the per-task detail (`bd show <id>`)
+- `scripts/gen_exports.py` — writes the export blocks of `ggmanim/__init__.py` and the
+  subpackage `__init__.py` files from each module's `__all__` (`--check` in tests/CI)
+- `scripts/render_examples.sh` — renders every `examples/*.py` (`manim -ql -s -a`); used by CI
 
 ## Conventions & Patterns
 

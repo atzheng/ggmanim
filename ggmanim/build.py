@@ -13,10 +13,14 @@ Mirrors ggplot2's ``ggplot_build`` + ``ggplot_gtable``, one function per step
    aesthetics: colour/fill/shape/linetype through discrete scales (numeric
    colour/fill through continuous colour gradients), size/alpha/linewidth through
    range scales.
-5. :func:`apply_positions` -- identity only in Phase 1.
-6. :func:`setup_geom_data` + :func:`train_position_scales` -- ``geom.setup_data``,
-   then reset and retrain the position scales on what the geoms will draw
-   (intercept-only layers contribute only their intercepts) and apply ``oob``.
+5. :func:`setup_geom_data` -- ``geom.setup_data`` (e.g. bar extents).
+6. :func:`apply_positions` + :func:`train_position_scales` -- each layer's
+   :class:`~ggmanim.positions.Position` (``setup_params`` -> ``setup_data`` ->
+   ``compute_layer``, per ``PANEL``; identity is a passthrough), then reset and
+   retrain the position scales on what the geoms will draw (intercept-only
+   layers contribute only their intercepts) and apply ``oob``. As in ggplot2,
+   positions run *after* ``setup_data`` so they see bar extents
+   (``xmin``/``xmax``/``ymin``/``ymax``).
 7. :func:`build_panel` -- ``coord.build`` -> :class:`~ggmanim.coords.CartesianPanel`.
 8. :func:`draw_layers` -- ``geom.draw_panel`` per layer.
 9. :func:`assemble` -- legends, titles, the :class:`~ggmanim.mobjects.GGPlot`.
@@ -45,6 +49,7 @@ from .aes import Aes, AfterStat
 from .coords import CartesianPanel, CoordCartesian
 from .guides import build_legends, place_legends  # also registers guides()
 from .layer import Layer
+from .positions import get_position
 from .scales.continuous import X_AESTHETICS, Y_AESTHETICS, ScaleContinuousPosition
 from .scales.date import ScaleDatePosition, data_timezone, date_kind
 from .scales.discrete import CATEGORICAL_AESTHETICS, default_scale_for
@@ -345,16 +350,6 @@ def map_non_position(plot, layers: list[LayerData]) -> dict[str, Any]:
 
 
 # --------------------------------------------------------------------------- 5
-def apply_positions(layers: list[LayerData]) -> None:
-    """Position adjustments; only ``"identity"`` exists in Phase 1."""
-    for ld in layers:
-        pos = ld.layer.position
-        name = pos if isinstance(pos, str) or pos is None else getattr(pos, "name", None)
-        if name not in (None, "identity", "position_identity"):
-            raise BuildError(f"{ld.label}: position {pos!r} is not supported yet")
-
-
-# --------------------------------------------------------------------------- 6
 def setup_geom_data(layers: list[LayerData], scales: dict[str, Any] | None = None) -> None:
     """``geom.setup_data`` per layer (e.g. bar extents for ``geom_col``).
 
@@ -369,6 +364,27 @@ def setup_geom_data(layers: list[LayerData], scales: dict[str, Any] | None = Non
     for ld in layers:
         params = {**ld.layer.params, **flags} if flags else ld.layer.params
         ld.data = ld.layer.geom.setup_data(ld.data, params)
+
+
+# --------------------------------------------------------------------------- 6
+def apply_positions(layers: list[LayerData], scales: dict[str, Any] | None = None) -> None:
+    """Run each layer's position adjustment (after :func:`setup_geom_data`).
+
+    ``pos.setup_params(data)``, ``pos.setup_data(data, params)``, then
+    ``pos.compute_layer(data, params, scales)`` (split by ``PANEL``); see
+    :mod:`ggmanim.positions.base`. ``position_identity`` returns the data
+    unchanged. ``scales`` are the build's position scales (read-only here; they
+    are retrained afterwards by :func:`train_position_scales`)."""
+    for ld in layers:
+        pos = get_position(ld.layer.position)
+        try:
+            params = pos.setup_params(ld.data)
+            data = pos.setup_data(ld.data, params)
+            ld.data = pos.compute_layer(data, params, scales)
+        except BuildError:
+            raise
+        except Exception as e:
+            raise BuildError(f"{ld.label}: {type(pos).__name__} failed: {e}") from e
 
 
 def train_position_scales(layers: list[LayerData], scales: dict[str, Any]) -> None:
@@ -561,8 +577,8 @@ def build_plot(plot, *, theme: Theme | None = None):
     pos_scales = setup_position_scales(plot, layers)
     compute_stats(layers, pos_scales)
     np_scales = map_non_position(plot, layers)
-    apply_positions(layers)
     setup_geom_data(layers, pos_scales)
+    apply_positions(layers, pos_scales)
     train_position_scales(layers, pos_scales)
 
     labels = default_labels(plot, layers)
