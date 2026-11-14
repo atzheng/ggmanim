@@ -940,6 +940,7 @@ def build_plot(plot, *, theme: Theme | None = None):
         labels,
         scales={**pos_scales, **np_scales},
         layer_data={ld.key: ld.data for ld in layers},
+        layer_geoms={ld.key: ld.layer.geom for ld in layers},
     )
 
 
@@ -969,6 +970,7 @@ def _build_faceted(plot, layers: list[LayerData], layout: pd.DataFrame, theme: T
         labels,
         scales={**first, **np_scales},
         layer_data={ld.key: ld.data for ld in layers},
+        layer_geoms={ld.key: ld.layer.geom for ld in layers},
     )
     cells = {int(r.PANEL): (int(r.ROW), int(r.COL)) for r in layout.itertuples(index=False)}
     out._attach_panel_grid(grid, {cells[p]: dict(s) for p, s in panel_scales.items()})

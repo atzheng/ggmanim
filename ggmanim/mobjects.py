@@ -45,6 +45,7 @@ class GGPlot(VGroup):
     background : the ``theme.plot_background`` rectangle (first submobject) or ``None``
     scales : ``{aesthetic: trained scale}`` used for this build
     layer_data : ``{layer key: DataFrame}`` the data each geom drew (transformed space)
+    layer_geoms : ``{layer key: Geom}`` the geom that drew each layer (picks its animation)
 
     ``plot["axes"]``, ``plot["layers"]`` and ``plot["legends"]`` give the legacy
     dict-style access; integer/slice indices index the submobjects as usual.
@@ -62,6 +63,7 @@ class GGPlot(VGroup):
         caption: Mobject | None = None,
         scales: dict[str, Any] | None = None,
         layer_data: dict[Any, Any] | None = None,
+        layer_geoms: dict[Any, Any] | None = None,
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -76,6 +78,7 @@ class GGPlot(VGroup):
         self.caption = caption
         self.scales = dict(scales or {})
         self.layer_data = dict(layer_data or {})
+        self.layer_geoms = dict(layer_geoms or {})
         self.background: Mobject | None = None  # theme.plot_background (set by build)
         self.add(panel, *self.layers.values(), self.legend)  # type: ignore[arg-type]
         for m in (title, subtitle, caption):
