@@ -29,8 +29,10 @@ from .base import (
     Geom,
     attach_marks,
     finite_rows,
+    is_blank,
     make_layer,
     num,
+    paint_fill,
     resolve_color,
     transform_points,
 )
@@ -82,13 +84,15 @@ class GeomText(Geom):
         return {}
 
     def _mobject(self, row: dict, theme: Theme, parse: bool, **opts) -> VMobject | None:
-        """The (unplaced) mobject for one row; ``None`` if the label is empty."""
+        """The (unplaced) mobject for one row; ``None`` if the label is empty.
+        A blank ``color`` (``"NA"``) gives fully transparent text."""
+        color = resolve_color(row.get("color"), theme.get_foreground())
         return text_mobject(
             theme,
             row.get("label"),
             font_size=font_size_for(theme, row.get("size")),
-            color=resolve_color(row.get("color"), theme.get_foreground()),
-            alpha=num(row.get("alpha"), 1.0),
+            color=theme.get_foreground() if color is None else color,
+            alpha=0.0 if color is None else num(row.get("alpha"), 1.0),
             family=row.get("family"),
             fontface=row.get("fontface"),
             parse=parse,
@@ -184,9 +188,10 @@ class GeomLabel(GeomText):
         **opts,
     ) -> VMobject | None:
         color, fill = resolve_color(row.get("color")), resolve_color(row.get("fill"))
+        no_color, no_fill = is_blank(row.get("color")), is_blank(row.get("fill"))
         if color is None:
             color = theme.get_foreground() if fill is None else foreground_for_background(fill)
-        if fill is None:
+        if fill is None and not no_fill:
             fill = foreground_for_background(color)
         text = super()._mobject({**row, "alpha": 1.0, "color": color}, theme, parse)
         if text is None:
@@ -200,12 +205,14 @@ class GeomLabel(GeomText):
         )
         box.move_to(text.get_center())
         alpha = num(row.get("alpha"), 1.0)
-        box.set_fill(fill, opacity=alpha)
-        if stroke > 0:
+        paint_fill(box, fill, alpha)  # None: blank fill
+        if stroke > 0 and not no_color:
             box.set_stroke(color=color, width=stroke, opacity=alpha)
         else:
             box.set_stroke(width=0, opacity=0)
-        if alpha < 1.0:
+        if no_color:  # blank colour: no text, no border
+            text.set_opacity(0.0)
+        elif alpha < 1.0:
             text.set_opacity(alpha)
         return VGroup(box, text)
 

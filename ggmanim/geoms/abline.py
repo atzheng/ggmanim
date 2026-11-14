@@ -27,6 +27,7 @@ from .base import (
     finite_rows,
     make_layer,
     num,
+    paint_stroke,
     resolve_color,
     transform_points,
 )
@@ -68,12 +69,11 @@ class GeomAbline(Geom):
         for i, row in enumerate(data.to_dict("records")):
             if not vis[i] or np.allclose(a[i], b[i]):
                 continue
-            line = Line(
-                a[i],
-                b[i],
-                color=resolve_color(row.get("color"), fg),
-                stroke_width=num(row.get("linewidth"), 2.0),
-                stroke_opacity=num(row.get("alpha"), 1.0),
+            line = paint_stroke(
+                Line(a[i], b[i]),
+                resolve_color(row.get("color"), fg),
+                num(row.get("linewidth"), 2.0),
+                num(row.get("alpha"), 1.0),
             )
             lines.add(apply_linetype(line, row.get("linetype")))
             drawn.append(i)
@@ -82,12 +82,11 @@ class GeomAbline(Geom):
     def draw_key(self, data_row, theme: Theme | None = None) -> VMobject:
         theme = theme if theme is not None else theme_default()
         row = self.key_aes(data_row)
-        line = Line(
-            DL * KEY_SIZE / 2,
-            UR * KEY_SIZE / 2,
-            color=resolve_color(row.get("color"), theme.get_foreground()),
-            stroke_width=num(row.get("linewidth"), 2.0),
-            stroke_opacity=num(row.get("alpha"), 1.0),
+        line = paint_stroke(
+            Line(DL * KEY_SIZE / 2, UR * KEY_SIZE / 2),
+            resolve_color(row.get("color"), theme.get_foreground()),
+            num(row.get("linewidth"), 2.0),
+            num(row.get("alpha"), 1.0),
         )
         return apply_linetype(line, row.get("linetype"), max_period=KEY_SIZE / 2)
 

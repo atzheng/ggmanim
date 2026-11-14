@@ -24,6 +24,8 @@ from .base import (
     make_layer,
     multi_path_mobject,
     num,
+    paint_fill,
+    paint_stroke,
     path_mobject,
     resolve_color,
     transform_points,
@@ -89,8 +91,8 @@ def _head(tip: np.ndarray, direction: np.ndarray, spec: ArrowSpec, color, width,
     right = tip + np.array([c * back[0] + s * back[1], -s * back[0] + c * back[1], 0.0])
     if spec.type == "closed":
         head: VMobject = Polygon(left, tip, right)
-        head.set_fill(color, opacity=alpha)
-        head.set_stroke(color=color, width=width, opacity=alpha)
+        paint_fill(head, color, alpha)
+        paint_stroke(head, color, width, alpha)
         head.joint_type = LineJointType.MITER
     else:
         head = path_mobject(np.array([left, tip, right]), color, width, alpha)
@@ -175,7 +177,7 @@ class GeomSegment(Geom):
             color = resolve_color(row.get("color"), fg)
             width = num(row.get("linewidth"), 2.0)
             alpha = num(row.get("alpha"), 1.0)
-            line: VMobject = Line(a[i], b[i], color=color, stroke_width=width, stroke_opacity=alpha)
+            line: VMobject = paint_stroke(Line(a[i], b[i]), color, width, alpha)
             line = apply_linetype(line, row.get("linetype"))
             d = b[i] - a[i]
             mob = _with_heads(
@@ -197,12 +199,11 @@ class GeomSegment(Geom):
         theme = theme if theme is not None else theme_default()
         row = self.key_aes(data_row)
         w = getattr(theme, "legend_key_width", None) or KEY_SIZE
-        line = Line(
-            LEFT * w / 2,
-            RIGHT * w / 2,
-            color=resolve_color(row.get("color"), theme.get_foreground()),
-            stroke_width=num(row.get("linewidth"), 2.0),
-            stroke_opacity=num(row.get("alpha"), 1.0),
+        line = paint_stroke(
+            Line(LEFT * w / 2, RIGHT * w / 2),
+            resolve_color(row.get("color"), theme.get_foreground()),
+            num(row.get("linewidth"), 2.0),
+            num(row.get("alpha"), 1.0),
         )
         return apply_linetype(line, row.get("linetype"), max_period=w / 2)
 

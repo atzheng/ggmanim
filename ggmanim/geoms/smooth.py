@@ -25,6 +25,8 @@ from .base import (
     multi_path_mobject,
     munch_path,
     num,
+    paint_fill,
+    paint_stroke,
     resolve_color,
     transform_points,
 )
@@ -90,9 +92,10 @@ class GeomSmooth(GeomLine):
                     rx, ry = clip_polygon(rx, ry, rect)
                 if ok.sum() >= 2 and len(rx) >= 3:
                     ribbon = Polygon(*transform_points(coord, rx, ry))
-                    ribbon.set_fill(
-                        resolve_color(first(gdf, "fill"), color),
-                        opacity=num(first(gdf, "alpha"), 0.4),
+                    paint_fill(
+                        ribbon,
+                        resolve_color(first(gdf, "fill"), fg if color is None else color),
+                        num(first(gdf, "alpha"), 0.4),
                     )
                     ribbon.set_stroke(width=0, opacity=0)
                     mob = VGroup(ribbon, line)
@@ -111,12 +114,10 @@ class GeomSmooth(GeomLine):
         color = resolve_color(row.get("color"), theme.get_foreground())
         w = getattr(theme, "legend_key_width", None) or KEY_SIZE  # wider for linetype legends
         bg = Square(side_length=KEY_SIZE, stroke_width=0).stretch_to_fit_width(w)
-        bg.set_fill(resolve_color(row.get("fill"), color), opacity=num(row.get("alpha"), 0.4))
-        line = Line(
-            LEFT * w / 2,
-            RIGHT * w / 2,
-            color=color,
-            stroke_width=num(row.get("linewidth"), 3.0),
+        fill = resolve_color(row.get("fill"), theme.get_foreground() if color is None else color)
+        paint_fill(bg, fill, num(row.get("alpha"), 0.4))
+        line = paint_stroke(
+            Line(LEFT * w / 2, RIGHT * w / 2), color, num(row.get("linewidth"), 3.0), 1.0
         )
         return VGroup(bg, apply_linetype(line, row.get("linetype"), max_period=w / 2))
 
