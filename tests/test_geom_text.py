@@ -10,7 +10,19 @@ import pytest
 from manim import RED, MathTex, Mobject, VGroup
 
 import ggmanim
-from ggmanim import aes, after_stat, geom_col, geom_label, geom_line, geom_text, ggplot, theme
+from ggmanim import (
+    aes,
+    after_stat,
+    annotate,
+    geom_col,
+    geom_label,
+    geom_line,
+    geom_point,
+    geom_text,
+    ggplot,
+    position_nudge,
+    theme,
+)
 from ggmanim.coords import CoordCartesian
 from ggmanim.geoms import GeomLabel, GeomText
 from ggmanim.geoms._labels import (
@@ -21,6 +33,7 @@ from ggmanim.geoms._labels import (
     resolve_just,
 )
 from ggmanim.layer import Layer
+from ggmanim.positions import PositionIdentity, PositionNudge
 from ggmanim.registry import COMPONENTS
 from ggmanim.scales import scale_x_continuous, scale_y_continuous
 from ggmanim.theme import theme_default
@@ -142,6 +155,36 @@ def test_nudge_moves_labels_and_trains_scales():
     assert m.panel.panel_params.x_range[1] >= 3.5
 
 
+def test_nudge_is_a_position_nudge_applied_once():
+    layer = geom_text(aes(label="name"), nudge_x=0.5, nudge_y=-1)
+    assert isinstance(layer.position, PositionNudge)
+    assert layer.position.params == {"x": 0.5, "y": -1}
+    assert type(geom_text().position) is PositionIdentity
+    assert isinstance(geom_label(nudge_y=1).position, PositionNudge)
+    # the geom no longer nudges in setup_data: the data is shifted exactly once
+    out = GeomText().setup_data(DF.assign(label="a"), {"nudge_x": 0.5, "nudge_y": -1})
+    np.testing.assert_allclose(out["x"], DF["x"])
+
+
+def test_nudge_with_explicit_position_raises():
+    with pytest.raises(ValueError, match="both position and nudge"):
+        geom_text(nudge_x=0.1, position="identity")
+    with pytest.raises(ValueError, match="both position and nudge"):
+        geom_label(nudge_y=0.1, position=position_nudge(0, 1))
+    # an explicit position without a nudge is fine
+    assert isinstance(geom_text(position=position_nudge(0, 1)).position, PositionNudge)
+
+
+def test_annotate_text_nudge():
+    m = (
+        ggplot(DF, aes("x", "y"))
+        .add(geom_point(), annotate("text", x=2, y=4, label="p", nudge_y=1))
+        .build()
+    )
+    ld = m.layer_data[1]
+    assert ld["y"].tolist() == [5.0] and ld["x"].tolist() == [2.0]
+
+
 def test_after_stat_label_formats_numbers():
     m = ggplot(DF, aes("x", "y")).add(geom_text(aes(label=after_stat("y")))).build()
     texts = [t.text for t in m.layers[0].marks]
@@ -239,6 +282,18 @@ def test_line_direct_label_placed_after_last_point():
     p = m.panel.transform(2.0, 0.5)[0]
     assert lab.get_left()[0] == pytest.approx(p[0] + 0.1)
     assert lab.get_center()[1] == pytest.approx(p[1])
+
+
+def test_line_label_list_and_dict_follow_sorted_group_order():
+    # "b" appears first in the data, but groups are numbered in sorted order
+    df = pd.DataFrame({"x": [0.0, 1.0, 0.0, 1.0], "y": [5.0, 5.0, 1.0, 1.0], "g": list("bbaa")})
+    for label in (["A", "B"], {1: "A", 2: "B"}):
+        m = ggplot(df, aes("x", "y", color="g")).add(geom_line(label=label)).build()
+        a, b = m.layers[0].labels
+        assert (a.text, b.text) == ("A", "B")
+        assert a.get_center()[1] == pytest.approx(m.panel.transform(1.0, 1.0)[0][1])
+    m = ggplot(df, aes("x", "y", color="g")).add(geom_line(label={2: "B"})).build()
+    assert [t.text for t in m.layers[0].labels] == ["B"]
 
 
 def test_vline_hline_direct_labels():

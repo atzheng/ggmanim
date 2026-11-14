@@ -11,9 +11,9 @@ from __future__ import annotations
 from typing import Any
 
 import numpy as np
-import pandas as pd
 from manim import Rectangle, RoundedRectangle, VGroup, VMobject
 
+from ..positions import position_nudge
 from ..registry import register
 from ..theme import Theme, foreground_for_background, theme_default
 from ._labels import (
@@ -56,8 +56,9 @@ class GeomText(Geom):
     Params: ``parse`` (LaTeX math via ``MathTex`` when the theme's
     ``text_engine`` is ``"tex"``, else plain text with a warning),
     ``nudge_x``/``nudge_y`` (offsets in the scale's transformed units -- data
-    units on linear scales -- applied by :meth:`setup_data`, so nudged labels take
-    part in the axis limits), ``check_overlap`` (drop a label whose bounding box
+    units on linear scales -- turned into the layer's ``position_nudge`` by
+    :func:`geom_text`/:func:`geom_label`, so nudged labels take part in the axis
+    limits), ``check_overlap`` (drop a label whose bounding box
     overlaps one already drawn, greedily in data order).
     """
 
@@ -74,19 +75,6 @@ class GeomText(Geom):
     }
     extra_params: tuple[str, ...] = ("parse", "nudge_x", "nudge_y", "check_overlap")
     na_aes: tuple[str, ...] | None = ("x", "y")
-
-    # -- pipeline hooks -----------------------------------------------------------
-    def setup_data(self, data: pd.DataFrame, params) -> pd.DataFrame:
-        """Apply ``nudge_x``/``nudge_y`` (transformed units) to ``x``/``y``."""
-        params = params or {}
-        nx, ny = num(params.get("nudge_x"), 0.0), num(params.get("nudge_y"), 0.0)
-        if not (nx or ny) or len(data) == 0:
-            return data
-        data = data.copy()
-        for col, d in (("x", nx), ("y", ny)):
-            if d and col in data.columns:
-                data[col] = pd.to_numeric(data[col], errors="coerce") + d
-        return data
 
     # -- drawing ------------------------------------------------------------------
     def _draw_opts(self, params: dict) -> dict:
@@ -234,7 +222,23 @@ def _relative_positions(coord, panel_params, pts: np.ndarray) -> np.ndarray | No
     return ((pts - lo) / span)[:, :2]
 
 
+def _nudge_position(position, nudge_x, nudge_y):
+    """The layer position: ``position_nudge(nudge_x, nudge_y)`` when a nudge is
+    given (as ggplot2, giving both a ``position`` and a nudge is an error), else
+    ``position`` (``None`` -> ``"identity"``)."""
+    nx, ny = num(nudge_x, 0.0), num(nudge_y, 0.0)
+    if not (nx or ny):
+        return "identity" if position is None else position
+    if position is not None:
+        raise ValueError(
+            "geom_text/geom_label: both position and nudge_x/nudge_y were given; "
+            "specify one of them (e.g. position=position_nudge(x, y))"
+        )
+    return position_nudge(nx, ny)
+
+
 def _text_layer(geom, mapping, data, stat, position, inherit_aes, name, params):
+    position = _nudge_position(position, params.get("nudge_x"), params.get("nudge_y"))
     return make_layer(
         geom,
         mapping,
@@ -253,7 +257,7 @@ def geom_text(
     data=None,
     *,
     stat="identity",
-    position="identity",
+    position=None,
     parse: bool = False,
     nudge_x: float = 0.0,
     nudge_y: float = 0.0,
@@ -266,7 +270,9 @@ def geom_text(
 
     ``size=3.88`` (ggplot2 mm) is ``theme.axis_text_size``; ``hjust``/``vjust``
     in ``[0, 1]`` or ``"inward"``/``"outward"``; ``angle`` in degrees;
-    ``nudge_x``/``nudge_y`` shift the labels in (transformed) data units;
+    ``nudge_x``/``nudge_y`` shift the labels in (transformed) data units (via
+    ``position_nudge``; combining them with ``position=`` raises, as in ggplot2);
+    ``position`` defaults to ``"identity"``;
     ``check_overlap=True`` drops labels overlapping earlier ones;
     ``parse=True`` renders LaTeX math (needs ``theme(text_engine="tex")``).
     Counts on bars: ``geom_text(aes(label=after_stat("count")), stat="count")``.
@@ -282,7 +288,7 @@ def geom_label(
     data=None,
     *,
     stat="identity",
-    position="identity",
+    position=None,
     parse: bool = False,
     nudge_x: float = 0.0,
     nudge_y: float = 0.0,
