@@ -35,6 +35,7 @@ import manim
 import numpy as np
 from manim import BLACK, WHITE, ManimColor, Mobject, config
 
+from ._text_cache import cached_text, text_key
 from .registry import register
 
 __all__ = [
@@ -615,6 +616,9 @@ class Theme:
         :class:`~manim.Paragraph` whose lines are justified by ``align`` (``"left"``,
         ``"center"`` or ``"right"``; see :func:`hjust_align`) with the ``"text"``
         engine; with ``"tex"`` the newlines become ``\\\\`` line breaks.
+
+        Text is memoised (:mod:`ggmanim._text_cache`): repeating a request returns a
+        fresh copy of the mobject built the first time.
         """
         if isinstance(content, Mobject):
             return content
@@ -626,17 +630,25 @@ class Theme:
         if self.text_engine == "tex":
             kwargs.pop("font", None)  # Pango font families do not apply to LaTeX
             text = text.replace("\n", r"\\")
-            return manim.Tex(text, font_size=font_size, color=color, **kwargs)
-        if self.font is not None:
+        elif self.font is not None:
             kwargs.setdefault("font", self.font)
-        if "\n" in text:
-            if align not in ("left", "center", "right"):
-                raise ValueError(f"align must be 'left', 'center' or 'right', got {align!r}")
-            lines = text.split("\n")
-            return manim.Paragraph(
-                *lines, alignment=align, font_size=font_size, color=color, **kwargs
-            )
-        return manim.Text(text, font_size=font_size, color=color, **kwargs)
+
+        def build() -> Mobject:
+            if self.text_engine == "tex":
+                return manim.Tex(text, font_size=font_size, color=color, **kwargs)
+            if "\n" in text:
+                if align not in ("left", "center", "right"):
+                    raise ValueError(f"align must be 'left', 'center' or 'right', got {align!r}")
+                lines = text.split("\n")
+                return manim.Paragraph(
+                    *lines, alignment=align, font_size=font_size, color=color, **kwargs
+                )
+            return manim.Text(text, font_size=font_size, color=color, **kwargs)
+
+        # the same request returns a copy of one memoised prototype (ggm-bam.2)
+        key_align = align if "\n" in text else ""  # only multi-line Pango text aligns
+        key = text_key(self.text_engine, text, font_size, color, key_align, kwargs)
+        return cached_text(key, build)
 
 
 def hjust_align(hjust: float) -> str:

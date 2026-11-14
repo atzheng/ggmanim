@@ -11,7 +11,8 @@ The entry point used by the build pipeline is :meth:`CoordCartesian.build`::
     panel.x_ticks, panel.y_ticks              # VGroup of tick marks (one per break)
     panel.x_tick_labels, panel.y_tick_labels  # VGroup of labels (one per break, same order)
     panel.grid                                # VGroup of grid lines (minor, then major)
-    panel.grid_major, panel.grid_minor        # the same lines split by kind
+    panel.grid_major, panel.grid_minor        # the same split by kind (one GridLines,
+                                              # a VMobject of all its lines, per axis)
     panel.x_title, panel.y_title              # Mobject or None
 
 Geoms (``ggm-s11.6``) receive data already mapped by the scales (i.e. in
@@ -243,6 +244,48 @@ def _title(scale, labels: Mapping[str, Any] | None, aes: str):
     return labels.get(aes)
 
 
+class GridLines(VMobject):
+    """Straight lines from ``starts[i]`` to ``ends[i]`` (``(N, 3)`` scene points) as
+    *one* VMobject with a subpath per line: the grid of one kind (major/minor) along
+    one axis is a single mobject instead of one :class:`~manim.Line` per break,
+    which is much cheaper to build, transform and render (ggm-bam.2).
+
+    Each subpath has exactly the points ``Line(start, end)`` would have, so the
+    lines draw the same. ``starts``/``ends``/``n_lines`` give the lines back; style
+    keywords (``stroke_width``, ``stroke_color``, ``stroke_opacity``) go to
+    ``VMobject``.
+    """
+
+    def __init__(self, starts: Any, ends: Any, **kwargs):
+        super().__init__(**kwargs)
+        a = np.asarray(starts, dtype=float).reshape(-1, 3)
+        b = np.asarray(ends, dtype=float).reshape(-1, 3)
+        if len(a):
+            # as Line's set_points_as_corners: handles at 1/3 and 2/3 of each line
+            n = self.n_points_per_cubic_curve
+            pts = [(1 - t) * a + t * b for t in np.linspace(0, 1, n)]
+            self.set_points(np.stack(pts, axis=1).reshape(-1, 3))
+
+    @property
+    def starts(self) -> np.ndarray:
+        return self.points[:: self.n_points_per_cubic_curve].copy()
+
+    @property
+    def ends(self) -> np.ndarray:
+        n = self.n_points_per_cubic_curve
+        return self.points[n - 1 :: n].copy()
+
+    @property
+    def n_lines(self) -> int:
+        return len(self.points) // self.n_points_per_cubic_curve
+
+
+def grid_line_count(grid: VGroup) -> int:
+    """Number of lines in a grid group (``panel.grid``, ``grid_major`` or
+    ``grid_minor``) made of :class:`GridLines` (any other member counts as one)."""
+    return sum(getattr(m, "n_lines", 1) for m in grid.submobjects)
+
+
 # endregion
 
 
@@ -472,49 +515,36 @@ def _style_axis_lines(axes: Axes, theme: Theme) -> None:
 
 
 def _major_grid(theme: Theme, bottom, top, left, right) -> VGroup:
-    """Major grid lines: vertical ones at the x breaks, horizontal at the y breaks."""
-    grid = VGroup()
-    pairs = []
+    """Major grid lines: vertical ones at the x breaks, horizontal at the y breaks
+    (one :class:`GridLines` per axis)."""
+    lines = []
     if theme.grid_major("x"):
-        pairs += list(zip(bottom, top))
+        lines.append((bottom, top))
     if theme.grid_major("y"):
-        pairs += list(zip(left, right))
-    color = theme.color_of("grid_color")
-    for a, b in pairs:
-        grid.add(
-            Line(
-                a,
-                b,
-                stroke_width=theme.grid_stroke_width,
-                stroke_color=color,
-                stroke_opacity=theme.grid_opacity,
-            )
-        )
-    return grid
+        lines.append((left, right))
+    style = {
+        "stroke_width": theme.grid_stroke_width,
+        "stroke_color": theme.color_of("grid_color"),
+        "stroke_opacity": theme.grid_opacity,
+    }
+    return VGroup(*(GridLines(a, b, **style) for a, b in lines if len(a)))
 
 
 def _minor_grid(theme: Theme, axes: Axes, pp: PanelParams) -> VGroup:
-    """Minor grid lines at the scales' minor breaks (``theme.panel_grid_minor``)."""
-    grid = VGroup()
+    """Minor grid lines at the scales' minor breaks (``theme.panel_grid_minor``), one
+    :class:`GridLines` per axis."""
     if not getattr(theme, "panel_grid_minor", True):
-        return grid
+        return VGroup()
     (x0, x1), (y0, y1) = pp.x_range, pp.y_range
     xm = np.asarray(pp.x_minor_breaks, dtype=float)
     ym = np.asarray(pp.y_minor_breaks, dtype=float)
-    pairs = list(zip(_c2p(axes, xm, y0), _c2p(axes, xm, y1)))
-    pairs += list(zip(_c2p(axes, x0, ym), _c2p(axes, x1, ym)))
-    color = theme.color_of("grid_color")
-    for a, b in pairs:
-        grid.add(
-            Line(
-                a,
-                b,
-                stroke_width=theme.grid_minor_stroke_width,
-                stroke_color=color,
-                stroke_opacity=theme.grid_minor_opacity,
-            )
-        )
-    return grid
+    lines = [(_c2p(axes, xm, y0), _c2p(axes, xm, y1)), (_c2p(axes, x0, ym), _c2p(axes, x1, ym))]
+    style = {
+        "stroke_width": theme.grid_minor_stroke_width,
+        "stroke_color": theme.color_of("grid_color"),
+        "stroke_opacity": theme.grid_minor_opacity,
+    }
+    return VGroup(*(GridLines(a, b, **style) for a, b in lines if len(a)))
 
 
 def _move_axis_lines(axes: Axes, theme: Theme, x_top: bool, y_right: bool) -> None:
