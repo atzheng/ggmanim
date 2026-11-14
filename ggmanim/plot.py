@@ -250,6 +250,7 @@ _COMPONENT_MODULES = (
     "stats",
     "coords",
     "coords_trans",
+    "coords_polar",
     "positions",
     "facets",
     "theme",
