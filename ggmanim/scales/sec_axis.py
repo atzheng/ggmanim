@@ -15,11 +15,20 @@ primary scale's transform (so a log primary gets log breaks on a
 :func:`dup_axis`), then map each break back onto the primary axis by monotone
 interpolation. ``transform`` must therefore be monotone over the primary range.
 
+Date and date-time scales (``scale_x_date(sec_axis=...)``) bind the axis with
+:meth:`AxisSecondary.bind`: ``transform`` receives the primary values as numbers
+(days or seconds since 1970-01-01, so ``lambda t: t + 3600`` shifts a date-time
+axis by an hour, as ``. + 3600`` does in ggplot2) and may return numbers or
+dates; ``breaks`` may be dates or ISO strings; date-aware ``labels`` formatters
+get the scale's unit and time zone. Breaks and labels then come from the date
+scale's transform (calendar breaks, date labels).
+
 Pure numpy; no manim imports.
 """
 
 from __future__ import annotations
 
+import copy
 import math
 import warnings
 from collections.abc import Callable, Sequence
@@ -62,6 +71,14 @@ def _is_derive(v: Any) -> bool:
     return isinstance(v, Derive)
 
 
+def _is_number(v: Any) -> bool:
+    return isinstance(v, (int, float, np.integer, np.floating)) and not isinstance(v, bool)
+
+
+class _RawBreaks(tuple):
+    """Secondary breaks given as dates / strings, waiting for :meth:`AxisSecondary.bind`."""
+
+
 class AxisSecondary:
     """A secondary axis specification (see the module docstring).
 
@@ -71,7 +88,8 @@ class AxisSecondary:
         over numpy arrays; scalar-only functions are applied element-wise), or
         ``None`` for the identity. Must be monotone over the primary range.
     name : axis title; ``None`` = no title, :func:`derive` = the primary title.
-    breaks : ``None`` (automatic), a sequence of *secondary* data values, a callable
+    breaks : ``None`` (automatic), a sequence of *secondary* data values (dates or ISO
+        strings on a date scale), a callable
         ``f((lo, hi)) -> breaks`` on the secondary range, or :func:`derive` (the
         primary scale's ``breaks`` setting applied to the secondary range).
     labels : ``None`` (the primary scale's label formatter if it is a callable,
@@ -90,12 +108,18 @@ class AxisSecondary:
             raise TypeError(f"sec_axis transform must be callable, got {transform!r}")
         self.transform = transform
         self.name = name
+        #: converts dates (breaks, transform results) to numbers; set by :meth:`bind`
+        self._convert: Callable[[Any], Any] | None = None
         if breaks is not None and not callable(breaks) and not _is_derive(breaks):
-            breaks = tuple(float(b) for b in np.asarray(breaks, dtype=float).ravel())
+            raw = list(np.asarray(breaks, dtype=object).ravel())
+            if all(_is_number(b) for b in raw):
+                breaks = tuple(float(b) for b in raw)
+            else:  # dates / ISO strings: converted when bound to a date scale
+                breaks = _RawBreaks(raw)
         self.breaks = breaks
         if labels is not None and not callable(labels) and not _is_derive(labels):
             labels = tuple(str(lab) for lab in labels)
-            if isinstance(breaks, tuple) and len(labels) != len(breaks):
+            if isinstance(breaks, (tuple, _RawBreaks)) and len(labels) != len(breaks):
                 raise ValueError("sec_axis labels must have the same length as breaks")
         self.labels = labels
 
@@ -105,16 +129,44 @@ class AxisSecondary:
             f"breaks={self.breaks!r}, labels={self.labels!r})"
         )
 
+    def bind(
+        self,
+        convert: Callable[[Any], Any] | None = None,
+        bind_labels: Callable[[Any], Any] | None = None,
+    ) -> AxisSecondary:
+        """A copy of this axis for a scale whose values need converting (date and
+        date-time scales). ``convert(values) -> float array`` turns dates / ISO
+        strings into the scale's numbers: it is applied to ``breaks`` and to
+        ``transform`` results that are not numeric. ``bind_labels(labels)``
+        completes a callable ``labels`` formatter (e.g. a date-aware one with the
+        scale's unit and time zone)."""
+        new = copy.copy(self)
+        new._convert = convert
+        if isinstance(self.breaks, _RawBreaks) and convert is not None:
+            new.breaks = tuple(float(v) for v in np.asarray(convert(list(self.breaks)), float))
+        if bind_labels is not None and callable(self.labels) and not _is_derive(self.labels):
+            new.labels = bind_labels(self.labels)
+        return new
+
     # ------------------------------------------------------------------ helpers
+    def _to_float(self, res: Any) -> np.ndarray:
+        arr = np.asarray(res)
+        if arr.dtype.kind in "biuf" or self._convert is None:
+            return np.asarray(res, dtype=float)
+        return np.asarray(self._convert(res), dtype=float)
+
     def _apply(self, x: np.ndarray) -> np.ndarray:
         if self.transform is None:
             return np.asarray(x, dtype=float)
         try:
-            out = np.asarray(self.transform(x), dtype=float)
+            out = self._to_float(self.transform(x))
             if out.shape != x.shape:
                 out = np.broadcast_to(out, x.shape).astype(float)
         except (TypeError, ValueError):
-            out = np.array([float(self.transform(float(v))) for v in x], dtype=float)
+            out = np.array(
+                [float(np.ravel(self._to_float(self.transform(float(v))))[0]) for v in x],
+                dtype=float,
+            )
         return out
 
     def title(self, primary_title: Any) -> Any:
@@ -154,6 +206,11 @@ class AxisSecondary:
         """
         if getattr(scale, "is_discrete", False):
             raise TypeError("sec_axis is only supported on continuous position scales")
+        if isinstance(self.breaks, _RawBreaks):
+            raise TypeError(
+                "sec_axis breaks that are not numbers (dates, strings) need a date or "
+                f"date-time scale, got {list(self.breaks)[:3]!r}"
+            )
         lo, hi = float(min(primary_range)), float(max(primary_range))
         if not (math.isfinite(lo) and math.isfinite(hi)) or hi <= lo:
             return (), ()
