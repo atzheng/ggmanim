@@ -117,6 +117,7 @@ FILLED = {
     "area": lambda f: geom_area(aes(fill="g"), fill=f),
     "ribbon": lambda f: geom_ribbon(aes(ymin="lo", ymax="hi", fill="g"), fill=f),
     "col": lambda f: geom_col(aes(fill="g"), fill=f, fast=True),
+    "col_slow": lambda f: geom_col(aes(fill="g"), fill=f, fast=False),
     "boxplot": lambda f: geom_boxplot(aes("g", "y", fill="g"), fill=f, outliers=False),
     "notched": lambda f: geom_boxplot(aes("g", "y", fill="g"), fill=f, notch=True, outliers=False),
     "violin": lambda f: geom_violin(aes("g", "y", fill="g"), fill=f),
