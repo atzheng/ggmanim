@@ -9,6 +9,16 @@ Each group is sorted by ``x`` and drawn as one filled ``VMobject`` (clipped to t
 panel with :func:`~._clip.clip_polygon`); a row with a missing ``x``/``ymin``/
 ``ymax`` breaks the band into separate pieces (subpaths of the same mobject), as
 in ggplot2. ``outline_type`` picks which edges get the ``color`` outline.
+
+Horizontal bands (ggplot2's ``flipped_aes``): ``geom_ribbon(aes(y=, xmin=,
+xmax=))`` and ``geom_area(..., orientation="y")`` run along ``y``. As in ggplot2
+the data is flipped (``x <-> y``, ``xmin <-> ymin`` ...), handled as a vertical
+band, and flipped back; the polygon is flipped back just before it goes through
+the coord. ``setup_data`` writes the orientation to a ``flipped_aes`` column,
+which ``position_stack`` follows (stacking along x). The orientation is, in
+order: a ``flipped_aes`` column written by the stat (``stat_align(orientation=
+"y")``), else ``orientation="x"``/``"y"``, else (ribbons only) ``xmin``/``xmax``
+without ``ymin``/``ymax`` means horizontal.
 """
 
 from __future__ import annotations
@@ -20,6 +30,7 @@ import pandas as pd
 from manim import VGroup, VMobject
 
 from ..registry import register
+from ..stats.boxplot import flip_names
 from ..theme import Theme, theme_default
 from ._clip import clip_polygon, panel_rect
 from ._linetype import apply_linetype
@@ -49,6 +60,15 @@ def _check_outline_type(outline_type: Any) -> str:
             f"got {outline_type!r}"
         )
     return outline_type
+
+
+def _check_orientation(orientation: Any) -> None:
+    if orientation not in (None, "x", "y"):
+        raise ValueError(f"orientation must be 'x', 'y' or None, got {orientation!r}")
+
+
+def _flip(data: pd.DataFrame, flipped: bool) -> pd.DataFrame:
+    return flip_names(data) if flipped else data
 
 
 def _runs(ok: np.ndarray) -> list[slice]:
@@ -88,12 +108,29 @@ class GeomRibbon(Geom):
         "alpha": 1.0,
         "linetype": "solid",
     }
-    extra_params: tuple[str, ...] = ("outline_type",)
+    extra_params: tuple[str, ...] = ("outline_type", "orientation")
     default_outline_type = "both"
 
     def handle_na(self, data, params=None, label=None) -> pd.DataFrame:
         """Missing values are kept: they break the band into pieces when drawn."""
         return data
+
+    def is_flipped(self, data: pd.DataFrame, params: Any = None) -> bool:
+        """Whether the band runs along ``y`` (see the module docstring)."""
+        if "flipped_aes" in data.columns:
+            flags = data["flipped_aes"].dropna()
+            if len(flags):
+                return bool(flags.iloc[0])
+        orientation = (params or {}).get("orientation")
+        _check_orientation(orientation)
+        if orientation is not None:
+            return orientation == "y"
+        cols = set(data.columns)
+        return not cols & {"ymin", "ymax"} and bool(cols & {"xmin", "xmax"})
+
+    def setup_data(self, data: pd.DataFrame, params) -> pd.DataFrame:
+        """Record the orientation in a ``flipped_aes`` column."""
+        return data.assign(flipped_aes=self.is_flipped(data, params))
 
     def _bounds(self, gdf: pd.DataFrame) -> tuple[np.ndarray, np.ndarray]:
         return gdf["ymin"].to_numpy(float), gdf["ymax"].to_numpy(float)
@@ -105,6 +142,8 @@ class GeomRibbon(Geom):
         outline_type = _check_outline_type(
             self.default_outline_type if outline_type is None else outline_type
         )
+        flipped = self.is_flipped(data, params)
+        data = _flip(data, flipped)
         self.check_required_aes(data)
         data = self.use_defaults(data, params)
         rect = panel_rect(coord, panel_params)
@@ -121,15 +160,17 @@ class GeomRibbon(Geom):
                 xs, los, his = x[s], lo[s], hi[s]
                 rx = np.concatenate([xs, xs[::-1]])
                 ry = np.concatenate([his, los[::-1]])
+                if flipped:  # back to the real axes before the coord
+                    rx, ry = ry, rx
                 rx, ry = munch_path(coord, rx, ry, closed=True)
                 cx, cy = (rx, ry) if rect is None else clip_polygon(rx, ry, rect)
                 if len(cx) >= 3:
                     rings.append(transform_points(coord, cx, cy))
                 e = edge[s]
                 if outline_type in ("both", "upper"):
-                    lines.append((xs[e], his[e]))
+                    lines.append((his[e], xs[e]) if flipped else (xs[e], his[e]))
                 if outline_type in ("both", "lower"):
-                    lines.append((xs[e], los[e]))
+                    lines.append((los[e], xs[e]) if flipped else (xs[e], los[e]))
                 if outline_type == "full":
                     lines.append((np.append(rx, rx[0]), np.append(ry, ry[0])))
             fill = style_filled(
@@ -154,7 +195,7 @@ class GeomRibbon(Geom):
                 continue
             out.add(mob)
             drawn_groups.append(gid)
-        drawn = data[data["group"].isin(drawn_groups)]
+        drawn = _flip(data[data["group"].isin(drawn_groups)], flipped)
         return attach_marks(out, drawn, per="group")
 
     def draw_key(self, data_row, theme: Theme | None = None) -> VMobject:
@@ -166,7 +207,8 @@ class GeomArea(GeomRibbon):
     """Areas from 0 to ``y``: :meth:`setup_data` (transformed space) adds
     ``ymin = 0`` and ``ymax = y``, which the default ``position="stack"``
     stacks. Drawn like :class:`GeomRibbon` with ``outline_type="upper"``.
-    The default stat is ``stat_align``."""
+    The default stat is ``stat_align``. Horizontal areas (``orientation="y"``
+    or a true ``flipped_aes`` column) get ``xmin = 0``, ``xmax = x`` instead."""
 
     required_aes = ("x", "y")
     default_stat = "align"
@@ -174,11 +216,13 @@ class GeomArea(GeomRibbon):
     default_outline_type = "upper"
 
     def setup_data(self, data: pd.DataFrame, params) -> pd.DataFrame:
-        data = data.copy()
+        flipped = self.is_flipped(data, params)
+        data = _flip(data, flipped).copy()
         y = data["y"] if "y" in data.columns else pd.Series(np.nan, index=data.index)
         data["ymin"] = np.zeros(len(data))
         data["ymax"] = pd.to_numeric(y, errors="coerce").to_numpy(dtype=float)
-        return data
+        data["flipped_aes"] = flipped
+        return _flip(data, flipped)
 
     def _bounds(self, gdf: pd.DataFrame) -> tuple[np.ndarray, np.ndarray]:
         if {"ymin", "ymax"} <= set(gdf.columns):
@@ -202,8 +246,10 @@ def geom_ribbon(
     """Ribbons between ``aes(ymin=, ymax=)`` along ``x`` (one per group).
 
     ``outline_type`` (``"both"``, ``"upper"``, ``"lower"``, ``"full"``) picks the
-    edges outlined in ``color`` (no outline by default); ``alpha`` is the fill's."""
+    edges outlined in ``color`` (no outline by default); ``alpha`` is the fill's.
+    ``aes(y=, xmin=, xmax=)`` (or ``orientation="y"``) gives horizontal ribbons."""
     params["outline_type"] = _check_outline_type(outline_type)
+    _check_orientation(params.get("orientation"))
     return make_layer(
         GeomRibbon(),
         mapping,
@@ -234,8 +280,10 @@ def geom_area(
     they stack correctly even when observed at different x values;
     ``stat="identity"`` draws the data as is. ``position="identity"`` overlaps the
     areas instead of stacking them. ``outline_type`` as for :func:`geom_ribbon`
-    (default ``"upper"``)."""
+    (default ``"upper"``). ``orientation="y"`` draws horizontal areas: ``x`` per
+    ``y``, aligned on a shared y grid and stacked along x."""
     params["outline_type"] = _check_outline_type(outline_type)
+    _check_orientation(params.get("orientation"))
     return make_layer(
         GeomArea(),
         mapping,

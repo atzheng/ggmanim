@@ -22,13 +22,12 @@ import pandas as pd
 from manim import VMobject
 
 from ..registry import register
-from ..stats.boxplot import flip_names, resolve_flipped
+from ..stats.boxplot import resolve_flipped
 from ..stats.density import density_mapping
 from ..theme import Theme, theme_default
 from ._rect import filled_key
 from .area import GeomArea, _check_outline_type
 from .base import make_layer
-from .interval import _flip_panel
 
 __all__ = ["GeomDensity", "geom_density"]
 
@@ -51,17 +50,15 @@ class GeomDensity(GeomArea):
     }
     extra_params: tuple[str, ...] = ("outline_type", "orientation")
 
-    def setup_data(self, data: pd.DataFrame, params) -> pd.DataFrame:
-        flipped = _is_flipped(data, params or {})
-        if not flipped:
-            return super().setup_data(data, params)
-        return flip_names(super().setup_data(flip_names(data), params))
+    def is_flipped(self, data: pd.DataFrame, params: Any = None) -> bool:
+        """Densities: ``y`` without ``x`` is horizontal too (flipping is done by
+        :class:`GeomArea`'s ``setup_data``/``draw_panel``)."""
+        return _is_flipped(data, params or {})
 
     def draw_panel(
         self, data, panel_params, coord, theme: Theme | None = None, outline_type=None, **params
     ) -> VMobject:
         theme = theme if theme is not None else theme_default()
-        flipped = _is_flipped(data, params)
         data = self.use_defaults(data, params)
         fg = theme.get_foreground()
         unfilled = data["fill"].map(lambda v: v is None or (isinstance(v, float) and v != v))
@@ -70,9 +67,6 @@ class GeomDensity(GeomArea):
             color=data["color"].map(lambda v: fg if v is None else v),
         )
         params = {k: v for k, v in params.items() if k not in ("alpha", "fill", "color")}
-        if flipped:
-            data = flip_names(data)
-            coord, panel_params = _flip_panel(coord, panel_params)
         return super().draw_panel(
             data, panel_params, coord, theme, outline_type=outline_type, **params
         )
