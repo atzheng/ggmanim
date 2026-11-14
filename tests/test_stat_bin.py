@@ -74,7 +74,7 @@ def test_output_columns_density_and_weight():
     np.testing.assert_allclose((out["density"] * out["width"]).sum(), 1)
     np.testing.assert_allclose(out["ncount"], [0.5, 1, 0.5, 0.5])
     np.testing.assert_allclose(out["ndensity"], [0.5, 1, 0.5, 0.5])
-    assert {"flipped_aes", "y"} <= set(out.columns)
+    assert "flipped_aes" in out.columns and "y" not in out.columns  # y: after_stat default
     out = StatBin(binwidth=1).compute(df.assign(weight=[2, 1, 1, 0, np.nan]))
     assert out["count"].tolist() == [2, 2, 0, 0]
     assert "weight" not in out.columns

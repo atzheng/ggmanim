@@ -78,7 +78,7 @@ import numpy as np
 import pandas as pd
 from manim import ManimColor, Mobject, VGroup, VMobject
 
-from ..aes import AES_ALIASES, Aes, standardise_aes_name
+from ..aes import AES_ALIASES, Aes, AfterStat, standardise_aes_name
 from ..layer import Layer
 from ..palettes import as_manim_color
 from ..positions import get_position
@@ -643,7 +643,13 @@ def make_layer(
       instantiated with the params it accepts; ``Layer.params`` keeps *all* params
       (constant aesthetics, geom params and stat params).
     * ``position`` (name, class or instance; ``None`` -> ``geom.default_position``)
-      is resolved by :func:`ggmanim.positions.get_position`.
+      is resolved by :func:`ggmanim.positions.get_position`; for a stat with
+      ``oriented_position = True`` (``stat_count``, ``stat_bin``) a position that
+      does not honour ``flipped_aes`` itself (all but stack/fill, e.g. dodge) is
+      wrapped so it runs on swapped x/y for horizontal data.
+    * The stat's ``after_stat`` ``default_aes`` (e.g. ``y=after_stat("count")``)
+      are added to the mapping as :class:`StatDefault` for aesthetics neither
+      mapped nor set; they give way to the plot mapping at build time.
     * Unknown params trigger a warning (ggplot2's "Ignoring unknown parameters").
     """
     if isinstance(mapping, pd.DataFrame) and (data is None or isinstance(data, Mapping)):
@@ -669,13 +675,90 @@ def make_layer(
             stacklevel=3,
         )
 
-    return Layer(
+    mapping = _with_stat_defaults(stat_obj, mapping, params)
+    layer_cls = _StatDefaultLayer if _has_stat_defaults(mapping) else Layer
+    position = get_position(position)
+    if getattr(stat_obj, "oriented_position", False) and not _honours_flipped(position):
+        from .boxplot import oriented  # (boxplot imports this module)
+
+        position = oriented(position)
+    return layer_cls(
         geom=geom,
         stat=stat_obj,
-        position=get_position(position),
+        position=position,
         data=data,
         mapping=mapping,
         params=params,
         inherit_aes=inherit_aes,
         name=name,
     )
+
+
+# region: stat defaults
+class StatDefault(AfterStat):
+    """An ``after_stat`` default aesthetic of a layer's stat (e.g. ``stat_count``'s
+    ``y=after_stat("count")``), added to the layer mapping by :func:`make_layer`.
+    Equal to the plain ``after_stat`` it stands for, but it yields to the same
+    aesthetic in the plot mapping (ggplot2 applies a stat's defaults only to
+    aesthetics the layer's computed mapping lacks)."""
+
+    __slots__ = ()
+
+
+def _with_stat_defaults(stat: Any, mapping: Aes | None, params: Mapping[str, Any]) -> Aes | None:
+    """``mapping`` plus ``stat.default_aes``'s ``after_stat`` entries (as
+    :class:`StatDefault`) for aesthetics neither in ``mapping`` (an explicit
+    ``None`` counts) nor set as constants in ``params``.
+
+    Entries of ``mapping`` that *are* (by identity) the stat's own default
+    objects, as pre-added by :func:`ggmanim.geoms.count.stat_layer`, become
+    :class:`StatDefault` too; a user's ``after_stat("count")`` is a different
+    object and keeps precedence over the plot mapping."""
+    defaults = {
+        k: v
+        for k, v in (getattr(stat, "default_aes", None) or {}).items()
+        if isinstance(v, AfterStat)
+    }
+    if not defaults:
+        return mapping
+    given = dict(mapping) if mapping is not None else {}
+    given = {
+        k: StatDefault(defaults[k].expr) if v is defaults.get(k) else v for k, v in given.items()
+    }
+    extra = {
+        k: StatDefault(v.expr) for k, v in defaults.items() if k not in given and k not in params
+    }
+    if not extra and not any(isinstance(v, StatDefault) for v in given.values()):
+        return mapping
+    return Aes({**extra, **given})
+
+
+def _honours_flipped(position: Any) -> bool:
+    """Positions that flip ``flipped_aes`` data themselves (``position_stack``,
+    ``position_fill``); wrapping them in an ``OrientedPosition`` would flip twice."""
+    from ..positions import PositionStack
+
+    return isinstance(position, PositionStack)
+
+
+def _has_stat_defaults(mapping: Aes | None) -> bool:
+    return mapping is not None and any(isinstance(v, StatDefault) for v in mapping.values())
+
+
+class _StatDefaultLayer(Layer):
+    """A :class:`~ggmanim.layer.Layer` whose :class:`StatDefault` aesthetics give
+    way to the plot mapping: ``ggplot(df, aes(y="cut")) + geom_bar()`` counts per
+    ``y`` (``x=after_stat("count")``) rather than overriding the inherited ``y``."""
+
+    def resolve_mapping(self, plot_mapping: Aes | None) -> Aes:
+        resolved = super().resolve_mapping(plot_mapping)
+        if not self.inherit_aes or plot_mapping is None:
+            return resolved
+        base = (plot_mapping if isinstance(plot_mapping, Aes) else Aes(plot_mapping)).defined()
+        inherited = {
+            k: base[k] for k, v in self.mapping.items() if isinstance(v, StatDefault) and k in base
+        }
+        return resolved.merge(inherited) if inherited else resolved
+
+
+# endregion

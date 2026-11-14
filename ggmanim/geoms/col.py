@@ -68,6 +68,15 @@ class GeomCol(Geom):
     seal = False
 
     def setup_data(self, data: pd.DataFrame, params) -> pd.DataFrame:
+        if len(data) and "flipped_aes" in data.columns and bool(data["flipped_aes"].all()):
+            # horizontal bars (stat_count/stat_bin on y): extents on swapped axes
+            from ..stats.boxplot import flip_names
+
+            p = dict(params or {})
+            p["_x_discrete"] = bool(p.get("_y_discrete"))
+            return flip_names(
+                self.setup_data(flip_names(data).assign(flipped_aes=False), p)
+            ).assign(flipped_aes=True)
         data = data.copy()
         if len(data) == 0:
             for c in ("xmin", "xmax", "ymin", "ymax"):
