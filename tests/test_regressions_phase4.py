@@ -203,7 +203,6 @@ def test_function_and_hline_in_every_wrap_panel(df):
 # -- known issue: ggm-rnm --------------------------------------------------------------
 
 
-@pytest.mark.xfail(strict=True, reason="ggm-rnm: break density ignores the panel size")
 def test_small_free_panels_tick_labels_do_not_overlap():
     wrap = _load("facet_wrap")
     plot = wrap.make_plot(scales="free_y", labeller=label_both).build()

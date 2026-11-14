@@ -32,6 +32,7 @@ Position-scale API used by the build / coord
 
 from __future__ import annotations
 
+import copy
 import math
 from collections.abc import Callable, Sequence
 from typing import Any
@@ -454,6 +455,19 @@ class ScaleContinuous(Scale):
     def get_labels(self, limits=None) -> list[str]:
         """Labels (data-space strings) for ``get_breaks(limits)``."""
         return self._breaks_and_labels(limits)[1]
+
+    def has_default_breaks(self) -> bool:
+        """Whether the major breaks are automatic (``breaks=None``), i.e. chosen
+        from ``n_breaks`` rather than given by the user."""
+        return self.breaks is None
+
+    def with_n_breaks(self, n: int) -> ScaleContinuous:
+        """A shallow copy of this scale whose automatic breaks target ``n`` breaks
+        (the coord asks for fewer when the default ones would crowd a small panel).
+        User-given ``breaks`` are kept as they are; the scale itself is not mutated."""
+        out = copy.copy(self)
+        out.n_breaks = max(1, int(n))
+        return out
 
     def get_minor_breaks(self, limits=None) -> np.ndarray:
         """Minor breaks in transformed space within ``limits`` (transformed; default
