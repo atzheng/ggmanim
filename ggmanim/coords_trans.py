@@ -19,6 +19,7 @@ The transform is applied by the coord at drawing time, not by the scales::
 from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
+from dataclasses import dataclass
 from typing import Any
 
 import numpy as np
@@ -29,7 +30,7 @@ from .scales.breaks import expand_range
 from .scales.continuous import get_transform
 from .theme import Theme
 
-__all__ = ["TransPanel", "CoordTrans", "coord_trans"]
+__all__ = ["TransPanel", "TransPanelParams", "CoordTrans", "coord_trans"]
 
 
 class TransPanel(CartesianPanel):
@@ -50,18 +51,87 @@ class TransPanel(CartesianPanel):
     trans_range: tuple[tuple[float, float], tuple[float, float]] = ((0.0, 1.0), (0.0, 1.0))
 
     def transform(self, x: Any, y: Any) -> np.ndarray:
-        """Input-space ``(x, y)`` -> ``(N, 3)`` scene points (out-of-domain -> NaN)."""
+        """Input-space ``(x, y)`` -> ``(N, 3)`` scene points.
+
+        As in ggplot2 (``transform_value`` + ``squish_infinite``), a value whose
+        image is infinite -- ``+-inf``, or the open end of a transform's domain
+        such as ``0`` under ``log`` -- goes to that edge of the panel, so a bar
+        from 0 on a log axis reaches the panel edge even with ``clip="off"``.
+        Other out-of-domain values (``log`` of a negative) map to NaN."""
         x, y = np.broadcast_arrays(np.asarray(x, dtype=float), np.asarray(y, dtype=float))
-        return _c2p(self.axes, self.trans_x.transform(x), self.trans_y.transform(y))
+        (rx, ry) = self.trans_range
+        return _c2p(self.axes, _squished(self.trans_x, x, rx), _squished(self.trans_y, y, ry))
+
+    def squish_input(self, x: Any, y: Any) -> tuple[np.ndarray, np.ndarray]:
+        """``(x, y)`` with each value drawn at a panel edge by :meth:`transform`
+        (infinite image) replaced by the input-space value of that edge.
+        :func:`~ggmanim.coords.coord_munch` calls it first (ggplot2 does the same
+        with ``+-Inf``), so a path from ``0`` on a log axis is interpolated from
+        the panel edge instead of through ever smaller values below it."""
+        x, y = np.broadcast_arrays(np.asarray(x, dtype=float), np.asarray(y, dtype=float))
+        (rx, ry) = self.trans_range
+        return _edge_input(self.trans_x, x, rx), _edge_input(self.trans_y, y, ry)
 
     def munch_distance(self, x: Any, y: Any) -> np.ndarray:
         """Segment lengths of the path ``(x, y)`` in transformed space, each axis
         divided by its transformed range (ggplot2's ``dist_euclidean`` on
         rescaled values)."""
         (x0, x1), (y0, y1) = self.trans_range
-        tx = self.trans_x.transform(np.asarray(x, dtype=float)) / ((x1 - x0) or 1.0)
-        ty = self.trans_y.transform(np.asarray(y, dtype=float)) / ((y1 - y0) or 1.0)
+        tx = _squished(self.trans_x, x, (x0, x1)) / ((x1 - x0) or 1.0)
+        ty = _squished(self.trans_y, y, (y0, y1)) / ((y1 - y0) or 1.0)
         return np.hypot(np.diff(tx), np.diff(ty))
+
+
+@dataclass(frozen=True)
+class TransPanelParams(PanelParams):
+    """:class:`PanelParams` of a :class:`TransPanel`: the inherited fields are in
+    the coord's input space (what geoms clip against); ``trans_x_range`` /
+    ``trans_y_range`` are the drawn, transformed-space axis ranges (what
+    ``facet_grid(space="free")`` sizes panels by)."""
+
+    trans_x_range: tuple[float, float] | None = None
+    trans_y_range: tuple[float, float] | None = None
+
+
+def _edge_input(trans: Any, v: np.ndarray, rng: tuple[float, float]) -> np.ndarray:
+    """``v`` with the values :func:`_squished` puts at an end of ``rng`` replaced
+    by that end's input-space value."""
+    with np.errstate(all="ignore"):
+        raw = np.asarray(trans.transform(v), dtype=float)
+    if np.isfinite(raw).all():
+        return v.copy()
+    t = _squished(trans, v, rng)
+    edge = ~np.isfinite(raw) & np.isfinite(t)
+    with np.errstate(all="ignore"):
+        back = np.asarray(trans.inverse(t), dtype=float)
+    return np.where(edge, back, v)
+
+
+def _squished(trans: Any, v: Any, rng: tuple[float, float]) -> np.ndarray:
+    """``trans.transform(v)`` with infinite images squished into ``rng``: ``+-inf``
+    inputs whose image is infinite, and values just outside an *open* domain end
+    (``0`` for ``log``, whose domain starts at the smallest positive float), go
+    to the end of ``rng`` that end of the domain maps towards."""
+    v = np.asarray(v, dtype=float)
+    with np.errstate(all="ignore"):
+        t = np.array(trans.transform(v), dtype=float, copy=True)
+    if np.isfinite(t).all():
+        return t
+    lo, hi = sorted(float(e) for e in rng)
+    t = np.where(t == np.inf, hi, np.where(t == -np.inf, lo, t))
+    dlo, dhi = (float(d) for d in trans.domain)
+    for bound, step, at_edge in (
+        (dlo, 1.0, (v < dlo) & (np.nextafter(v, np.inf) >= dlo)),
+        (dhi, -1.0, (v > dhi) & (np.nextafter(v, -np.inf) <= dhi)),
+    ):
+        if not (np.isfinite(bound) and at_edge.any()):
+            continue
+        inside = bound + step * max(1.0, abs(bound))  # a point well inside the domain
+        with np.errstate(all="ignore"):
+            image, ref = (float(i) for i in np.asarray(trans.transform([bound, inside]), float))
+        if np.isfinite(image) and np.isfinite(ref):
+            t = np.where(at_edge, lo if image < ref else hi, t)
+    return t
 
 
 def _inverse_range(trans: Any, rng: tuple[float, float]) -> tuple[float, float]:
@@ -155,10 +225,11 @@ class CoordTrans(CoordCartesian):
     ``"log"``, ``"sqrt"``, ``"reverse"``) or
     :class:`~ggmanim.scales.continuous.Transform` instances. ``xlim``/``ylim``
     zoom in data space (as in :func:`coord_cartesian`); ``expand`` pads the
-    *transformed* range. Values outside a transform's domain (``log`` of 0) map
-    to NaN and are not drawn, but with ``clip="on"`` rects and areas reaching
-    below the domain are first clamped to the panel (bars from 0 show under a
-    log axis).
+    *transformed* range. A value at the open end of a transform's domain
+    (``log`` of 0) or an infinite one is drawn at the panel edge, as in ggplot2,
+    so bars from 0 reach the bottom of a log axis also with ``clip="off"``;
+    other out-of-domain values (``log`` of a negative) map to NaN and are not
+    drawn.
 
     :meth:`build` returns a :class:`TransPanel` (``is_linear`` false).
     """
@@ -233,7 +304,9 @@ class CoordTrans(CoordCartesian):
         def minor(f: _TransScale) -> tuple[float, ...]:
             return tuple(float(v) for v in f.minor_pairs()[0])
 
-        return PanelParams(
+        return TransPanelParams(
+            trans_x_range=fx._range,
+            trans_y_range=fy._range,
             x_range=fx.input_range,
             y_range=fy.input_range,
             x_breaks=tuple(float(v) for v in xb),

@@ -81,7 +81,8 @@ def test_nan_segments_are_not_subdivided():
 def test_out_of_domain_vertex_is_kept():
     panel = _panel(coord_trans(y="log10"))
     x, y = munch_path(panel, [1, 10, 100], [0, 10, 100])  # log10(0) undefined
-    assert y[0] == 0 and x[0] == 1
+    # ggm-78e: drawn at the panel edge, so munched from that edge's input value
+    assert y[0] == panel.panel_params.y_range[0] and x[0] == 1
     assert len(x) > 3
 
 

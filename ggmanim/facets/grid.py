@@ -35,6 +35,7 @@ from typing import Any
 import pandas as pd
 
 from ..registry import register
+from . import _layout
 from .base import Facet, StripSpecs, _isna, _levels
 
 __all__ = ["FacetGrid", "facet_grid", "MARGIN_LABEL"]
@@ -248,10 +249,7 @@ class FacetGrid(Facet):
         row_w: list[float] | None = None
 
         def ranges(p: int) -> tuple[Any, Any]:  # (horizontal, vertical) axis ranges
-            pp = panel_params[p]
-            if getattr(pp, "flipped", False):
-                return pp.y_range, pp.x_range
-            return pp.x_range, pp.y_range
+            return _layout.space_ranges(panel_params[p])
 
         if self.space in ("free", "free_x"):
             col_w = [1.0] * ncol

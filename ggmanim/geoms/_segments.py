@@ -16,6 +16,9 @@ colour changes only a few times stays cheap. Where an opaque run meets the
 next one, it extends one stroke width under it so the joint shows no
 anti-aliasing seam (the next run, drawn later, covers the overlap).
 
+Under a non-linear coord (``coord_trans``, ``coord_polar``) each segment is
+munched first (:func:`munch_segments`), the pieces styled like their segment.
+
 Clipping is per segment (Liang-Barsky, :func:`._clip.clip_segments`), in
 transformed space like the rest of the geoms. Dashing (``linetype``) is measured
 by arc length along the *whole* unclipped group path in scene units, so the
@@ -34,11 +37,18 @@ import pandas as pd
 from manim import ManimColor, VGroup, VMobject
 
 from ..scales.shape import parse_linetype
-from ._clip import clip_segments, panel_rect
+from ._clip import clip_polyline, clip_segments, inside, panel_rect
 from ._linetype import DASH_UNIT
 from .base import _scalar, num, resolve_color, transform_points
 
-__all__ = ["VARYING_AES", "varies_within", "dash_polyline_phase", "segmented_path"]
+__all__ = [
+    "VARYING_AES",
+    "varies_within",
+    "dash_polyline_phase",
+    "munch_segments",
+    "munched_segment",
+    "segmented_path",
+]
 
 #: Aesthetics that switch a group from one polyline to per-segment drawing.
 VARYING_AES = ("color", "linewidth", "alpha")
@@ -112,6 +122,61 @@ def _stroke(points: np.ndarray, style: tuple[Any, float, float]) -> VMobject:
     return m
 
 
+def munch_segments(coord: Any, gdf: pd.DataFrame) -> pd.DataFrame:
+    """``gdf`` with each segment ``i -> i+1`` munched under a non-linear coord
+    (:func:`ggmanim.coords.coord_munch`): the new vertices are rows copied from
+    row ``i``, so every piece keeps the style of its segment's start. ``gdf``
+    itself (not a copy) under a linear coord."""
+    from ..coords import _munch_counts, coord_munch, is_linear
+
+    if is_linear(coord) or len(gdf) < 2:
+        return gdf
+    x = gdf["x"].to_numpy(float)
+    y = gdf["y"].to_numpy(float)
+    squish = getattr(coord, "squish_input", None)
+    if squish is not None:  # as coord_munch does, so the counts match its output
+        x, y = (np.asarray(v, dtype=float).ravel() for v in squish(x, y))
+    n = _munch_counts(coord, x, y)
+    rows = np.append(np.repeat(np.arange(len(n)), n), len(x) - 1)
+    mx, my = coord_munch(coord, x, y)
+    return gdf.iloc[rows].assign(x=mx, y=my)
+
+
+def munched_segment(
+    coord: Any, panel_params: Any, x0: float, y0: float, x1: float, y1: float
+) -> tuple[list[np.ndarray], bool, bool]:
+    """The straight segment ``(x0, y0) -> (x1, y1)`` (coord input space) under a
+    non-linear coord: munched (:func:`ggmanim.coords.coord_munch`), clipped to
+    the panel and transformed. Returns ``(pieces, start kept, end kept)``:
+    ``pieces`` are ``(m, 3)`` scene polylines (``[]`` when nothing is visible
+    or the segment has zero length)
+    and the flags say whether each end survived the clip (gets an arrowhead).
+    Pieces with non-finite points (outside a transform's domain) are split
+    there."""
+    from ..coords import coord_munch
+
+    mx, my = coord_munch(coord, [x0, x1], [y0, y1])
+    rect = panel_rect(coord, panel_params)
+    raw = [(mx, my)] if rect is None else clip_polyline(mx, my, rect)
+    pieces: list[np.ndarray] = []
+    for px, py in raw:
+        pts = transform_points(coord, px, py)
+        ok = np.isfinite(pts).all(axis=1)
+        # split at non-finite points into runs of >= 2 points
+        cuts = np.flatnonzero(np.diff(np.concatenate([[0], ok.astype(int), [0]])))
+        for a, b in zip(cuts[::2], cuts[1::2]):
+            if b - a >= 2 and not np.allclose(pts[a], pts[a + 1 : b]):  # not zero length
+                pieces.append(pts[a:b])
+    keep_start = keep_end = rect is None
+    if rect is not None:
+        keep_start = bool(inside(x0, y0, rect)[()])
+        keep_end = bool(inside(x1, y1, rect)[()])
+    if pieces:
+        keep_start = keep_start and np.allclose(pieces[0][0], transform_points(coord, x0, y0)[0])
+        keep_end = keep_end and np.allclose(pieces[-1][-1], transform_points(coord, x1, y1)[0])
+    return pieces, keep_start, keep_end
+
+
 def segmented_path(coord: Any, panel_params: Any, gdf: pd.DataFrame, fg: Any) -> VGroup:
     """The group ``gdf`` (finite ``x``/``y`` in transformed space, in drawing
     order, with ``color``/``linewidth``/``alpha``/``linetype`` columns) as one
@@ -121,11 +186,12 @@ def segmented_path(coord: Any, panel_params: Any, gdf: pd.DataFrame, fg: Any) ->
     for a dashed ``linetype``, of dashes (``.linetype`` set, as
     :func:`._linetype.apply_linetype` does).
     """
+    out: Any = VGroup()
+    if len(gdf) < 2:
+        return out
+    gdf = munch_segments(coord, gdf)
     x = gdf["x"].to_numpy(float)
     y = gdf["y"].to_numpy(float)
-    out: Any = VGroup()
-    if len(x) < 2:
-        return out
     styles = [
         (resolve_color(_scalar(c), fg), num(w, 3.0), num(a, 1.0))
         for c, w, a in zip(gdf["color"], gdf["linewidth"], gdf["alpha"])
