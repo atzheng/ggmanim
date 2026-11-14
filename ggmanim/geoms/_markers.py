@@ -23,7 +23,8 @@ if ``fill`` is ``None``); ``cross``/``plus`` are stroked in ``color``.
 
 Each marker is a copy of a cached unit-size prototype per shape (scaled and
 shifted), which is several times faster than constructing manim polygons row by
-row.
+row; the copy is :func:`ggmanim._text_cache.fast_copy`, a deep copy without the
+generic ``copy.deepcopy`` machinery.
 """
 
 from __future__ import annotations
@@ -34,6 +35,7 @@ from typing import Any
 import numpy as np
 from manim import ORIGIN, PI, Cross, Dot, RegularPolygon, Square, Star, Triangle, VMobject
 
+from .._text_cache import fast_copy
 from ..scales.shape import parse_shape
 
 __all__ = ["make_marker", "outline_width"]
@@ -99,9 +101,17 @@ def make_marker(
     """
     base, style = parse_shape(shape)
     radius = max(float(radius), 0.0)
-    m = _prototype(base).copy()
-    m.scale(radius if radius > 0 else 1e-6, about_point=ORIGIN)
-    m.shift(np.asarray(point, dtype=float))
+    m = fast_copy(_prototype(base))
+    assert isinstance(m, VMobject)
+    # ``m.scale(k, about_point=ORIGIN).shift(point)`` on the points directly (the
+    # same arithmetic, without manim's per-call family walks)
+    k = radius if radius > 0 else 1e-6
+    offset = np.asarray(point, dtype=float)
+    for mob in m.family_members_with_points() if m.submobjects else (m,):
+        pts = k * mob.points
+        pts += ORIGIN
+        pts += offset
+        mob.points = pts
     if isinstance(m, Dot):
         m.radius = radius
     sw = outline_width(radius) if stroke_width is None else float(stroke_width)

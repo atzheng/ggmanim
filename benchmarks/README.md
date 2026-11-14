@@ -9,7 +9,10 @@ warm-up run.
 | `scatter_100`, `scatter_1k`, `scatter_10k` | `geom_point`, n random points |
 | `lines_1k_grouped` | `geom_line`, 10 coloured groups of 100 points |
 | `col_500` | `geom_col`, 500 bars |
+| `col_stacked_2k` | `geom_col`, 500 x positions x 4 stacked groups |
+| `scatter_markers_2k` | `geom_point(fast=False)`, 2000 points, one `make_marker` each |
 | `tile_50x50` | `geom_tile`, 2500 tiles, continuous fill |
+| `tile_100x100` | `geom_tile`, 10000 tiles, continuous fill |
 | `facet_3x3` | `facet_wrap` into 3 x 3 panels, points + `lm` smooth |
 | `legend_heavy` | 600 points with colour (12 levels), shape and size legends |
 
@@ -71,3 +74,25 @@ See `PROFILE.md` for the 10k-scatter profile. Known remaining hot spots
 pipeline), per-value `ManimColor` construction in continuous colour palettes
 (`tile_50x50`, ~9 ms), `make_marker`'s per-marker `deepcopy` and text
 rendering (`theme.make_text`, ggm-bam.2).
+
+## Results of ggm-1gr
+
+The three hot spots above, before (origin/main) vs after, same machine, best
+of 5 (seconds; the machine was busy, so compare the columns, not other tables):
+
+| scenario | pipeline before | pipeline after | build before | build after |
+|---|---:|---:|---:|---:|
+| col_500 | 0.121 | 0.0025 | 0.203 | 0.083 |
+| col_stacked_2k | 0.130 | 0.0049 | 0.422 | 0.294 |
+| tile_50x50 | 0.011 | 0.0033 | 0.239 | 0.181 |
+| tile_100x100 | 0.038 | 0.0067 | 0.539 | 0.361 |
+| scatter_markers_2k | 0.0011 | 0.0011 | 0.150 | 0.111 |
+
+* `position_stack` stacks a whole panel at once (one sort, a segmented cumulative
+  sum with the same float additions as before) instead of a pandas groupby per x.
+* Continuous palettes (`gradient_n_pal`) build one `ManimColor` per distinct
+  colour, cached across calls, instead of one per value.
+* `make_marker` copies its prototype with `_text_cache.fast_copy` and scales and
+  shifts the points directly; 10k markers: 0.48 s -> 0.29 s.
+
+`tests/test_perf_followups.py` checks each fast path against the old code.
