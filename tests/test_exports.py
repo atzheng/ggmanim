@@ -73,7 +73,8 @@ def test_top_level_api_kept():
 def test_stats_registry_derived_from_classes():
     from ggmanim.stats import STATS, StatFunction, StatIdentity, StatSmooth, _stat_name
 
-    assert STATS == {"function": StatFunction, "identity": StatIdentity, "smooth": StatSmooth}
+    expected = {"function": StatFunction, "identity": StatIdentity, "smooth": StatSmooth}
+    assert {k: STATS[k] for k in expected} == expected  # new stat modules add entries
     assert _stat_name(type("StatSummaryBin", (), {})) == "summary_bin"
     assert _stat_name(type("StatBin2d", (), {})) == "bin_2d"
     assert _stat_name(type("StatQq", (), {"name": "qq_custom"})) == "qq_custom"

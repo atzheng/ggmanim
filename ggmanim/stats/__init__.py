@@ -13,6 +13,17 @@ from .base import GROUPING_AES, NO_GROUP, Stat, add_group, get_stat, is_discrete
 from .function import StatFunction, evaluate_function, stat_function
 from .identity import StatIdentity, stat_identity
 from .smooth import StatSmooth, stat_smooth, t_quantile
+from .summary import (
+    StatSummary,
+    StatSummaryBin,
+    mean_cl_normal,
+    mean_sdl,
+    mean_se,
+    median_hilow,
+    stat_summary,
+    stat_summary_bin,
+    summary_function,
+)
 
 __all__ = [
     "GROUPING_AES",
@@ -21,14 +32,23 @@ __all__ = [
     "StatFunction",
     "StatIdentity",
     "StatSmooth",
+    "StatSummary",
+    "StatSummaryBin",
     "add_group",
     "evaluate_function",
     "get_stat",
     "is_discrete",
+    "mean_cl_normal",
+    "mean_sdl",
+    "mean_se",
+    "median_hilow",
     "scale_limits",
     "stat_function",
     "stat_identity",
     "stat_smooth",
+    "stat_summary",
+    "stat_summary_bin",
+    "summary_function",
     "t_quantile",
 ]
 # -- end generated --

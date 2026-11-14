@@ -6,54 +6,93 @@ generated from each module's ``__all__`` by ``scripts/gen_exports.py``.
 """
 
 # -- generated exports (scripts/gen_exports.py) --
+from .abline import GeomAbline, geom_abline
 from .annotate import annotate
 from .area import GeomArea, GeomRibbon, geom_area, geom_ribbon
 from .base import KEY_SIZE, Geom, attach_marks, group_label, make_layer, resolve_color
 from .col import GeomCol, geom_bar, geom_col, resolution
 from .function import GeomFunction, geom_function
+from .interval import (
+    GeomCrossbar,
+    GeomErrorbar,
+    GeomErrorbarh,
+    GeomLinerange,
+    GeomPointrange,
+    draw_crossbar,
+    flip_data,
+    geom_crossbar,
+    geom_errorbar,
+    geom_errorbarh,
+    geom_linerange,
+    geom_pointrange,
+)
 from .line import GeomLine, GeomPath, geom_line, geom_path
 from .point import GeomPoint, geom_point
 from .polygon import GeomPolygon, geom_polygon
 from .rect import GeomRaster, GeomRect, GeomTile, geom_raster, geom_rect, geom_tile
+from .segment import ArrowSpec, GeomCurve, GeomSegment, arrow, geom_curve, geom_segment
 from .smooth import GeomSmooth, geom_smooth
+from .step import GeomStep, geom_step, stairstep
 from .text import GeomLabel, GeomText, geom_label, geom_text
 from .vline import GeomHline, GeomVline, geom_hline, geom_vline
 
 __all__ = [
+    "ArrowSpec",
     "Geom",
+    "GeomAbline",
     "GeomArea",
     "GeomCol",
+    "GeomCrossbar",
+    "GeomCurve",
+    "GeomErrorbar",
+    "GeomErrorbarh",
     "GeomFunction",
     "GeomHline",
     "GeomLabel",
     "GeomLine",
+    "GeomLinerange",
     "GeomPath",
     "GeomPoint",
+    "GeomPointrange",
     "GeomPolygon",
     "GeomRaster",
     "GeomRect",
     "GeomRibbon",
+    "GeomSegment",
     "GeomSmooth",
+    "GeomStep",
     "GeomText",
     "GeomTile",
     "GeomVline",
     "KEY_SIZE",
     "annotate",
+    "arrow",
     "attach_marks",
+    "draw_crossbar",
+    "flip_data",
+    "geom_abline",
     "geom_area",
     "geom_bar",
     "geom_col",
+    "geom_crossbar",
+    "geom_curve",
+    "geom_errorbar",
+    "geom_errorbarh",
     "geom_function",
     "geom_hline",
     "geom_label",
     "geom_line",
+    "geom_linerange",
     "geom_path",
     "geom_point",
+    "geom_pointrange",
     "geom_polygon",
     "geom_raster",
     "geom_rect",
     "geom_ribbon",
+    "geom_segment",
     "geom_smooth",
+    "geom_step",
     "geom_text",
     "geom_tile",
     "geom_vline",
@@ -61,5 +100,6 @@ __all__ = [
     "make_layer",
     "resolution",
     "resolve_color",
+    "stairstep",
 ]
 # -- end generated --

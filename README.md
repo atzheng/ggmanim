@@ -364,9 +364,14 @@ roadmap.
 | `geom_rect()`, `geom_tile()` | same | tile `width`/`height` default to the data resolution |
 | `geom_raster()` | same | one mobject per fill colour on a regular grid (fast heatmaps) |
 | `geom_polygon(aes(group, subgroup))` | same | `subgroup` rings are holes (even-odd fill) |
+| `geom_step(direction = "hv")` | same | `"hv"`, `"vh"`, `"mid"` |
+| `geom_segment(arrow = arrow())`, `geom_curve(curvature)` | same | `arrow(length=)` in scene units; curves are circular arcs (`angle = curvature * pi`) |
+| `geom_abline(slope, intercept)` | same | trains no scale; slope/intercept in transformed units (as ggplot2) |
+| `geom_errorbar()`, `geom_errorbarh()`, `geom_linerange()`, `geom_pointrange()`, `geom_crossbar()` | same | `orientation="y"` (or `xmin`/`xmax`) for horizontal |
+| `stat_summary(fun.data = mean_se)` | `stat_summary(fun_data="mean_se")` | also `mean_cl_normal`, `mean_sdl`, `median_hilow`, `fun`/`fun_min`/`fun_max`; `stat_summary_bin()` |
 
-Not yet: `geom_histogram`, `geom_boxplot`, `geom_violin`, `geom_density`,
-`geom_segment`, error bars; `stat_align` for `geom_area`.
+Not yet: `geom_histogram`, `geom_boxplot`, `geom_violin`, `geom_density`;
+`stat_align` for `geom_area`.
 
 <!-- section: stats -->
 ### Stats
