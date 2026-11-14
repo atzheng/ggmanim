@@ -52,6 +52,8 @@ from .summary import (
     stat_summary_bin,
     summary_function,
 )
+from .summary2d import StatSummary2d, stat_summary2d, stat_summary_2d
+from .summary_hex import StatSummaryHex, hex_cells, stat_summary_hex
 from .unique import StatUnique, stat_unique
 
 __all__ = [
@@ -77,7 +79,9 @@ __all__ = [
     "StatSmooth",
     "StatSum",
     "StatSummary",
+    "StatSummary2d",
     "StatSummaryBin",
+    "StatSummaryHex",
     "StatUnique",
     "StatYdensity",
     "add_group",
@@ -91,6 +95,7 @@ __all__ = [
     "evaluate_function",
     "flip_names",
     "get_stat",
+    "hex_cells",
     "hexagon_vertices",
     "hexbin",
     "is_discrete",
@@ -127,7 +132,10 @@ __all__ = [
     "stat_smooth",
     "stat_sum",
     "stat_summary",
+    "stat_summary2d",
+    "stat_summary_2d",
     "stat_summary_bin",
+    "stat_summary_hex",
     "stat_unique",
     "stat_ydensity",
     "summary_function",

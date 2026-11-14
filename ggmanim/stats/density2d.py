@@ -5,7 +5,9 @@ the x and y scale limits (MASS's ``kde2d``, which ggplot2 uses):
 
 * bandwidths ``h`` per axis default to :func:`bandwidth_nrd`
   (``4 * 1.06 * min(sd, IQR / 1.34) * n^(-1/5)``), times ``adjust``;
-* like ``kde2d``, the kernel standard deviation is ``h / 4``.
+* like ``kde2d``, the kernel standard deviation is ``h / 4``;
+* a ``weight`` aesthetic weights the observations (normalised to sum 1 per
+  group, as ggplot2 >= 3.5 does); bandwidths stay unweighted.
 
 With ``contour=True`` (the default) the grid is contoured (lines for
 ``stat_density_2d``, bands for ``stat_density_2d_filled``) on ``contour_var``
@@ -65,6 +67,7 @@ def kde2d(
     h: float | Sequence[float] | None = None,
     n: int | Sequence[int] = 25,
     lims: Sequence[float] | None = None,
+    weights=None,
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """MASS's ``kde2d``: ``(gx, gy, z)`` with ``z[i, j]`` the density at
     ``(gx[i], gy[j])``.
@@ -72,7 +75,8 @@ def kde2d(
     ``h`` (bandwidth per axis; default :func:`bandwidth_nrd` of each) is divided
     by 4 to give the Gaussian kernel's standard deviation. ``n`` grid points per
     axis (one number or a pair), spanning ``lims = (xlo, xhi, ylo, yhi)``
-    (default: the data ranges)."""
+    (default: the data ranges). ``weights`` (non-negative, one per observation)
+    are normalised to sum 1; without them every observation weighs ``1 / n``."""
     x = np.asarray(x, dtype=float)
     y = np.asarray(y, dtype=float)
     nx_, ny_ = (int(v) for v in _pair(n, "n"))
@@ -88,7 +92,17 @@ def kde2d(
     ay = (gy[:, None] - y[None, :]) / hy
     phi_x = np.exp(-0.5 * ax**2) / np.sqrt(2 * np.pi)
     phi_y = np.exp(-0.5 * ay**2) / np.sqrt(2 * np.pi)
-    z = phi_x @ phi_y.T / (len(x) * hx * hy)
+    if weights is None:
+        w = np.full(len(x), 1.0 / len(x))
+    else:
+        w = np.asarray(weights, dtype=float)
+        if len(w) != len(x) or not np.all(np.isfinite(w)) or (w < 0).any():
+            raise ValueError("weights must be finite, non-negative and one per observation")
+        total = w.sum()
+        if not total > 0:
+            raise ValueError("weights must not all be zero")
+        w = w / total
+    z = (phi_x * w[None, :]) @ phi_y.T / (hx * hy)
     return gx, gy, z
 
 
@@ -162,6 +176,11 @@ class StatDensity2d(Stat):
         x = pd.to_numeric(df["x"], errors="coerce").to_numpy(dtype=float)
         y = pd.to_numeric(df["y"], errors="coerce").to_numpy(dtype=float)
         ok = np.isfinite(x) & np.isfinite(y)
+        w = None
+        if "weight" in df.columns:
+            w = pd.to_numeric(df["weight"], errors="coerce").to_numpy(dtype=float)
+            ok &= np.isfinite(w)
+            w = w[ok]
         x, y = x[ok], y[ok]
         if len(x) < 2:
             return pd.DataFrame()
@@ -170,7 +189,7 @@ class StatDensity2d(Stat):
         hh = (hh[0] * ax, hh[1] * ay)
         xl = scale_limits(scales, "x") or (float(x.min()), float(x.max()))
         yl = scale_limits(scales, "y") or (float(y.min()), float(y.max()))
-        gx, gy, z = kde2d(x, y, h=hh, n=n, lims=(*xl, *yl))
+        gx, gy, z = kde2d(x, y, h=hh, n=n, lims=(*xl, *yl), weights=w)
         density = z.ravel(order="F")  # x varies fastest (R's expand.grid)
         top = density.max()
         return pd.DataFrame(
