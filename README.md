@@ -491,8 +491,17 @@ Not yet: `element_*` objects.
 | ggplot2 / gganimate | ggmanim | notes |
 |---|---|---|
 | `aes(group = id)` in gganimate | `aes(key="id")` | each layer mobject has `.marks` and matching `.keys` |
+| `enter_grow()` / `enter_fade()` | `self.play(plot.create())` | panel, axes, each layer, legend, titles; `lag_ratio`, `run_time`, `order=`, `panel_lag` |
+| — | `plot.reveal_layer("fit")`, `plot.hide_layer("fit")` | the geom's own animation; `animation="fade_in"` overrides |
+| — | `plot.mark("points", "Ohio")` | the mobject drawn for the row whose `key` is `"Ohio"` |
 
-Not yet: `GGPlot.create()`, transitions between plots, `ValueTracker`-driven rebuilds.
+Per-geom animations live in a registry (`ggmanim.animate.register_animation`): points
+fade in, lines and axes are drawn (`Create`), bars grow out of the zero line
+(sideways under `coord_flip`), areas/tiles/polygons fade in and text is written.
+`ggmanim.animate.attach_geoms(plot, spec)` tells a built plot which geom drew each
+layer; without it the animation is inferred from the marks (bars then fade in).
+
+Not yet: transitions between plots, `ValueTracker`-driven rebuilds.
 
 ## Development
 

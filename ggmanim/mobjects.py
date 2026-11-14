@@ -141,6 +141,44 @@ class GGPlot(VGroup):
     # endregion
 
     # region: animation
+    # See ggmanim.animate. ``layer_geoms`` ({layer key: Geom}) picks each layer's
+    # animation; ggmanim.animate.attach_geoms fills it from the spec.
+    layer_geoms: dict = {}
+
+    def create(
+        self,
+        lag_ratio: float = 1.0,
+        run_time: float | None = None,
+        order: tuple[str, ...] = ("panel", "axes", "layers", "legend", "titles"),
+        **kwargs,
+    ):
+        """One animation revealing the plot stage by stage (panel, axes, each
+        layer with its geom's animation, legend, titles); see
+        :func:`ggmanim.animate.create_plot` for ``panel_lag``, ``mark_lag`` and
+        ``animations``."""
+        from .animate import create_plot
+
+        return create_plot(self, lag_ratio=lag_ratio, run_time=run_time, order=order, **kwargs)
+
+    def reveal_layer(self, name, **kwargs):
+        """Animation drawing layer ``name`` (:func:`ggmanim.animate.reveal_layer`)."""
+        from .animate import reveal_layer
+
+        return reveal_layer(self, name, **kwargs)
+
+    def hide_layer(self, name, **kwargs):
+        """Animation removing layer ``name`` (:func:`ggmanim.animate.hide_layer`)."""
+        from .animate import hide_layer
+
+        return hide_layer(self, name, **kwargs)
+
+    def mark(self, layer, key) -> Mobject:
+        """The mobject drawn for the data row whose ``key`` aesthetic (else row
+        index / group id) is ``key`` in ``layer`` (:func:`ggmanim.animate.mark`)."""
+        from .animate import mark
+
+        return mark(self, layer, key)
+
     # endregion
 
     # region: live
