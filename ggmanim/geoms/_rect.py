@@ -32,7 +32,7 @@ from manim import Square, VGroup, VMobject
 from ..theme import Theme
 from ._clip import clip_rects, panel_rect
 from ._linetype import apply_linetype
-from .base import KEY_SIZE, munch_rect_corners, num, resolve_color
+from .base import KEY_SIZE, munch_rect_corners, num, paint_fill, resolve_color
 
 __all__ = [
     "ring_points",
@@ -123,7 +123,7 @@ def style_filled(
 
     Returns ``mob`` itself, or ``VGroup(mob, dashes)`` for a dashed outline."""
     alpha = num(row.get("alpha"), 1.0)
-    mob.set_fill(resolve_color(row.get("fill"), theme.get_foreground()), opacity=alpha)
+    paint_fill(mob, resolve_color(row.get("fill"), theme.get_foreground()), alpha)
     outline = resolve_color(row.get("color"))
     if outline is None:
         mob.set_stroke(width=0, opacity=0)

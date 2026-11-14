@@ -90,12 +90,11 @@ class GeomPoint(Geom):
         marks = []
         drawn = []
         for i, (p, shape, r, color, fill, a, ok) in enumerate(rows):
-            color = color_of(color)
             dot = make_marker(
                 shape,
                 p,
                 radius=float(r),
-                color=color if color is not None else fg,
+                color=color_of(color),  # None only for a blank colour
                 fill=fill_of(fill),
                 alpha=float(a),
             )
@@ -108,12 +107,11 @@ class GeomPoint(Geom):
 
     @staticmethod
     def _dot(point, row, fg) -> VMobject:
-        color = resolve_color(row.get("color"), fg)
         return make_marker(
             row.get("shape"),
             point,
             radius=num(row.get("size"), 0.06),
-            color=color if color is not None else fg,
+            color=resolve_color(row.get("color"), fg),  # None only for a blank colour
             fill=resolve_color(row.get("fill")),
             alpha=num(row.get("alpha"), 1.0),
         )

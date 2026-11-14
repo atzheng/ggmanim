@@ -61,7 +61,16 @@ from ._clip import clip_segments, panel_rect
 from ._marker_clip import marker_extent, near_box, scene_box
 from ._markers import _prototype, make_marker, outline_width
 from ._rect import clipped_rects, seal_seams, style_filled
-from .base import color_resolver, finite_rows, num, num_array, resolve_color, transform_points
+from .base import (
+    color_resolver,
+    finite_rows,
+    num,
+    num_array,
+    paint_fill,
+    paint_stroke,
+    resolve_color,
+    transform_points,
+)
 
 __all__ = [
     "DEFAULT_FAST_THRESHOLD",
@@ -361,7 +370,7 @@ def draw_points_fast(
             shapes[i],
             ORIGIN,
             radius=float(radius[i]),
-            color=color if color is not None else fg,
+            color=color,  # None: blank colour (color_of falls back to fg otherwise)
             fill=fills[i],
             alpha=float(alpha[i]),
         )
@@ -468,7 +477,7 @@ def draw_bars_fast(data: pd.DataFrame, panel_params: Any, coord: Any, theme: The
     def style_of(row: dict) -> VMobject:
         alpha = num(row.get("alpha"), 1.0)
         m = VMobject()
-        m.set_fill(resolve_color(row.get("fill"), fg), opacity=alpha)
+        paint_fill(m, resolve_color(row.get("fill"), fg), alpha)
         line = resolve_color(row.get("color"))
         if line is None:
             m.set_stroke(width=0, opacity=0)
@@ -514,7 +523,7 @@ def draw_segments_fast(
     def style_of(_key: Hashable, i: int) -> VMobject:
         style = VMobject()
         style.set_fill(opacity=0)
-        style.set_stroke(colors[i], width=float(widths[i]), opacity=float(alphas[i]))
+        paint_stroke(style, colors[i], float(widths[i]), float(alphas[i]))
         return style
 
     def points_of(idx: np.ndarray) -> np.ndarray:

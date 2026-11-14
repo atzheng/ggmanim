@@ -33,6 +33,7 @@ from .base import (
     make_layer,
     multi_path_mobject,
     num,
+    paint_stroke,
     resolve_color,
     transform_points,
 )
@@ -120,12 +121,11 @@ class GeomRug(Geom):
     def draw_key(self, data_row, theme: Theme | None = None) -> VMobject:
         theme = theme if theme is not None else theme_default()
         row = self.key_aes(data_row)
-        line = Line(
-            DOWN * KEY_SIZE / 2,
-            UP * KEY_SIZE / 2,
-            color=resolve_color(row.get("color"), theme.get_foreground()),
-            stroke_width=num(row.get("linewidth"), 1.0),
-            stroke_opacity=num(row.get("alpha"), 1.0),
+        line = paint_stroke(
+            Line(DOWN * KEY_SIZE / 2, UP * KEY_SIZE / 2),
+            resolve_color(row.get("color"), theme.get_foreground()),
+            num(row.get("linewidth"), 1.0),
+            num(row.get("alpha"), 1.0),
         )
         return apply_linetype(line, row.get("linetype"), max_period=KEY_SIZE)
 
