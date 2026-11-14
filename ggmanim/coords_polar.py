@@ -32,6 +32,7 @@ follow ``panel_grid_major_<aes>`` of the aesthetic they show.
 from __future__ import annotations
 
 from collections.abc import Mapping
+from dataclasses import replace
 from typing import Any
 
 import numpy as np
@@ -45,7 +46,9 @@ from .coords import (
     _box,
     _breaks_labels,
     _c2p,
+    _fit_axis,
     _label,
+    _line_height,
     _make_title,
     _minor_breaks,
     _title,
@@ -249,6 +252,32 @@ class CoordPolar:
             y_minor_breaks=_minor_breaks(y_scale, rng["y"]),
         )
 
+    def _fit_radius_breaks(
+        self, pp: PanelParams, r_scale: Any, side: float, theme: Theme
+    ) -> PanelParams:
+        """``pp`` with automatic radius breaks thinned until their labels fit
+        the radius axis (``(R_MAX - inner) * side`` long; see
+        :func:`~ggmanim.coords.fit_breaks`): small panels otherwise stack the
+        labels on top of each other."""
+        if r_scale is None:
+            return pp
+        r = self.r
+        rng = getattr(pp, f"{r}_range")
+        length = (1.0 - self.inner_radius) * R_MAX * side
+        breaks = getattr(pp, f"{r}_breaks")
+        labels = getattr(pp, f"{r}_labels")
+        minor = getattr(pp, f"{r}_minor_breaks")
+        b, lab, m = _fit_axis(r_scale, rng, breaks, labels, minor, length, theme, "y")
+        if tuple(b) == tuple(breaks):
+            return pp
+        b, lab = _in_range(tuple(b), tuple(lab), rng)
+        changes: dict[str, Any] = {
+            f"{r}_breaks": b,
+            f"{r}_labels": lab,
+            f"{r}_minor_breaks": tuple(m),
+        }
+        return replace(pp, **changes)
+
     def build(
         self,
         x_scale,
@@ -263,6 +292,7 @@ class CoordPolar:
         theme = theme if theme is not None else theme_default()
         pp = self.setup_panel_params(x_scale, y_scale)
         side = min(theme.panel_size(has_legend))
+        pp = self._fit_radius_breaks(pp, x_scale if self.r == "x" else y_scale, side, theme)
         axes = PanelAxes(
             x_range=[0.0, 1.0, 1.0],
             y_range=[0.0, 1.0, 1.0],
@@ -342,9 +372,14 @@ class CoordPolar:
         # -- radius axis on the left edge (left of theta labels that reach it) ---
         a, b = _c2p(axes, [0.0, 0.0], [0.5 + geo.inner, 0.5 + R_MAX])
         ax_x = a[0]
+        # the axis' own labels stick out half a line above/below its ends, and a
+        # theta label needs as much room right of the axis line as the radius
+        # labels get left of it, or it reads as one of them (small panels)
+        half_line = _line_height(theme) / 2
+        clear = theme.tick_length + theme.tick_label_buff
         for lab in x_tick_labels:
-            if lab.get_bottom()[1] < b[1] and lab.get_top()[1] > a[1]:
-                ax_x = min(ax_x, lab.get_left()[0] - theme.tick_label_buff)
+            if lab.get_bottom()[1] < b[1] + half_line and lab.get_top()[1] > a[1] - half_line:
+                ax_x = min(ax_x, lab.get_left()[0] - clear)
         a[0] = b[0] = ax_x
         left = _c2p(axes, 0.0, 0.5 + np.asarray(rn, dtype=float))
         left[:, 0] = ax_x
