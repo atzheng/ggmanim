@@ -16,3 +16,5 @@ htmlcov
 ggmanim.egg-info/
 .claude/worktrees/
 media/
+docs/gallery/
+site/

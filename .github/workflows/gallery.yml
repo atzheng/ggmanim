@@ -1,0 +1,54 @@
+name: Gallery
+
+# Renders every examples/*.py scene into docs/gallery/ (PNG stills, GIF animations)
+# and uploads them as an artifact. The docs workflow renders the gallery itself
+# before `mkdocs build`; this job checks example changes and keeps a browsable copy.
+on:
+  push:
+    branches: [main]
+  pull_request:
+    paths:
+      - "examples/**"
+      - "scripts/render_gallery.py"
+      - ".github/workflows/gallery.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: gallery-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  render:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: pyproject.toml
+
+      - name: System dependencies (cairo, pango)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            libcairo2-dev libpango1.0-dev pkg-config
+
+      - name: Python dependencies
+        run: pip install -e '.[stats]'
+
+      - name: Render the gallery
+        run: python scripts/render_gallery.py
+
+      - name: Upload gallery
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gallery
+          path: docs/gallery/
+          if-no-files-found: error
