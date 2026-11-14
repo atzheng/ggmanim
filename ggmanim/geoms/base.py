@@ -644,8 +644,9 @@ def make_layer(
       (constant aesthetics, geom params and stat params).
     * ``position`` (name, class or instance; ``None`` -> ``geom.default_position``)
       is resolved by :func:`ggmanim.positions.get_position`; for a stat with
-      ``oriented_position = True`` (``stat_count``, ``stat_bin``) it is wrapped so
-      it runs on swapped x/y for horizontal (``flipped_aes``) data.
+      ``oriented_position = True`` (``stat_count``, ``stat_bin``) a position that
+      does not honour ``flipped_aes`` itself (all but stack/fill, e.g. dodge) is
+      wrapped so it runs on swapped x/y for horizontal data.
     * The stat's ``after_stat`` ``default_aes`` (e.g. ``y=after_stat("count")``)
       are added to the mapping as :class:`StatDefault` for aesthetics neither
       mapped nor set; they give way to the plot mapping at build time.
@@ -677,7 +678,7 @@ def make_layer(
     mapping = _with_stat_defaults(stat_obj, mapping, params)
     layer_cls = _StatDefaultLayer if _has_stat_defaults(mapping) else Layer
     position = get_position(position)
-    if getattr(stat_obj, "oriented_position", False):
+    if getattr(stat_obj, "oriented_position", False) and not _honours_flipped(position):
         from .boxplot import oriented  # (boxplot imports this module)
 
         position = oriented(position)
@@ -730,6 +731,14 @@ def _with_stat_defaults(stat: Any, mapping: Aes | None, params: Mapping[str, Any
     if not extra and not any(isinstance(v, StatDefault) for v in given.values()):
         return mapping
     return Aes({**extra, **given})
+
+
+def _honours_flipped(position: Any) -> bool:
+    """Positions that flip ``flipped_aes`` data themselves (``position_stack``,
+    ``position_fill``); wrapping them in an ``OrientedPosition`` would flip twice."""
+    from ..positions import PositionStack
+
+    return isinstance(position, PositionStack)
 
 
 def _has_stat_defaults(mapping: Aes | None) -> bool:

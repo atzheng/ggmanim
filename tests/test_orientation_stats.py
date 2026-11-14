@@ -75,6 +75,19 @@ def test_stacked_horizontal_bars_stack_along_x():
     np.testing.assert_allclose(d["xmin"], [1, 0, 1, 0, 0])
     np.testing.assert_allclose(d["xmax"], [2, 1, 3, 1, 1])
     np.testing.assert_allclose(d["ymax"] - d["ymin"], 0.9)
+    # stack/fill flip flipped_aes data themselves (not wrapped: no double flip)
+    d = _data(ggplot(CUT, aes(y="cut", fill="g")).add(geom_bar(position="fill")))
+    d = d.sort_values(["y", "group"]).reset_index(drop=True)
+    np.testing.assert_allclose(d["xmin"], [0.5, 0, 1 / 3, 0, 0])
+    np.testing.assert_allclose(d["xmax"], [1, 0.5, 1, 1 / 3, 1])
+
+
+def test_dodged_horizontal_bars_dodge_along_y():
+    d = _data(ggplot(CUT, aes(y="cut", fill="g")).add(geom_bar(position="dodge")))
+    d = d.sort_values(["y", "group"]).reset_index(drop=True)
+    np.testing.assert_allclose(d["ymin"], [0.55, 1.0, 1.55, 2.0, 2.55])
+    np.testing.assert_allclose(d["ymax"], [1.0, 1.45, 2.0, 2.45, 3.45])
+    np.testing.assert_allclose(d["xmin"], 0)
 
 
 def test_explicit_orientation_and_after_stat_prop():
