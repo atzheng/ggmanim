@@ -72,7 +72,12 @@ def test_breaks_from_scale_placed_at_transformed_positions():
     expect = p.panel.transform([1, 10, 100, 1000], 1)[:, 0]
     np.testing.assert_allclose(xs, expect, atol=1e-6)
     # vertical grid lines sit at the same positions
-    vertical = [g.get_start()[0] for g in p.panel.grid_major if abs(g.get_vector()[0]) < 1e-9]
+    vertical = [  # grid_major holds one GridLines per axis (ggm-bam.2)
+        s[0]
+        for g in p.panel.grid_major
+        for s, e in zip(g.starts, g.ends)
+        if abs(e[0] - s[0]) < 1e-9
+    ]
     np.testing.assert_allclose(sorted(vertical), expect, atol=1e-6)
 
 
