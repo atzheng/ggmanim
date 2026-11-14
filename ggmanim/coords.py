@@ -40,7 +40,7 @@ builds from the same inputs give identically positioned mobjects.
 from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Any
 
 import numpy as np
@@ -79,6 +79,7 @@ __all__ = [
     "coord_fixed",
     "is_linear",
     "coord_munch",
+    "fit_breaks",
 ]
 
 _CLIP = ("on", "off")
@@ -95,6 +96,8 @@ class PanelParams:
     ``x_breaks``/``y_breaks`` the major tick positions within them and
     ``x_labels``/``y_labels`` the matching data-space label strings;
     ``x_minor_breaks``/``y_minor_breaks`` the minor grid positions.
+    ``flipped`` is true under :func:`coord_flip` (the params stay in aesthetic
+    orientation, so ``x_range`` is then the *vertical* axis' range).
     """
 
     x_range: tuple[float, float]
@@ -105,6 +108,7 @@ class PanelParams:
     y_labels: tuple[str, ...]
     x_minor_breaks: tuple[float, ...] = ()
     y_minor_breaks: tuple[float, ...] = ()
+    flipped: bool = False
 
 
 class PanelAxes(Axes):
@@ -286,6 +290,139 @@ def grid_line_count(grid: VGroup) -> int:
     return sum(getattr(m, "n_lines", 1) for m in grid.submobjects)
 
 
+#: Smallest gap between neighbouring tick labels, as a fraction of the height of
+#: one line of axis text (:func:`fit_breaks`).
+TICK_LABEL_GAP = 0.25
+
+
+def fit_breaks(
+    pp: PanelParams, x_scale: Any, y_scale: Any, width: float, height: float, theme: Theme
+) -> PanelParams:
+    """``pp`` with *automatic* breaks coarsened where their tick labels would not fit.
+
+    ggplot2 picks breaks without looking at the panel size; ggmanim's panels can be
+    small (facets), so for each axis whose scale has default breaks
+    (``scale.has_default_breaks()``) the labels are measured (with
+    :meth:`Theme.make_text`, rotated and justified as they will be drawn) and placed
+    at their ticks on an axis ``width`` (x) / ``height`` (y) long. If two neighbours
+    come closer than :data:`TICK_LABEL_GAP` lines of text, the breaks are recomputed
+    from ``scale.with_n_breaks(n)`` for ``n = n_breaks - 1, ..., 2`` until they fit.
+    When even the coarsest of those is crowded (``pretty()`` has no nicer step
+    leaving two breaks in range), every k-th break is kept instead (k = 2, 3, ...;
+    the roundest subset first). At least two breaks remain: if nothing fits, the
+    coarsest set is used. Minor breaks follow the new majors.
+
+    User-given breaks (sequence or callable) are never changed. Discrete axes are
+    left alone too: their labels are the levels, so crowding there is left to the
+    theme (``axis_text_x_angle``, a smaller ``axis_text_size``). So are
+    :func:`~ggmanim.coords_trans.coord_trans` axes (their scale facade does not
+    define ``with_n_breaks``).
+
+    The labels are measured even when the theme hides them, so panels sharing a
+    scale and an axis length (a facet column) get the same breaks.
+    """
+    xb, xl, xm = _fit_axis(
+        x_scale, pp.x_range, pp.x_breaks, pp.x_labels, pp.x_minor_breaks, width, theme, "x"
+    )
+    yb, yl, ym = _fit_axis(
+        y_scale, pp.y_range, pp.y_breaks, pp.y_labels, pp.y_minor_breaks, height, theme, "y"
+    )
+    if (xb, yb) == (pp.x_breaks, pp.y_breaks):
+        return pp
+    return replace(
+        pp, x_breaks=xb, x_labels=xl, x_minor_breaks=xm, y_breaks=yb, y_labels=yl, y_minor_breaks=ym
+    )
+
+
+def _fit_axis(scale, rng, breaks, labels, minor, length: float, theme: Theme, axis: str):
+    """``(breaks, labels, minor)`` for one axis; see :func:`fit_breaks`."""
+    # looked up on the class: attribute-forwarding facades (coord_trans) opt out
+    cls = type(scale)
+    if not (hasattr(cls, "has_default_breaks") and hasattr(cls, "with_n_breaks")):
+        return breaks, labels, minor
+    if not scale.has_default_breaks() or len(breaks) < 3:
+        return breaks, labels, minor
+    far = _side(scale, "bottom" if axis == "x" else "left") in ("top", "right")
+    if not _crowded(breaks, labels, rng, length, theme, axis, far):
+        return breaks, labels, minor
+    best = (breaks, labels, minor)
+    for n in range(int(scale.n_breaks) - 1, 1, -1):
+        thin = scale.with_n_breaks(n)
+        b, lab = _breaks_labels(thin, rng)
+        if len(b) < 2:
+            break
+        if len(b) >= len(best[0]):
+            continue
+        best = (b, lab, _minor_breaks(thin, rng))
+        if not _crowded(b, lab, rng, length, theme, axis, far):
+            return best
+    # pretty() may have no coarser nice step that leaves two breaks inside the
+    # range (1000..9000: step 2000 gives four, 5000 only one): keep every k-th
+    b0, l0, m0 = best
+    for k in range(2, len(b0)):
+        for idx in _strides(b0, k):
+            b = tuple(float(b0[i]) for i in idx)
+            lab = tuple(l0[i] for i in idx)
+            best = (b, lab, _thinned_minor(scale, b0, b, m0))
+            if not _crowded(b, lab, rng, length, theme, axis, far):
+                return best
+    return best  # nothing fits: the coarsest set (two breaks)
+
+
+def _strides(breaks, k: int) -> list[list[int]]:
+    """Index sets ``breaks[off::k]`` with at least two members, the "roundest"
+    first (most breaks that are multiples of ``k`` steps, e.g. 4000/8000 before
+    2000/6000 for k=2)."""
+    step = float(breaks[1]) - float(breaks[0])
+    sets = [list(range(off, len(breaks), k)) for off in range(k)]
+    sets = [s for s in sets if len(s) >= 2]
+
+    def round_count(idx: list[int]) -> int:
+        q = np.asarray([float(breaks[i]) for i in idx]) / (k * step)
+        return int(np.sum(np.abs(q - np.round(q)) < 1e-6))
+
+    return sorted(sets, key=lambda s: (-round_count(s), -len(s)))
+
+
+def _thinned_minor(scale, old, new, minor) -> tuple[float, ...]:
+    """Minor breaks after dropping majors: with the default minor breaks the
+    dropped majors become minor ones (the grid keeps its density)."""
+    if getattr(scale, "minor_breaks", ()) is not None:
+        return tuple(minor)
+    dropped = set(float(b) for b in old) - set(new)
+    return tuple(sorted(set(minor) | dropped))
+
+
+def _crowded(breaks, labels, rng, length: float, theme: Theme, axis: str, far: bool) -> bool:
+    """Do two neighbouring tick labels come closer than :data:`TICK_LABEL_GAP` lines
+    of text along the axis (labels as :func:`_place_tick_label` places them)?"""
+    lo, hi = rng
+    if hi <= lo or length <= 0:
+        return False
+    i = 0 if axis == "x" else 1
+    if axis == "x":
+        direction = UP if far else DOWN
+    else:
+        direction = RIGHT if far else LEFT
+    spans = []
+    for b, s in zip(breaks, labels):
+        lab = _label(theme, s, axis)
+        if len(lab.get_all_points()) == 0:
+            continue
+        _place_tick_label(lab, np.zeros(3), direction, 0.0, theme, axis)
+        at = (float(b) - lo) / (hi - lo) * length
+        spans.append((at + lab.get_corner(DL)[i], at + lab.get_corner(UR)[i]))
+    if len(spans) < 2:
+        return False
+    gap = TICK_LABEL_GAP * _line_height(theme)
+    spans.sort()
+    return any(b[0] - a[1] < gap for a, b in zip(spans, spans[1:]))
+
+
+def _line_height(theme: Theme) -> float:
+    return float(theme.make_text("0", **theme.text_style("axis_text")).height)
+
+
 # endregion
 
 
@@ -380,6 +517,7 @@ class CoordCartesian:
         theme = theme if theme is not None else theme_default()
         pp = self.setup_panel_params(x_scale, y_scale)
         width, height = self._panel_size(theme, has_legend, pp)
+        pp = fit_breaks(pp, x_scale, y_scale, width, height, theme)  # ggm-rnm
         (x0, x1), (y0, y1) = pp.x_range, pp.y_range
 
         axes = PanelAxes(
@@ -887,6 +1025,7 @@ class CoordFlip(CoordCartesian):
             y_labels=pp.x_labels,
             x_minor_breaks=pp.y_minor_breaks,
             y_minor_breaks=pp.x_minor_breaks,
+            flipped=True,
         )
         panel.flipped = True
         return panel

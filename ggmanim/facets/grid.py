@@ -238,19 +238,30 @@ class FacetGrid(Facet):
     ) -> tuple[list[float] | None, list[float] | None]:
         """With ``space="free_x"``/``"free"``: column widths proportional to the
         length of each column's x range; ``"free_y"``/``"free"``: row heights
-        proportional to each row's y range."""
+        proportional to each row's y range.
+
+        Widths/heights follow the *drawn* axes: under ``coord_flip``
+        (``PanelParams.flipped``) the columns are sized by the y aesthetic's range
+        (drawn horizontally) and the rows by the x aesthetic's."""
         nrow, ncol = int(layout["ROW"].max()), int(layout["COL"].max())
         col_w: list[float] | None = None
         row_w: list[float] | None = None
+
+        def ranges(p: int) -> tuple[Any, Any]:  # (horizontal, vertical) axis ranges
+            pp = panel_params[p]
+            if getattr(pp, "flipped", False):
+                return pp.y_range, pp.x_range
+            return pp.x_range, pp.y_range
+
         if self.space in ("free", "free_x"):
             col_w = [1.0] * ncol
             for r in layout.itertuples(index=False):
-                lo, hi = panel_params[int(r.PANEL)].x_range
+                lo, hi = ranges(int(r.PANEL))[0]
                 col_w[int(r.COL) - 1] = _length(lo, hi)
         if self.space in ("free", "free_y"):
             row_w = [1.0] * nrow
             for r in layout.itertuples(index=False):
-                lo, hi = panel_params[int(r.PANEL)].y_range
+                lo, hi = ranges(int(r.PANEL))[1]
                 row_w[int(r.ROW) - 1] = _length(lo, hi)
         return col_w, row_w
 
