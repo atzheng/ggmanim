@@ -14,6 +14,11 @@ sloping down to the neighbouring x. Every group therefore gets one extra row at
 each end (``y = 0``, ``align_padding = True``); geoms leave those rows out of their
 outlines. Several rows at the same x (a vertical jump) keep their first and last
 ``y``, the first moved ``adjust`` to the left.
+
+``orientation="y"`` swaps the roles of the axes: groups are interpolated onto a
+shared *y* grid, giving ``x`` per ``y`` (output marked ``flipped_aes = True``).
+With ``orientation=None`` (the default) the stat is flipped when the y scale is
+discrete and the x scale is not (ggplot2's ``has_flipped_aes``).
 """
 
 from __future__ import annotations
@@ -23,6 +28,7 @@ import pandas as pd
 
 from ..registry import register
 from .base import Stat
+from .summary import _check_orientation, _flipped
 
 __all__ = ["StatAlign", "stat_align"]
 
@@ -66,13 +72,22 @@ def align_grid(df: pd.DataFrame) -> tuple[np.ndarray, float]:
 class StatAlign(Stat):
     """Interpolate each group onto the layer's shared x grid (see the module
     docstring). Output columns: ``x``, ``y``, ``align_padding`` (``True`` on the
-    two zero-height end rows) plus the group's constant columns."""
+    two zero-height end rows) plus the group's constant columns; with
+    ``orientation="y"`` x and y swap roles and ``flipped_aes`` is ``True``."""
 
     required_aes = ("x", "y")
+
+    def __init__(self, orientation=None, **params):
+        _check_orientation(orientation)
+        super().__init__(orientation=orientation, **params)
 
     def compute_layer(self, df: pd.DataFrame, scales=None, **params) -> pd.DataFrame:
         self.check_required_aes(df)
         params = dict(params)
+        if _flipped(params.pop("orientation", None), scales):
+            swap = {"x": "y", "y": "x"}
+            res = self.compute_layer(df.rename(columns=swap), scales, **params)
+            return res.rename(columns=swap).assign(flipped_aes=True) if len(res) else res
         params["unique_loc"], params["adjust"] = align_grid(df)
         return super().compute_layer(df, scales, **params)
 
@@ -118,7 +133,8 @@ def stat_align(
 ):
     """Layer of groups interpolated onto a shared x grid (default: stacked areas).
     Also usable as ``geom_*(stat="align")``; ``geom_area``'s default. Returns a
-    layer."""
+    layer. ``orientation="y"`` aligns ``x`` on a shared y grid (see the module
+    docstring)."""
     from ..geoms.count import stat_layer  # geoms import manim: keep stats free of it
 
     return stat_layer(

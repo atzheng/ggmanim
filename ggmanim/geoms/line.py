@@ -3,6 +3,11 @@ one path per group."""
 
 from __future__ import annotations
 
+from collections.abc import Mapping
+from typing import Any
+
+import numpy as np
+import pandas as pd
 from manim import LEFT, RIGHT, Line, VGroup, VMobject
 
 from ..registry import register
@@ -29,6 +34,23 @@ from .base import (
 __all__ = ["GeomPath", "GeomLine", "geom_path", "geom_line"]
 
 
+def squish_infinite(data: pd.DataFrame, panel_params) -> pd.DataFrame:
+    """``x``/``y`` values of ``+-inf`` moved onto the panel edges
+    (``panel_params.x_range``/``y_range``), like ggplot2's coord squishing
+    infinite values. Other values (NaN included) are unchanged."""
+    out = {}
+    for col in ("x", "y"):
+        rng = getattr(panel_params, f"{col}_range", None)
+        if col not in data.columns or rng is None or not len(data):
+            continue
+        v = pd.to_numeric(data[col], errors="coerce").to_numpy(dtype=float)
+        if not np.isinf(v).any():
+            continue
+        lo, hi = float(min(rng[0], rng[1])), float(max(rng[0], rng[1]))
+        out[col] = np.where(v == -np.inf, lo, np.where(v == np.inf, hi, v))
+    return data.assign(**out) if out else data
+
+
 class GeomPath(Geom):
     """Connect observations in data order, one ``VMobject`` per group.
 
@@ -42,6 +64,9 @@ class GeomPath(Geom):
     in the group's colour (for a per-segment group, the colour of its last
     visible segment). ``.marks`` holds the paths (one per group), ``.keys`` the
     group ids (or ``key`` values) and ``.labels`` the labels.
+
+    ``x``/``y`` of ``+-inf`` are kept and drawn on the panel edges
+    (:func:`squish_infinite`); only NaN positions are dropped.
     """
 
     required_aes = ("x", "y")
@@ -49,11 +74,26 @@ class GeomPath(Geom):
     extra_params: tuple[str, ...] = ("label",)
     sort_by_x = False
 
+    def handle_na(
+        self, data: pd.DataFrame, params: Mapping[str, Any] | None = None, label: str | None = None
+    ) -> pd.DataFrame:
+        # +-inf are kept (drawn on the panel edges); only NaN positions are missing
+        if not len(data):
+            return data
+        finite = {
+            c: pd.to_numeric(data[c], errors="coerce").replace([np.inf, -np.inf], 0.0)
+            for c in ("x", "y")
+            if c in data.columns
+        }
+        kept = super().handle_na(data.assign(**finite), params, label)
+        return data.loc[kept.index]
+
     def draw_panel(
         self, data, panel_params, coord, theme: Theme | None = None, label=None, **params
     ) -> VMobject:
         theme = theme if theme is not None else theme_default()
         self.check_required_aes(data)
+        data = squish_infinite(data, panel_params)
         data = finite_rows(self.use_defaults(data, params), ("x", "y"))
         fg = theme.get_foreground()
         paths, labels = VGroup(), VGroup()
@@ -118,7 +158,7 @@ def geom_path(
     per group (unlike :func:`geom_line`, which sorts each group by x first).
 
     ``label=`` (str or Mobject for every group, a list in group order, or a dict
-    group id -> label) is drawn at each group's last point in the group's colour
+    group value or id -> label) is drawn at each group's last point in the group's colour
     (a *direct label*, drawn like ``geom_text``; see :mod:`ggmanim.geoms._labels`).
     """
     return make_layer(
@@ -147,7 +187,7 @@ def geom_line(
     """Lines connecting observations in order of x, one per group.
 
     ``label=`` (str or Mobject for every group, a list in group order, or a dict
-    group id -> label) is drawn at each group's last point in the group's colour
+    group value or id -> label) is drawn at each group's last point in the group's colour
     (a *direct label*, drawn like ``geom_text``; see :mod:`ggmanim.geoms._labels`).
     """
     return make_layer(

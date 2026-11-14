@@ -10,7 +10,7 @@ from manim import VMobject
 from ..registry import register
 from ..theme import Theme
 from .base import finite_rows, make_layer
-from .line import GeomPath
+from .line import GeomPath, squish_infinite
 
 __all__ = ["GeomStep", "geom_step", "stairstep"]
 
@@ -57,7 +57,8 @@ class GeomStep(GeomPath):
     """Stairsteps: each group is sorted by ``x``, expanded by :func:`stairstep`
     (``direction="hv"``, ``"vh"`` or ``"mid"``) and drawn as a path, so marks,
     labels, clipping, dashing and per-segment colours work as for
-    :class:`GeomPath` (one mark per group)."""
+    :class:`GeomPath` (one mark per group); ``+-inf`` positions are drawn on
+    the panel edges."""
 
     extra_params: tuple[str, ...] = ("label", "direction")
 
@@ -71,7 +72,7 @@ class GeomStep(GeomPath):
         direction: str = "hv",
         **params,
     ) -> VMobject:
-        data = finite_rows(data, ("x", "y"))
+        data = finite_rows(squish_infinite(data, panel_params), ("x", "y"))
         if "group" not in data.columns:
             data = self.use_defaults(data, {})
         pieces = [stairstep(g, direction) for _, g in data.groupby("group", sort=True)]

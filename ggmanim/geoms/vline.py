@@ -40,6 +40,8 @@ class _RefLine(Geom):
 
     default_aes = {"color": None, "linewidth": 2.0, "alpha": 1.0, "linetype": "solid"}
     extra_params: tuple[str, ...] = ("label",)
+    #: ``label=`` dicts are keyed by row position, not group (see ``build.draw_layers``)
+    label_by = "row"
     vertical = True
 
     @property
