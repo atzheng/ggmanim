@@ -9,6 +9,7 @@ module's ``__all__`` by ``scripts/gen_exports.py``. :data:`STATS` (used by
 import re as _re
 
 # -- generated exports (scripts/gen_exports.py) --
+from .align import StatAlign, stat_align
 from .base import GROUPING_AES, NO_GROUP, Stat, add_group, get_stat, is_discrete, scale_limits
 from .bin import StatBin, bin_breaks, bin_breaks_bins, bin_breaks_width, stat_bin
 from .bin2d import StatBin2d, bin2d_breaks, stat_bin2d, stat_bin_2d
@@ -57,6 +58,7 @@ __all__ = [
     "GROUPING_AES",
     "NO_GROUP",
     "Stat",
+    "StatAlign",
     "StatBin",
     "StatBin2d",
     "StatBinHex",
@@ -102,6 +104,7 @@ __all__ = [
     "qnorm",
     "resolve_flipped",
     "scale_limits",
+    "stat_align",
     "stat_bin",
     "stat_bin2d",
     "stat_bin_2d",
