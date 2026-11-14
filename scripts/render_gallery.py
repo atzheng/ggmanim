@@ -49,6 +49,7 @@ ANIMATED: dict[str, frozenset[str] | None] = {
     "animate_create": None,
     "live_plot": None,
     "transitions": None,
+    "transition_followups": None,
     "coord_trans": frozenset({"LineToCurve"}),
     "polar": frozenset({"BarsToPie"}),
     "gallery_facets": frozenset({"PanelReveal"}),
