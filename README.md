@@ -387,6 +387,10 @@ Not yet: `geom_histogram`, `geom_boxplot`, `geom_violin`, `geom_density`;
 | `geom_bar()`, `stat_count()` | same | counts rows per x (strings per level); `y=after_stat("count")`/`"prop"`; `weight` aesthetic; stacked by default |
 | `geom_histogram(binwidth, bins, center, boundary, breaks, closed, pad)`, `stat_bin()` | same | bin edges as ggplot2's; `after_stat("density")`, `"ncount"`, `"ndensity"`; bins in transformed space on log x; warns when `bins = 30` is defaulted |
 | `geom_freqpoly(binwidth = 1)` | same | `stat_bin(pad=True)` drawn as a path, one per group |
+| `geom_bin_2d(bins = 30)`, `stat_bin_2d()` | same (`geom_bin2d` too) | tiles, `fill=after_stat("count")`; breaks as ggplot2 4.0 (`binwidth`, `breaks`, `boundary`, `center`, pairs per axis) |
+| `geom_hex(bins = 30)`, `stat_bin_hex()` | same | hexbin lattice; hexagons tessellate exactly in data units |
+| `geom_density_2d()`, `geom_density_2d_filled()` | same (`geom_density2d` too) | `MASS::kde2d` (`n=100`, `h`, `adjust`); `contour_var`; `contour=False` gives the grid |
+| `geom_contour(aes(z = z))`, `geom_contour_filled()` | `geom_contour(aes(z="z"))`, `geom_contour_filled()` | numpy marching squares; `bins`/`binwidth`/`breaks`; filled `level` is an ordered category `"(lo, hi]"` |
 
 Not yet: `stat_density`, `stat_boxplot`; `orientation="y"` for `stat_count`/`stat_bin`.
 

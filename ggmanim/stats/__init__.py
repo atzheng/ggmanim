@@ -11,9 +11,29 @@ import re as _re
 # -- generated exports (scripts/gen_exports.py) --
 from .base import GROUPING_AES, NO_GROUP, Stat, add_group, get_stat, is_discrete, scale_limits
 from .bin import StatBin, bin_breaks, bin_breaks_bins, bin_breaks_width, stat_bin
+from .bin2d import StatBin2d, bin2d_breaks, stat_bin2d, stat_bin_2d
+from .contour import (
+    StatContour,
+    StatContourFilled,
+    contour_breaks,
+    isoband_labels,
+    stat_contour,
+    stat_contour_filled,
+)
 from .count import StatCount, stat_count
+from .density2d import (
+    StatDensity2d,
+    StatDensity2dFilled,
+    bandwidth_nrd,
+    kde2d,
+    stat_density2d,
+    stat_density2d_filled,
+    stat_density_2d,
+    stat_density_2d_filled,
+)
 from .ecdf import StatEcdf, stat_ecdf
 from .function import StatFunction, evaluate_function, stat_function
+from .hex import StatBinHex, hexagon_vertices, hexbin, stat_bin_hex, stat_binhex
 from .identity import StatIdentity, stat_identity
 from .qq import StatQq, StatQqLine, ppoints, qnorm, stat_qq, stat_qq_line
 from .smooth import StatSmooth, stat_smooth, t_quantile
@@ -36,7 +56,13 @@ __all__ = [
     "NO_GROUP",
     "Stat",
     "StatBin",
+    "StatBin2d",
+    "StatBinHex",
+    "StatContour",
+    "StatContourFilled",
     "StatCount",
+    "StatDensity2d",
+    "StatDensity2dFilled",
     "StatEcdf",
     "StatFunction",
     "StatIdentity",
@@ -48,12 +74,19 @@ __all__ = [
     "StatSummaryBin",
     "StatUnique",
     "add_group",
+    "bandwidth_nrd",
+    "bin2d_breaks",
     "bin_breaks",
     "bin_breaks_bins",
     "bin_breaks_width",
+    "contour_breaks",
     "evaluate_function",
     "get_stat",
+    "hexagon_vertices",
+    "hexbin",
     "is_discrete",
+    "isoband_labels",
+    "kde2d",
     "mean_cl_normal",
     "mean_sdl",
     "mean_se",
@@ -62,7 +95,17 @@ __all__ = [
     "qnorm",
     "scale_limits",
     "stat_bin",
+    "stat_bin2d",
+    "stat_bin_2d",
+    "stat_bin_hex",
+    "stat_binhex",
+    "stat_contour",
+    "stat_contour_filled",
     "stat_count",
+    "stat_density2d",
+    "stat_density2d_filled",
+    "stat_density_2d",
+    "stat_density_2d_filled",
     "stat_ecdf",
     "stat_function",
     "stat_identity",
