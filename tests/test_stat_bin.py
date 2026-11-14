@@ -153,3 +153,14 @@ def test_discrete_x_rejected_and_stat_bin_layer():
     df = pd.DataFrame({"x": np.arange(10.0)})
     m = ggplot(df, aes("x")).add(stat_bin(bins=5)).build()
     assert len(m.layers[0].marks) == 5
+
+
+def test_facets_bin_per_panel():
+    from ggmanim import facet_grid
+
+    df = pd.DataFrame({"x": np.arange(12.0), "f": np.repeat(["p", "q"], 6)})
+    p = ggplot(df, aes("x")).add(geom_histogram(binwidth=2, boundary=0))
+    d = p.add(facet_grid(cols="f")).build().layer_data[0]
+    assert d["count"].sum() == 12
+    assert sorted(d["PANEL"].unique()) == [1, 2]
+    np.testing.assert_allclose(sorted(set(d["xmin"])), [0, 2, 4, 6, 8, 10])
