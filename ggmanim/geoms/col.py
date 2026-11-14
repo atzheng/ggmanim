@@ -1,4 +1,5 @@
-"""geom_col (and its alias geom_bar): bars with heights from the data."""
+"""geom_col (bars with heights from the data) and geom_bar (bars of counts,
+``stat_count``)."""
 
 from __future__ import annotations
 
@@ -20,7 +21,7 @@ from .base import (
     transform_points,
 )
 
-__all__ = ["GeomCol", "geom_col", "geom_bar", "resolution"]
+__all__ = ["GeomCol", "GeomBar", "geom_col", "geom_bar", "resolution"]
 
 
 def resolution(x) -> float:
@@ -150,24 +151,34 @@ def geom_col(
     )
 
 
+class GeomBar(GeomCol):
+    """:class:`GeomCol` fed by ``stat_count`` by default (ggplot2's ``GeomBar``)."""
+
+    default_stat = "count"
+
+
 @register
 def geom_bar(
     mapping=None,
     data=None,
     *,
-    stat="identity",
+    stat="count",
     position=None,
     inherit_aes: bool = True,
     name: str | None = None,
     **params,
 ):
-    """Alias of :func:`geom_col` (identity heights) until ``stat_count`` lands
-    in Phase 3, at which point it will default to counting rows."""
-    return make_layer(
-        GeomCol(),
+    """Bars of the number of rows at each x (``stat="count"``; a string column
+    is counted per level). ``y=after_stat("count")`` by default (y title
+    "count"); ``after_stat("prop")`` too; a ``weight`` aesthetic sums weights.
+    ``stat="identity"`` gives :func:`geom_col`. Stacked by default."""
+    from .count import stat_layer
+
+    return stat_layer(
+        stat,
+        GeomBar(),
         mapping,
         data,
-        stat=stat,
         position=position,
         inherit_aes=inherit_aes,
         name=name,

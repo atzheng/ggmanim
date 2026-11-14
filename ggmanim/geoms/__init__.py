@@ -10,9 +10,10 @@ from .abline import GeomAbline, geom_abline
 from .annotate import annotate
 from .area import GeomArea, GeomRibbon, geom_area, geom_ribbon
 from .base import KEY_SIZE, Geom, attach_marks, group_label, make_layer, resolve_color
-from .col import GeomCol, geom_bar, geom_col, resolution
+from .col import GeomBar, GeomCol, geom_bar, geom_col, resolution
 from .count import GeomCount, geom_count
 from .function import GeomFunction, geom_function
+from .histogram import geom_freqpoly, geom_histogram
 from .interval import (
     GeomCrossbar,
     GeomErrorbar,
@@ -43,6 +44,7 @@ __all__ = [
     "Geom",
     "GeomAbline",
     "GeomArea",
+    "GeomBar",
     "GeomCol",
     "GeomCount",
     "GeomCrossbar",
@@ -84,7 +86,9 @@ __all__ = [
     "geom_curve",
     "geom_errorbar",
     "geom_errorbarh",
+    "geom_freqpoly",
     "geom_function",
+    "geom_histogram",
     "geom_hline",
     "geom_label",
     "geom_line",
