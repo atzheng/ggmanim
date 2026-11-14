@@ -120,3 +120,43 @@ def test_summary_bin():
     assert w.max() - w.min() == pytest.approx(
         m.panel.transform(2.5, 0)[0][0] - m.panel.transform(0, 0)[0][0]
     )
+
+
+# -- orientation="y" (ggm-2q5) -----------------------------------------------------------
+
+
+def test_orientation_y_summarises_x_per_y():
+    df = pd.DataFrame({"x": [1.0, 3.0, 10.0, 20.0], "y": [1.0, 1.0, 2.0, 2.0]})
+    out = StatSummary(fun="mean", fun_min="min", fun_max="max", orientation="y").compute(df)
+    assert list(out.y) == [1.0, 2.0] and list(out.x) == [2.0, 15.0]
+    assert list(out.xmin) == [1.0, 10.0] and list(out.xmax) == [3.0, 20.0]
+    assert "ymin" not in out.columns and out.flipped_aes.all()
+    # the default orientation is unchanged on continuous data
+    plain = StatSummary(fun="mean").compute(df)
+    assert list(plain.x) == [1.0, 3.0, 10.0, 20.0] and "flipped_aes" not in plain.columns
+
+
+def test_orientation_y_draws_horizontal_pointranges():
+    df = pd.DataFrame({"v": [1.0, 3.0, 10.0, 20.0], "g": list("aabb")})
+    for layer in (stat_summary(fun_data="mean_se"), stat_summary(orientation="y")):
+        m = ggplot(df, aes("v", "g")).add(layer).build()
+        ld = m.layer_data[0]
+        assert {"xmin", "xmax"} <= set(ld.columns) and ld.flipped_aes.all()
+        np.testing.assert_allclose(ld.x, [2.0, 15.0])
+        line, dot = m.layers[0].marks[0]
+        np.testing.assert_allclose(dot.get_center(), m.panel.transform(2.0, 1.0)[0], atol=1e-9)
+        # the range runs along x
+        assert line.width > line.height
+
+
+def test_orientation_x_forced_on_discrete_y():
+    df = pd.DataFrame({"v": [1.0, 1.0, 2.0], "g": list("aab")})
+    out = ggplot(df, aes("v", "g")).stat_summary(orientation="x", fun="min", geom="point").build()
+    assert "flipped_aes" not in out.layer_data[0].columns
+
+
+def test_orientation_invalid():
+    with pytest.raises(ValueError, match="orientation"):
+        stat_summary(orientation="z")
+    with pytest.raises(ValueError, match="orientation"):
+        StatSummary(orientation="sideways")
