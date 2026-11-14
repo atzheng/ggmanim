@@ -31,8 +31,8 @@ from ..theme import Theme, theme_default
 from ._clip import clip_polygon, panel_rect
 from ._rect import filled_key, rings_mobject, style_filled
 from .base import Geom, attach_marks, first, make_layer, multi_path_mobject, num, transform_points
-from .boxplot import oriented
-from .interval import _clipped_segments, _flip_panel, _style
+from .interval import clipped_segments, flip_panel
+from .interval import style as stroke_style
 
 __all__ = ["GeomViolin", "geom_violin"]
 
@@ -104,7 +104,7 @@ class GeomViolin(Geom):
         data = self.use_defaults(data, params)
         if flipped:
             data = flip_names(data)
-            coord, panel_params = _flip_panel(coord, panel_params)
+            coord, panel_params = flip_panel(coord, panel_params)
         rect = panel_rect(coord, panel_params)
         fg = theme.get_foreground()
         qlinetype = params.get("quantile_linetype")
@@ -154,7 +154,7 @@ class GeomViolin(Geom):
         if not sel.any():
             return None
         y = gdf["y"].to_numpy(dtype=float)[sel]
-        pieces = _clipped_segments(coord, rect, left[sel], y, right[sel], y)
+        pieces = clipped_segments(coord, rect, left[sel], y, right[sel], y)
         if not pieces:
             return None
         row = {
@@ -163,7 +163,7 @@ class GeomViolin(Geom):
             "linetype": params.get("quantile_linetype") or style["linetype"],
         }
         lw = num(params.get("quantile_linewidth"), num(style["linewidth"], 2.0))
-        return _style(multi_path_mobject(pieces, None, lw, 1.0), row, fg, lw)
+        return stroke_style(multi_path_mobject(pieces, None, lw, 1.0), row, fg, lw)
 
     def draw_key(self, data_row, theme: Theme | None = None) -> VMobject:
         theme = theme if theme is not None else theme_default()
@@ -202,7 +202,7 @@ def geom_violin(
         mapping,
         data,
         stat=stat,
-        position=oriented(position),
+        position=position,
         inherit_aes=inherit_aes,
         name=name,
         params=params,

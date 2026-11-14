@@ -23,7 +23,17 @@ from .contour import (
     stat_contour_filled,
 )
 from .count import StatCount, stat_count
-from .density import StatDensity, StatYdensity, density_mapping, stat_density, stat_ydensity
+from .density import (
+    StatDensity,
+    StatYdensity,
+    bw_bcv,
+    bw_sj,
+    bw_ucv,
+    density_mapping,
+    resolve_bw,
+    stat_density,
+    stat_ydensity,
+)
 from .density2d import (
     StatDensity2d,
     StatDensity2dFilled,
@@ -90,6 +100,9 @@ __all__ = [
     "bin_breaks",
     "bin_breaks_bins",
     "bin_breaks_width",
+    "bw_bcv",
+    "bw_sj",
+    "bw_ucv",
     "contour_breaks",
     "density_mapping",
     "evaluate_function",
@@ -107,6 +120,7 @@ __all__ = [
     "median_hilow",
     "ppoints",
     "qnorm",
+    "resolve_bw",
     "resolve_flipped",
     "scale_limits",
     "stat_align",

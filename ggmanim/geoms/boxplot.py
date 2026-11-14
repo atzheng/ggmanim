@@ -36,7 +36,6 @@ import numpy as np
 import pandas as pd
 from manim import Polygon, VGroup, VMobject
 
-from ..positions import Position, PositionIdentity, get_position
 from ..registry import register
 from ..scales.continuous import X_AESTHETICS, Y_AESTHETICS
 from ..stats.boxplot import flip_names, resolution, resolve_flipped
@@ -56,7 +55,7 @@ from .base import (
     resolve_color,
     transform_points,
 )
-from .interval import _clipped_segments, _flip_panel, _style, draw_crossbar
+from .interval import clipped_segments, draw_crossbar, flip_panel, style
 
 __all__ = ["GeomBoxplot", "geom_boxplot"]
 
@@ -151,7 +150,7 @@ class GeomBoxplot(Geom):
         data = self.use_defaults(data, params)
         if flipped:
             data = flip_names(data)
-            coord, panel_params = _flip_panel(coord, panel_params)
+            coord, panel_params = flip_panel(coord, panel_params)
         out, drawn = VGroup(), []
         for i, row in enumerate(data.to_dict("records")):
             mark = self._draw_box(row, coord, panel_params, theme, params)
@@ -177,12 +176,12 @@ class GeomBoxplot(Geom):
         ymin, ymax = num(row.get("ymin"), lower), num(row.get("ymax"), upper)
         if staple:
             a, b = x + (xmin - x) * staple, x + (xmax - x) * staple
-            pieces = _clipped_segments(coord, rect, [a, a], [ymax, ymin], [b, b], [ymax, ymin])
+            pieces = clipped_segments(coord, rect, [a, a], [ymax, ymin], [b, b], [ymax, ymin])
             if pieces:
-                parts.add(_style(multi_path_mobject(pieces, None, lw, 1.0), row, fg, lw))
-        pieces = _clipped_segments(coord, rect, [x, x], [upper, lower], [x, x], [ymax, ymin])
+                parts.add(style(multi_path_mobject(pieces, None, lw, 1.0), row, fg, lw))
+        pieces = clipped_segments(coord, rect, [x, x], [upper, lower], [x, x], [ymax, ymin])
         if pieces:
-            parts.add(_style(multi_path_mobject(pieces, None, lw, 1.0), row, fg, lw))
+            parts.add(style(multi_path_mobject(pieces, None, lw, 1.0), row, fg, lw))
         fatten = num(params.get("fatten"), 2.0)
         if params.get("notch"):
             box = self._notched(row, coord, rect, theme, num(params.get("notchwidth"), 0.5), fatten)
@@ -254,9 +253,9 @@ class GeomBoxplot(Geom):
             poly.set_stroke(width=0, opacity=0)
             poly = VGroup(poly, dashed)
         parts = VGroup(poly)
-        pieces = _clipped_segments(coord, rect, xmin + indent, mid, xmax - indent, mid)
+        pieces = clipped_segments(coord, rect, xmin + indent, mid, xmax - indent, mid)
         if pieces:
-            parts.add(_style(multi_path_mobject(pieces, None, lw, 1.0), row, fg, lw * fatten))
+            parts.add(style(multi_path_mobject(pieces, None, lw, 1.0), row, fg, lw * fatten))
         return parts
 
     def draw_key(self, data_row, theme: Theme | None = None) -> VMobject:
@@ -279,8 +278,8 @@ class GeomBoxplot(Geom):
         box, _ = draw_crossbar(rows, coord, theme, None, fatten=1.5, middle="middle")
         fg = theme.get_foreground()
         lw = num(row.get("linewidth"), 2.0)
-        pieces = _clipped_segments(coord, None, [0, 0], [0.5 * s, -0.5 * s], [0, 0], [s, -s])
-        whiskers = _style(multi_path_mobject(pieces, None, lw, 1.0), row, fg, lw)
+        pieces = clipped_segments(coord, None, [0, 0], [0.5 * s, -0.5 * s], [0, 0], [s, -s])
+        whiskers = style(multi_path_mobject(pieces, None, lw, 1.0), row, fg, lw)
         return VGroup(whiskers, box[0])
 
 
@@ -292,51 +291,6 @@ class _SceneCoord:
     def transform(self, x, y):
         x, y = np.broadcast_arrays(np.asarray(x, dtype=float), np.asarray(y, dtype=float))
         return np.column_stack([x.ravel(), y.ravel(), np.zeros(x.size)])
-
-
-class OrientedPosition(Position):
-    """Runs ``position`` on horizontal layers (``flipped_aes`` true) with x and y
-    swapped, as ggplot2's positions do, so ``position_dodge``/``position_dodge2``
-    place horizontal boxplots and violins side by side along y. Vertical layers
-    are passed through unchanged. (Not registered: no ``name``.)"""
-
-    def __init__(self, position: Any) -> None:
-        super().__init__(position=get_position(position))
-
-    @property
-    def inner(self) -> Position:
-        return self.params["position"]
-
-    def __repr__(self) -> str:
-        return f"{self.inner!r}"
-
-    @staticmethod
-    def _flipped(data: pd.DataFrame) -> bool:
-        return "flipped_aes" in data.columns and len(data) > 0 and bool(data["flipped_aes"].all())
-
-    def setup_params(self, data):
-        flipped = self._flipped(data)
-        inner = self.inner.setup_params(flip_names(data) if flipped else data)
-        return {"inner": inner, "flipped": flipped}
-
-    def setup_data(self, data, params):
-        if not params["flipped"]:
-            return self.inner.setup_data(data, params["inner"])
-        return flip_names(self.inner.setup_data(flip_names(data), params["inner"]))
-
-    def compute_layer(self, data, params, scales=None):
-        if not params["flipped"]:
-            return self.inner.compute_layer(data, params["inner"], scales)
-        swapped = {"x": scales.get("y"), "y": scales.get("x")} if scales else scales
-        return flip_names(self.inner.compute_layer(flip_names(data), params["inner"], swapped))
-
-
-def oriented(position: Any) -> Any:
-    """``position`` wrapped in :class:`OrientedPosition` (identity as is)."""
-    pos = get_position(position)
-    if isinstance(pos, (PositionIdentity, OrientedPosition)):
-        return pos
-    return OrientedPosition(pos)
 
 
 def _standardise_outlier_params(params: dict[str, Any]) -> dict[str, Any]:
@@ -372,7 +326,7 @@ def geom_boxplot(
         mapping,
         data,
         stat=stat,
-        position=oriented(position),
+        position=position,
         inherit_aes=inherit_aes,
         name=name,
         params=_standardise_outlier_params(params),
