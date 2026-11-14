@@ -242,12 +242,26 @@ class ggplot:
 GGManim = ggplot
 
 
+#: Modules (relative to the package) whose import registers components.
+_COMPONENT_MODULES = (
+    "geoms",
+    "scales",
+    "scales.discrete",
+    "stats",
+    "coords",
+    "positions",
+    "facets",
+    "theme",
+    "guides",
+)
+
+
 def _load_components() -> None:
     """Import the component modules so their constructors are registered
     (chaining like ``ggplot(df).geom_point()`` must not depend on import order)."""
     import importlib
 
-    for mod in ("geoms", "scales", "scales.discrete", "stats", "coords", "theme", "guides"):
+    for mod in _COMPONENT_MODULES:
         importlib.import_module(f"{__package__}.{mod}")
 
 
