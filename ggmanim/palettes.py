@@ -275,6 +275,21 @@ def _rgb_array(colours: Sequence[Any]) -> np.ndarray:
     return np.array([as_manim_color(c).to_rgb() for c in colours], dtype=float).reshape(-1, 3)
 
 
+#: ``0xRRGGBB`` -> ``ManimColor`` for the continuous palettes (colours are never
+#: changed in place, so one instance can be shared); bounded by :data:`_HEX_CACHE_MAX`
+_HEX_CACHE: dict[int, ManimColor] = {}
+_HEX_CACHE_MAX = 65536
+
+
+def _hex_colour(code: int) -> ManimColor:
+    col = _HEX_CACHE.get(code)
+    if col is None:
+        if len(_HEX_CACHE) >= _HEX_CACHE_MAX:
+            _HEX_CACHE.clear()
+        col = _HEX_CACHE[code] = ManimColor(f"#{code:06X}")
+    return col
+
+
 def gradient_n_pal(
     colours: Sequence[Any], values: Sequence[float] | None = None
 ) -> ContinuousPalette:
@@ -303,10 +318,12 @@ def gradient_n_pal(
         xc = np.where(nan, 0.0, x)
         interp = np.stack([np.interp(xc, pos, lab[:, k]) for k in range(3)], axis=-1)
         rgb = np.rint(oklab_to_rgb(interp) * 255).astype(int)
-        return [
-            None if bad else ManimColor("#{:02X}{:02X}{:02X}".format(*c))
-            for c, bad in zip(rgb, nan)
-        ]
+        # one ManimColor per distinct colour (shared by the rows that map to it)
+        codes = (rgb[:, 0] << 16) | (rgb[:, 1] << 8) | rgb[:, 2]
+        codes[nan] = -1
+        uniq, inv = np.unique(codes, return_inverse=True)
+        made = [None if c < 0 else _hex_colour(int(c)) for c in uniq]
+        return [made[i] for i in inv.ravel()]
 
     pal.__name__ = "gradient_n_pal"
     return pal
