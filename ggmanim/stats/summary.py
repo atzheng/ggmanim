@@ -18,6 +18,12 @@ The summary is chosen as in ggplot2:
 ``fun_args`` (a dict) is passed to every summary function. Columns that are
 constant within an ``x`` bucket (colour, ``key`` ...) are carried over.
 
+``stat_summary(orientation="y")`` swaps the roles of the axes: ``x`` is
+summarised at each unique ``y`` and the output has ``x``/``xmin``/``xmax`` (plus
+``flipped_aes = True``), which the interval geoms draw horizontally. With
+``orientation=None`` (the default) the stat is flipped when the y scale is
+discrete and the x scale is not (ggplot2's ``has_flipped_aes``), else not.
+
 The ``stat_summary()`` / ``stat_summary_bin()`` constructors return a *layer*
 (default geom ``pointrange``, looked up by name in the component registry), so
 ``ggplot(df, aes("g", "v")).stat_summary(fun_data="mean_cl_normal")`` works; a
@@ -136,24 +142,60 @@ def _summarise_buckets(
     return pd.concat(rows, ignore_index=True)
 
 
+_FLIP = {"x": "y", "y": "x", "ymin": "xmin", "ymax": "xmax"}
+
+
+def _check_orientation(orientation: Any) -> None:
+    if orientation not in (None, "x", "y"):
+        raise ValueError(f"orientation must be 'x', 'y' or None, got {orientation!r}")
+
+
+def _flipped(orientation: Any, scales) -> bool:
+    """Whether to summarise ``x`` per ``y``: ``orientation == "y"``; with
+    ``None``, when the y scale is discrete and the x scale is not."""
+    _check_orientation(orientation)
+    if orientation is not None:
+        return orientation == "y"
+    if not scales:
+        return False
+    sx, sy = scales.get("x"), scales.get("y")
+    return bool(getattr(sy, "is_discrete", False)) and not getattr(sx, "is_discrete", False)
+
+
 class StatSummary(Stat):
     """Summarise ``y`` per group at each unique ``x``. Output: ``x`` plus
-    ``y``/``ymin``/``ymax`` (those the summary produces)."""
+    ``y``/``ymin``/``ymax`` (those the summary produces). With
+    ``orientation="y"`` it summarises ``x`` per unique ``y`` instead (output
+    ``y``, ``x``/``xmin``/``xmax`` and ``flipped_aes``); see the module
+    docstring."""
 
     required_aes = ("x", "y")
     dropped_aes = ("y",)
 
     def __init__(
-        self, fun_data=None, fun=None, fun_max=None, fun_min=None, fun_args=None, **params
+        self,
+        fun_data=None,
+        fun=None,
+        fun_max=None,
+        fun_min=None,
+        fun_args=None,
+        orientation=None,
+        **params,
     ):
+        _check_orientation(orientation)
         super().__init__(
             fun_data=fun_data,
             fun=fun,
             fun_max=fun_max,
             fun_min=fun_min,
             fun_args=fun_args,
+            orientation=orientation,
             **params,
         )
+
+    def compute_panel(self, df: pd.DataFrame, scales=None, **params) -> pd.DataFrame:
+        params["orientation"] = "y" if _flipped(params.get("orientation"), scales) else "x"
+        return super().compute_panel(df, scales, **params)
 
     def compute_group(  # type: ignore[override]
         self,
@@ -164,10 +206,17 @@ class StatSummary(Stat):
         fun_max=None,
         fun_min=None,
         fun_args=None,
+        orientation=None,
     ) -> pd.DataFrame:
         summarise = summary_function(fun_data, fun, fun_max, fun_min, fun_args)
+        flipped = orientation == "y"
+        if flipped:
+            df = df.rename(columns={"x": "y", "y": "x"})
         x = pd.to_numeric(df["x"], errors="coerce").to_numpy(dtype=float)
-        return _summarise_buckets(df.drop(columns=["x"]), x, summarise)
+        res = _summarise_buckets(df.drop(columns=["x"]), x, summarise)
+        if flipped and len(res):
+            res = res.rename(columns=_FLIP).assign(flipped_aes=True)
+        return res
 
 
 def bin_breaks(
@@ -318,6 +367,7 @@ def stat_summary(
     fun_max: Any = None,
     fun_min: Any = None,
     fun_args: Mapping[str, Any] | None = None,
+    orientation: str | None = None,
     inherit_aes: bool = True,
     name: str | None = None,
     **params,
@@ -325,9 +375,19 @@ def stat_summary(
     """A layer summarising ``y`` at each unique ``x`` (default ``mean_se``),
     drawn with ``geom`` (a name such as ``"pointrange"``, ``"errorbar"``,
     ``"crossbar"``, ``"point"``, ``"line"``, ``"col"``, or a ``geom_*``
-    constructor). Other params (constant aesthetics, ``width=`` ...) go to the
+    constructor). ``orientation="y"`` summarises ``x`` at each unique ``y``
+    instead (horizontal intervals); ``None`` picks ``"y"`` when only the y axis
+    is discrete. Other params (constant aesthetics, ``width=`` ...) go to the
     geom."""
-    sp = dict(fun_data=fun_data, fun=fun, fun_max=fun_max, fun_min=fun_min, fun_args=fun_args)
+    _check_orientation(orientation)
+    sp = dict(
+        fun_data=fun_data,
+        fun=fun,
+        fun_max=fun_max,
+        fun_min=fun_min,
+        fun_args=fun_args,
+        orientation=orientation,
+    )
     return _summary_layer("summary", geom, mapping, data, position, inherit_aes, name, sp, params)
 
 

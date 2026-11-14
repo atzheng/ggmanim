@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from typing import Any
 
 import numpy as np
-from manim import LEFT, PI, RIGHT, ArcBetweenPoints, Line, LineJointType, Polygon, VGroup, VMobject
+from manim import LEFT, RIGHT, Line, LineJointType, Polygon, VGroup, VMobject
 
 from ..registry import register
 from ..theme import Theme, theme_default
@@ -176,13 +176,122 @@ class GeomSegment(Geom):
         return apply_linetype(line, row.get("linetype"), max_period=w / 2)
 
 
+# -- grid's curveGrob ------------------------------------------------------------------
+#
+# ggplot2's geom_curve draws grid::curveGrob(curvature, angle, ncp, square = FALSE,
+# shape = 0.5): ``ncp`` control points are placed by grid's calcControlPoints and an
+# open X-spline (shape 0 at both ends, 0.5 at the control points) is drawn through
+# them. The functions below port that construction (grid/R/curve.R, xspline.c) and
+# run it in scene units (grid works in inches; both are isotropic and y-up).
+
+
+def _curve_origin(x1, y1, x2, y2, origin):
+    """grid's calcOrigin: the centre of rotation for the control points."""
+    xm, ym = (x1 + x2) / 2, (y1 + y2) / 2
+    return xm + origin * (y2 - y1) / 2, ym - origin * (x2 - x1) / 2
+
+
+def curve_control_points(
+    start, end, curvature: float, angle: float | None = 90.0, ncp: int = 5
+) -> np.ndarray:
+    """``(ncp, 2)`` control points of grid's ``curveGrob`` between ``start`` and
+    ``end`` (2-D, isotropic units). ``angle`` (degrees, 0..180) skews the curve:
+    ``< 90`` towards the start, ``> 90`` towards the end; ``None`` picks it from the
+    slope as grid does. Port of ``grid:::calcControlPoints``."""
+    x1, y1 = float(start[0]), float(start[1])
+    x2, y2 = float(end[0]), float(end[1])
+    xm, ym = (x1 + x2) / 2, (y1 + y2) / 2
+    dx, dy = x2 - x1, y2 - y1
+    with np.errstate(all="ignore"):
+        if angle is None:
+            slope = np.float64(dy) / dx
+            a = 2 * np.arctan(abs(slope)) if slope < 0 else 2 * np.arctan(1 / slope)
+        else:
+            a = np.deg2rad(angle)
+        sina, cosa = np.sin(a), np.cos(a)
+        cornerx = xm + (x1 - xm) * cosa - (y1 - ym) * sina
+        cornery = ym + (y1 - ym) * cosa + (x1 - xm) * sina
+        beta = -np.arctan(np.float64(cornery - y1) / (cornerx - x1))
+        sinb, cosb = np.sin(beta), np.cos(beta)
+        newx2 = x1 + dx * cosb - dy * sinb
+        newy2 = y1 + dy * cosb + dx * sinb
+        scalex = np.float64(newy2 - y1) / (newx2 - x1)
+        newx1, newx2 = x1 * scalex, newx2 * scalex
+        ratio = 2 * np.sin(np.arctan(curvature)) ** 2
+        origin = curvature - curvature / ratio
+        direction = 1.0 if curvature > 0 else -1.0
+        ox, oy = _curve_origin(newx1, y1, newx2, newy2, origin)
+        maxtheta = np.pi + np.sign(origin * direction) * 2 * np.arctan(abs(origin))
+        theta = np.linspace(0, direction * maxtheta, int(ncp) + 2)[1:-1]
+        cpx = ox + (newx1 - ox) * np.cos(theta) - (y1 - oy) * np.sin(theta)
+        cpy = oy + (y1 - oy) * np.cos(theta) + (newx1 - ox) * np.sin(theta)
+        cpx = cpx / scalex
+        sinnb, cosnb = np.sin(-beta), np.cos(-beta)
+        fx = x1 + (cpx - x1) * cosnb - (cpy - y1) * sinnb
+        fy = y1 + (cpy - y1) * cosnb + (cpx - x1) * sinnb
+    return np.column_stack([fx, fy])
+
+
+def _f_blend(num: np.ndarray, den: float) -> np.ndarray:
+    p = 2 * den * den
+    u = num / den
+    return u**3 * (10 - p + (2 * p - 15) * u + (6 - p) * u * u)
+
+
+def xspline_open(points: np.ndarray, shapes, samples: int = 16) -> np.ndarray:
+    """Points along the open X-spline (Blanc & Schlick, as in ``grid.xspline`` with
+    ``repEnds=TRUE``) through ``points`` (``(n, d)``) with shapes in ``[0, 1]``
+    (``0`` = pass through the control point, ``1`` = B-spline-like)."""
+    pts = np.asarray(points, dtype=float)
+    shp = np.asarray(shapes, dtype=float)
+    if len(pts) < 2:
+        return pts.copy()
+    q = np.concatenate([pts[:1], pts, pts[-1:]])
+    qs = np.concatenate([shp[:1], shp, shp[-1:]])
+    t = np.arange(samples) / samples
+    out = []
+    for j in range(len(q) - 3):
+        s1, s2 = qs[j + 1], qs[j + 2]
+        a0 = np.where(t < s1, _f_blend(t - s1, -1 - s1), 0.0)
+        a2 = _f_blend(t + s1, 1 + s1)
+        a1 = _f_blend(t - 1 - s2, -1 - s2)
+        a3 = np.where(t > 1 - s2, _f_blend(t - 1 + s2, 1 + s2), 0.0)
+        w = np.column_stack([a0, a1, a2, a3])
+        w = w / w.sum(axis=1, keepdims=True)
+        out.append(w @ q[j : j + 4])
+    out.append(pts[-1:])
+    return np.concatenate(out)
+
+
+def curve_points(
+    start, end, curvature: float, angle: float | None = 90.0, ncp: int = 5
+) -> np.ndarray:
+    """The polyline (``(m, 3)``) ggplot2/grid draw for ``geom_curve`` from
+    ``start`` to ``end`` (scene points): a straight segment for ``curvature == 0``
+    or ``angle`` outside ``[1, 179]`` degrees (grid's rule), else the X-spline
+    through :func:`curve_control_points`."""
+    a, b = np.asarray(start, dtype=float), np.asarray(end, dtype=float)
+    straight = np.vstack([a, b])
+    if curvature == 0 or (angle is not None and not 1 <= angle <= 179) or int(ncp) < 1:
+        return straight
+    cps = curve_control_points(a, b, curvature, angle, ncp)
+    if not np.isfinite(cps).all():
+        return straight
+    ctrl = np.vstack([a[:2], cps, b[:2]])
+    xy = xspline_open(ctrl, [0.0, *([0.5] * int(ncp)), 0.0])
+    return np.column_stack([xy, np.full(len(xy), a[2] if len(a) > 2 else 0.0)])
+
+
 class GeomCurve(GeomSegment):
-    """Curved segments: an ``ArcBetweenPoints`` from ``(x, y)`` to
-    ``(xend, yend)`` (transformed to the scene first, so the arc is circular on
-    screen) with ``angle = curvature * PI``. Positive ``curvature`` bends to the
-    right of the direction of travel, negative to the left, ``0`` is straight
-    (ggplot2's convention). When an arc leaves the panel it is sampled and
-    clipped in scene space (the mark is then a polyline)."""
+    """Curved segments from ``(x, y)`` to ``(xend, yend)`` shaped like ggplot2's
+    (grid's ``curveGrob``, see :func:`curve_points`): computed in scene space
+    after the coord transform, so the shape does not depend on the aspect ratio of
+    the axes. ``curvature`` (default ``0.5``): ``1`` is about a half circle,
+    positive values bend to the right of the direction of travel, negative to the
+    left, ``0`` is straight. ``angle`` (degrees, default ``90`` = symmetric) skews
+    the curve towards the start (``< 90``) or the end (``> 90``); ``ncp`` (default
+    ``5``) is the number of control points -- more gives a rounder curve. Each
+    mark is a polyline, clipped to the panel in scene space."""
 
     extra_params: tuple[str, ...] = ("arrow", "lineend", "curvature", "angle", "ncp")
 
@@ -194,6 +303,8 @@ class GeomCurve(GeomSegment):
         theme: Theme | None = None,
         arrow=None,
         curvature: float = 0.5,
+        angle: float | None = 90.0,
+        ncp: int = 5,
         **params,
     ) -> VMobject:
         theme = theme if theme is not None else theme_default()
@@ -204,7 +315,6 @@ class GeomCurve(GeomSegment):
         b = transform_points(coord, data["xend"].to_numpy(float), data["yend"].to_numpy(float))
         rect = panel_rect(coord, panel_params)
         box = scene_box(coord, rect) if rect is not None else None
-        angle = float(curvature) * PI
         out, drawn = VGroup(), []
         for i, row in enumerate(data.to_dict("records")):
             color: Any = resolve_color(row.get("color"), fg)
@@ -212,36 +322,23 @@ class GeomCurve(GeomSegment):
             alpha = num(row.get("alpha"), 1.0)
             if np.allclose(a[i], b[i]):
                 continue
-            arc: VMobject
-            if abs(angle) < 1e-9:
-                arc = Line(a[i], b[i])
-            else:
-                arc = ArcBetweenPoints(a[i], b[i], angle=angle)
+            pts = curve_points(a[i], b[i], float(curvature), angle, int(ncp))
             # outward tangents at both ends
-            start_dir = arc.points[0] - arc.points[1]
-            end_dir = arc.points[-1] - arc.points[-2]
+            start_dir, end_dir = pts[0] - pts[1], pts[-1] - pts[-2]
             start, end = a[i], b[i]
-            if box is not None:
-                ts = np.linspace(0, 1, _CURVE_SAMPLES + 1)
-                pts = np.array([arc.point_from_proportion(t) for t in ts])
-                if not inside(pts[:, 0], pts[:, 1], box).all():
-                    pieces = clip_polyline(pts[:, 0], pts[:, 1], box)
-                    if not pieces:
-                        continue
-                    z = float(a[i][2])
-                    arc = multi_path_mobject(
-                        [np.column_stack([px, py, np.full(len(px), z)]) for px, py in pieces],
-                        color,
-                        width,
-                        alpha,
-                    )
-                    first_in = inside(pts[0, 0], pts[0, 1], box)[()]
-                    last_in = inside(pts[-1, 0], pts[-1, 1], box)[()]
-                    start = start if first_in else None
-                    end = end if last_in else None
-            arc.set_fill(opacity=0)
-            arc.set_stroke(color=color, width=width, opacity=alpha)
-            line = apply_linetype(arc, row.get("linetype"))
+            pieces = [pts]
+            if box is not None and not inside(pts[:, 0], pts[:, 1], box).all():
+                if len(pts) == 2:  # straight: sample so the clip keeps the line
+                    pts = a[i] + np.linspace(0, 1, _CURVE_SAMPLES + 1)[:, None] * (b[i] - a[i])
+                clipped = clip_polyline(pts[:, 0], pts[:, 1], box)
+                if not clipped:
+                    continue
+                z = float(a[i][2])
+                pieces = [np.column_stack([px, py, np.full(len(px), z)]) for px, py in clipped]
+                start = start if inside(pts[0, 0], pts[0, 1], box)[()] else None
+                end = end if inside(pts[-1, 0], pts[-1, 1], box)[()] else None
+            path = multi_path_mobject(pieces, color, width, alpha)
+            line = apply_linetype(path, row.get("linetype"))
             out.add(_with_heads(line, arrow, start, start_dir, end, end_dir, color, width, alpha))
             drawn.append(i)
         return attach_marks(out, data.iloc[drawn], per="row")
@@ -289,6 +386,8 @@ def geom_curve(
     data=None,
     *,
     curvature: float = 0.5,
+    angle: float | None = 90.0,
+    ncp: int = 5,
     arrow: ArrowSpec | None = None,
     stat="identity",
     position="identity",
@@ -296,9 +395,17 @@ def geom_curve(
     name: str | None = None,
     **params: Any,
 ):
-    """Curved line segments from ``(x, y)`` to ``(xend, yend)``: circular arcs
-    with ``angle = curvature * PI`` (``1`` = a half circle; negative values
-    bend left). ``arrow=`` as for :func:`geom_segment`; ``angle``/``ncp`` are
-    accepted for ggplot2 compatibility and ignored."""
+    """Curved line segments from ``(x, y)`` to ``(xend, yend)``, shaped like
+    ggplot2's (grid's ``curveGrob``): ``curvature`` (``1`` ~ a half circle;
+    negative values bend left, ``0`` is straight), ``angle`` (degrees in
+    ``[0, 180]``; ``90`` is symmetric, smaller skews the curve towards the start)
+    and ``ncp`` (number of control points). ``arrow=`` as for
+    :func:`geom_segment`. See :class:`GeomCurve`."""
+    if angle is not None and not 0 <= float(angle) <= 180:
+        raise ValueError(f"geom_curve: angle must be in [0, 180] degrees, got {angle!r}")
+    if int(ncp) < 1:
+        raise ValueError(f"geom_curve: ncp must be >= 1, got {ncp!r}")
     params["curvature"] = float(curvature)
+    params["angle"] = None if angle is None else float(angle)
+    params["ncp"] = int(ncp)
     return _layer(GeomCurve(), mapping, data, stat, position, inherit_aes, name, params, arrow)

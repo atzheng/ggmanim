@@ -3,11 +3,12 @@
 import numpy as np
 import pandas as pd
 import pytest
-from manim import ArcBetweenPoints, Polygon, VGroup
+from manim import Polygon, VGroup, VMobject
 
 import ggmanim
 from ggmanim import aes, arrow, coord_cartesian, geom_curve, geom_segment, ggplot
 from ggmanim.geoms import ArrowSpec, GeomCurve, GeomSegment
+from ggmanim.geoms.segment import curve_control_points, curve_points, xspline_open
 from ggmanim.registry import COMPONENTS
 
 DF = pd.DataFrame({"x": [0.0, 2.0], "y": [0.0, 1.0], "xend": [4.0, 2.0], "yend": [2.0, 5.0]})
@@ -83,10 +84,10 @@ def test_zero_length_segment_skipped():
     assert m.layers[0].keys == [1]
 
 
-def test_curve_is_arc_between_endpoints():
+def test_curve_joins_the_endpoints():
     m = ggplot(DF, MAP).geom_curve(curvature=0.5).build()
     arc = m.layers[0].marks[1]  # (2, 1) -> (2, 5) stays inside the panel
-    assert isinstance(arc, ArcBetweenPoints)
+    assert isinstance(arc, VMobject) and len(arc.get_subpaths()) == 1
     a = m.panel.transform(2.0, 1.0)[0]
     b = m.panel.transform(2.0, 5.0)[0]
     np.testing.assert_allclose(arc.get_start(), a, atol=1e-6)
@@ -114,3 +115,66 @@ def test_curve_clipped_and_arrows():
         hi = m.panel.transform(4.0, 5.0)[0]
         assert pts[:, 0].min() >= lo[0] - 0.25 and pts[:, 0].max() <= hi[0] + 0.25
     assert len(m.layers[0].marks) == 2
+
+
+# -- grid curveGrob fidelity: angle / ncp (ggm-2q5) ---------------------------------------
+
+A, B = np.array([0.0, 0.0, 0.0]), np.array([2.0, 0.0, 0.0])
+
+
+def test_control_points_match_grid():
+    # curvature 1, angle 90: grid places the control points on the half circle over
+    # the chord (calcControlPoints: origin 0 -> rotation about the midpoint by pi)
+    cps = curve_control_points(A, B, 1.0, 90, 5)
+    t = np.pi * np.arange(1, 6) / 6
+    np.testing.assert_allclose(cps, np.column_stack([1 - np.cos(t), -np.sin(t)]), atol=1e-12)
+    # negative curvature mirrors them across the chord
+    np.testing.assert_allclose(curve_control_points(A, B, -1.0, 90, 5), cps * [1, -1], atol=1e-12)
+    assert len(curve_control_points(A, B, 0.5, 90, 12)) == 12
+
+
+def test_xspline_interpolates_shape_zero_and_approximates_shape_half():
+    ctrl = np.array([[0.0, 0.0], [1.0, 1.0], [2.0, 0.0]])
+    zero = xspline_open(ctrl, [0, 0, 0], samples=8)
+    assert np.isclose(zero, [1.0, 1.0]).all(axis=1).any()  # passes through
+    half = xspline_open(ctrl, [0, 0.5, 0], samples=8)
+    np.testing.assert_allclose(half[[0, -1]], ctrl[[0, -1]])
+    assert 0.5 < half[:, 1].max() < 1.0  # pulled towards, not through
+
+
+def test_curve_points_shape():
+    p = curve_points(A, B, 1.0)
+    np.testing.assert_allclose(p[[0, -1]], [A, B])
+    assert -1.0 < p[:, 1].min() < -0.9 and p[:, 1].max() <= 1e-12  # ~ half circle, right side
+    shallow = curve_points(A, B, 0.5)
+    assert -0.6 < shallow[:, 1].min() < -0.4
+    # straight for curvature 0 and for angles outside [1, 179] (grid's rule)
+    for kw in (
+        {"curvature": 0.0},
+        {"curvature": 1.0, "angle": 0.5},
+        {"curvature": 1, "angle": 180},
+    ):
+        np.testing.assert_allclose(curve_points(A, B, **kw), [A, B])
+
+
+def test_angle_skews_the_curve():
+    lowest = {ang: curve_points(A, B, 1.0, ang)[:, 1].argmin() for ang in (30, 90, 150)}
+    x = {ang: curve_points(A, B, 1.0, ang)[i, 0] for ang, i in lowest.items()}
+    assert x[30] < 0.5 and x[90] == pytest.approx(1.0) and x[150] > 1.5
+
+
+def test_ncp_controls_resolution():
+    few, many = curve_points(A, B, 1.0, ncp=1), curve_points(A, B, 1.0, ncp=10)
+    assert len(many) > len(few)
+    assert many[:, 1].min() < few[:, 1].min()  # more control points: rounder, deeper
+
+
+def test_curve_layer_params():
+    layer = geom_curve(curvature=0.3, angle=60, ncp=8)
+    assert layer.params["angle"] == 60.0 and layer.params["ncp"] == 8
+    m = ggplot(DF, MAP).add(layer).build()
+    assert len(m.layers[0].marks) == 2
+    with pytest.raises(ValueError, match="angle"):
+        geom_curve(angle=200)
+    with pytest.raises(ValueError, match="ncp"):
+        geom_curve(ncp=0)
