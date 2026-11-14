@@ -68,7 +68,17 @@ from .palettes import (
     viridis_pal,
 )
 from .plot import GGManim, ggplot, labs, xlab, ylab
-from .positions import position_identity
+from .positions import (
+    geom_jitter,
+    position_dodge,
+    position_dodge2,
+    position_fill,
+    position_identity,
+    position_jitter,
+    position_jitterdodge,
+    position_nudge,
+    position_stack,
+)
 from .scales import (
     scale_alpha,
     scale_alpha_identity,
@@ -180,6 +190,7 @@ __all__ = [
     "geom_col",
     "geom_function",
     "geom_hline",
+    "geom_jitter",
     "geom_line",
     "geom_path",
     "geom_point",
@@ -207,7 +218,14 @@ __all__ = [
     "label_scientific",
     "label_wrap",
     "labs",
+    "position_dodge",
+    "position_dodge2",
+    "position_fill",
     "position_identity",
+    "position_jitter",
+    "position_jitterdodge",
+    "position_nudge",
+    "position_stack",
     "resolve_palette",
     "scale_alpha",
     "scale_alpha_identity",
