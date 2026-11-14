@@ -318,6 +318,65 @@ major/minor grid per direction, `plot_background`, `plot_margin`,
 `panel_width`/`panel_height` and all the `legend_*` elements above. See the
 `Theme` docstring for the full list.
 
+## Facets
+
+`facet_wrap` splits the data into one panel per level of a variable and wraps the
+panels into a grid; `facet_grid` lays them out as rows x columns of two sets of
+variables. Scales are shared unless you free them, legends are shared, and the
+built plot exposes every panel so you can animate them one at a time:
+
+```python
+import numpy as np
+import pandas as pd
+from manim import Create, FadeIn, Scene
+from ggmanim import aes, facet_grid, facet_wrap, geom_hline, geom_point, ggplot, label_both
+
+rng = np.random.default_rng(4)
+cars = pd.DataFrame({"displ": rng.uniform(1.5, 6.5, 120),
+                     "drv": rng.choice(["4wd", "front", "rear"], 120),
+                     "cyl": rng.choice([4, 6, 8], 120)})
+cars["hwy"] = 40 - 3 * cars["displ"] + rng.normal(0, 2, 120)
+
+wrapped = (ggplot(cars, aes("displ", "hwy"))
+           .add(geom_point(data=cars.drop(columns="drv"), colour="#777777", alpha=0.3),
+                name="everyone")                 # no drv column: drawn in every panel
+           .add(geom_point(aes(colour="drv")), name="points")
+           .add(geom_hline(yintercept=cars["hwy"].mean()))  # also in every panel
+           .add(facet_wrap("drv", ncol=3, scales="free_y", labeller=label_both))
+           .build())
+
+grid = (ggplot(cars, aes("displ", "hwy"))
+        .geom_point()
+        .add(facet_grid("drv ~ cyl", switch="y"))
+        .build())
+
+class RevealPanels(Scene):
+    def construct(self):
+        plot = wrapped
+        for (row, col), panel in plot.panels.items():       # in panel order
+            self.play(FadeIn(panel), FadeIn(plot.panel_grid.panel_strips[(row, col)]))
+            self.play(Create(plot.layers["points"].panel(row, col)))
+        self.add(plot)                                       # axis titles, other layers
+```
+
+- `facet_wrap(facets, nrow, ncol, scales, labeller, dir, as_table, drop,
+  strip_position)`: `facets` is a column name, a list, `"~ a + b"`, or computed
+  `{"name": lambda d: ...}`. With fixed scales, x tick labels go on the bottom
+  panel of each column and y tick labels on the left of each row.
+- `facet_grid(rows, cols, scales, space, margins, labeller, switch, drop)` (or
+  `facet_grid("rows ~ cols")`): free x scales are per column and free y per row;
+  `space="free_x"`/`"free_y"`/`"free"` sizes columns/rows by their data range;
+  `margins=True` adds `"(all)"` panels; `switch` moves strips to the bottom/left.
+- `scales="fixed"` / `"free_x"` / `"free_y"` / `"free"`; strip labellers
+  `label_value`, `label_both`, `labeller(am={0: "auto"}, cyl=label_both)`
+  (per variable; `default=` for the rest).
+- A layer whose data lacks a facet variable is repeated in every panel (as in
+  ggplot2); so are `geom_hline`/`geom_vline`/`geom_function`.
+- The built plot: `plot.panels[(row, col)]`, `plot.strips` (all strips),
+  `plot.panel_grid.panel_strips[(row, col)]`, `plot.layers[name].panel(row, col)`;
+  `plot.panel`/`plot.axes` are the first panel. `theme(panel_width=,
+  panel_height=)` size the whole grid; `panel_spacing`, `strip_*` style it.
+
 ## Gallery
 
 [`examples/gallery.py`](examples/gallery.py) has one scene per feature: a
@@ -331,6 +390,12 @@ Render stills of all of them with
 ```bash
 manim -ql -s -a examples/gallery.py
 ```
+
+[`examples/gallery_facets.py`](examples/gallery_facets.py) shows facets:
+`facet_wrap` with fixed and free y scales, `facet_grid` with switched strips and
+with `space="free_y"`, a non-faceted reference layer repeated in every panel, and
+an animation revealing the panels one by one (`manim -ql -s -a
+examples/gallery_facets.py`).
 
 CI renders every `examples/*.py` (`scripts/render_examples.sh`) on every push and
 uploads the PNGs as the `examples` artifact.
@@ -462,6 +527,8 @@ Not yet: `guide_axis`, `guide_bins`.
 | `label_value`, `label_both`, `labeller(var = ...)` | same | strip labellers; `labeller(am={0: "auto"}, cyl=label_both)` |
 | `theme(panel.spacing, strip.background, strip.text, strip.placement)` | `theme(panel_spacing=, panel_spacing_x/_y=, strip_background=, strip_text_size=, strip_text_color=, strip_placement=)` | `panel_width`/`panel_height` size the whole grid |
 | faceted plot object | `plot.panels[(row, col)]`, `plot.strips`, `plot.layers[name].panel(row, col)` | `plot.panel`/`plot.axes` are the first panel; custom facets subclass `ggmanim.facets.Facet` |
+| layer without the facet variable | same | repeated in every panel (reference / background layers) |
+| reveal panels one by one (manim-only) | `for rc, panel in plot.panels.items(): self.play(FadeIn(panel), FadeIn(plot.panel_grid.panel_strips[rc]))` | see `examples/gallery_facets.py` `PanelReveal` |
 
 <!-- section: coords -->
 ### Coords
