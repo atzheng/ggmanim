@@ -579,8 +579,8 @@ Not yet: `element_*` objects.
 Per-geom animations live in a registry (`ggmanim.animate.register_animation`): points
 fade in, lines and axes are drawn (`Create`), bars grow out of the zero line
 (sideways under `coord_flip`), areas/tiles/polygons fade in and text is written.
-`ggmanim.animate.attach_geoms(plot, spec)` tells a built plot which geom drew each
-layer; without it the animation is inferred from the marks (bars then fade in).
+The built plot records which geom drew each layer (`plot.layer_geoms`); a layer
+whose geom is unknown gets an animation inferred from its marks.
 
 Not yet: transitions between plots, `ValueTracker`-driven rebuilds.
 

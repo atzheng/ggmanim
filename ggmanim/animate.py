@@ -33,8 +33,8 @@ under ``coord_flip``). ``hide`` defaults to the reveal played backwards.
 Which geom drew a layer
 -----------------------
 ``GGPlot.layer_geoms`` (``{layer key: Geom}``) tells the lookup which geom drew
-each layer. Until the build records it, :func:`attach_geoms` fills it from the
-spec (:func:`create_plot` does so when given a ``ggplot`` spec). Layers whose
+each layer; the build records it (:func:`attach_geoms` still sets it from a
+spec, overriding the recorded geoms). Layers whose
 geom is unknown get an animation inferred from their marks: text -> ``write``,
 open strokes -> ``create``, anything else -> ``fade_in``.
 """
@@ -495,7 +495,8 @@ def mark(plot: Any, layer: Any, key: Any) -> Mobject:
     marks, keys = getattr(mob, "marks", None), getattr(mob, "keys", None)
     entry = animation_for(_geom(plot, k))
     batched = getattr(mob, "batched", False) or any(
-        entry is not None and entry.batched is not None and entry.batched(part)
+        getattr(part, "batched", False)
+        or (entry is not None and entry.batched is not None and entry.batched(part))
         for part, _ in _parts(plot, mob)
     )
     if marks is None or keys is None or batched:

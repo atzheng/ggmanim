@@ -204,7 +204,7 @@ class GeomRaster(GeomTile):
             m.set_stroke(width=0, opacity=0)
             out.add(seal_seams(m))
         keys = pd.DataFrame({"key": [k[0] for k in batches]})
-        return attach_marks(out, keys, per="row")
+        return attach_marks(out, keys, per="row", batched=True)
 
 
 @register

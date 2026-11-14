@@ -320,8 +320,8 @@ def test_register_animation_rejects_unknown_preset():
 
 
 def test_animation_inferred_without_layer_geoms():
-    plot = _spec().build()  # no attach_geoms
-    assert plot.layer_geoms == {}
+    plot = _spec().build()
+    plot.layer_geoms = {}  # geoms unknown
     assert isinstance(plot.reveal_layer("pts"), FadeIn)
     assert isinstance(plot.reveal_layer("ln"), Create)
     assert isinstance(plot.reveal_layer("txt"), Write)

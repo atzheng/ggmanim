@@ -495,8 +495,10 @@ def attach_marks(
     data: pd.DataFrame,
     per: str = "row",
     marks: Sequence[Mobject] | None = None,
+    batched: bool = False,
 ) -> VGroup:
-    """Record ``group.marks`` and ``group.keys`` on a geom's output and return it.
+    """Record ``group.marks``, ``group.keys`` and ``group.batched`` on a geom's
+    output and return it.
 
     Parameters
     ----------
@@ -512,6 +514,9 @@ def attach_marks(
         The marks, in data-row / group order. Default: ``group.marks`` if already
         set (e.g. by :func:`assemble`, which separates marks from labels), else
         ``group.submobjects``.
+    batched : bool
+        True when a mark draws several data rows at once (e.g. ``geom_raster``'s
+        one mobject per colour), so marks cannot be looked up per data row.
 
     Sets ``group.marks`` (a list) and ``group.keys`` (a list, same length): the
     ``key`` aesthetic's value for each row / the first value in each group when
@@ -540,6 +545,7 @@ def attach_marks(
     out: Any = group
     out.marks = marks
     out.keys = keys
+    out.batched = bool(batched)
     return group
 
 
