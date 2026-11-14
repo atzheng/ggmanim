@@ -583,7 +583,35 @@ fade in, lines and axes are drawn (`Create`), bars grow out of the zero line
 The built plot records which geom drew each layer (`plot.layer_geoms`); a layer
 whose geom is unknown gets an animation inferred from its marks.
 
-Not yet: transitions between plots, `ValueTracker`-driven rebuilds.
+Transitions between plots live in `ggmanim.transition`:
+
+| gganimate | ggmanim | notes |
+|---|---|---|
+| tweening two plots | `self.play(transition(p1, p2, key="country"))` | marks matched by `key`: matched ones `Transform`, the rest fade out / in; `t.plot` is the built second plot |
+| `view_static()` | `transition(..., limits="union")` | shared position limits (`"a"`, `"b"`, `{"x": (lo, hi)}`); default: the axes rescale |
+| `transition_states(year)` | `animate_states(spec, "year", key="country", title="Year {state}")` | one plot per value; `transition_length`, `state_length`, `wrap` |
+| `transition_reveal(x)` | `animate_reveal(spec, along="x", steps=10)` | lines grow, points appear, along a column |
+
+```python
+from ggmanim.transition import transition
+
+df52 = pd.DataFrame({"country": ["A", "B", "C"], "gdp": [1, 2, 3], "life": [40, 50, 45]})
+df07 = pd.DataFrame({"country": ["B", "C", "D"], "gdp": [4, 6, 5], "life": [60, 70, 65]})
+p52 = ggplot(df52, aes("gdp", "life")).add(geom_point(), name="points")
+p07 = ggplot(df07, aes("gdp", "life")).add(geom_point(), name="points")
+t = transition(p52, p07, key="country")  # B and C move, A fades out, D fades in
+assert t.layer_stats["points"] == {"matched": 2, "exited": 1, "entered": 1}
+```
+
+The second plot is built with the first one's panel size and aligned onto it.
+Axis lines morph; tick labels, ticks and grid lines are matched by label text, so
+shared ticks glide to their new place and the others fade while sliding with the
+axis. Legends and titles transform when compatible, else cross-fade. When the
+animation ends the scene holds `t.plot`, so transitions chain. See
+[`examples/transitions.py`](examples/transitions.py) (scatter between years,
+re-sorting bars, a looping 4-state GIF, a line reveal).
+
+Not yet: `ValueTracker`-driven rebuilds.
 
 ## Development
 
