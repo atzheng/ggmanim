@@ -120,6 +120,8 @@ from .positions import (
     position_stack,
 )
 from .scales import (
+    derive,
+    dup_axis,
     scale_alpha,
     scale_alpha_identity,
     scale_color_brewer,
@@ -187,6 +189,7 @@ from .scales import (
     scale_y_log10,
     scale_y_reverse,
     scale_y_sqrt,
+    sec_axis,
     xlim,
     ylim,
 )
@@ -262,7 +265,9 @@ __all__ = [
     "coord_polar",
     "coord_radar",
     "coord_trans",
+    "derive",
     "div_gradient_pal",
+    "dup_axis",
     "facet_grid",
     "facet_null",
     "facet_wrap",
@@ -416,6 +421,7 @@ __all__ = [
     "scale_y_log10",
     "scale_y_reverse",
     "scale_y_sqrt",
+    "sec_axis",
     "seq_gradient_pal",
     "stat_align",
     "stat_bin",

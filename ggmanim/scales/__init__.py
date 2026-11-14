@@ -137,6 +137,7 @@ from .range import (
     scale_size_area,
     scale_size_identity,
 )
+from .sec_axis import AxisSecondary, Derive, derive, dup_axis, sec_axis
 from .shape import (
     LINETYPE_PATTERNS,
     SHAPE_NAMES,
@@ -153,12 +154,14 @@ from .shape import (
 
 __all__ = [
     "AES_TO_MANIM",
+    "AxisSecondary",
     "CATEGORICAL_AESTHETICS",
     "COLOUR_AESTHETICS",
     "DEFAULT_CONTINUOUS_EXPANSION",
     "DEFAULT_DISCRETE_EXPANSION",
     "DEFAULT_RANGES",
     "DateTransform",
+    "Derive",
     "IdentityTransform",
     "LINETYPE_PATTERNS",
     "LogTransform",
@@ -190,7 +193,9 @@ __all__ = [
     "date_kind",
     "default_range_scale",
     "default_scale_for",
+    "derive",
     "discrete_range_scale",
+    "dup_axis",
     "expand_range",
     "expansion",
     "extended",
@@ -274,6 +279,7 @@ __all__ = [
     "scale_y_log10",
     "scale_y_reverse",
     "scale_y_sqrt",
+    "sec_axis",
     "squish",
     "to_epoch",
     "width_breaks",

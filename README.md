@@ -499,6 +499,7 @@ Positions accept a name (`position="dodge"`), a name with arguments
 | ggplot2 | ggmanim | notes |
 |---|---|---|
 | `scale_x_continuous()`, `scale_x_log10()`, `scale_x_sqrt()`, `scale_x_reverse()` | same (`x` and `y`) | `position="top"`/`"right"` |
+| `sec_axis(~ . * 1.8 + 32, name)`, `dup_axis()` | `scale_y_continuous(sec_axis=sec_axis(lambda c: c * 1.8 + 32, name="°F"))`, `dup_axis()` | opposite side of the panel; monotone `transform`; breaks use the primary transform, labels its formatter; `derive()`; outer facet panels only; works with `coord_flip` |
 | `xlim()`, `ylim()` | `xlim(lo, hi)`, `ylim(lo, hi)` | censor out-of-range rows |
 | `scale_x_discrete()` | same (`x` and `y`) | |
 | `scale_x_date()`, `scale_x_datetime()` | same (`x` and `y`) | `date_breaks`, `date_labels`, `date_minor_breaks` |
@@ -513,7 +514,7 @@ Positions accept a name (`position="dodge"`), a name with arguments
 | `scales::label_percent()` etc. | `label_percent()`, `label_comma()`, `label_dollar()`, `label_number()`, `label_scientific()`, `label_math()`, `label_date()`, `label_wrap()` | |
 | `scales::breaks_width()` etc. | `breaks_width()`, `breaks_pretty()`, `breaks_extended()`, `breaks_log()` | |
 
-Not yet: binned position scales, `sec_axis`.
+Not yet: binned position scales, secondary axes on date / discrete scales.
 
 <!-- section: guides -->
 ### Guides

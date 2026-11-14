@@ -494,12 +494,18 @@ class ScaleContinuousPosition(ScaleContinuous):
 
     ``position`` puts the axis (ticks, tick labels, title) on the given side of the
     panel: ``"bottom"`` (default) or ``"top"`` for x, ``"left"`` (default) or
-    ``"right"`` for y; ``None`` means the default side. A secondary axis (ggplot2's
-    ``sec_axis``/``dup_axis``) is out of scope.
+    ``"right"`` for y; ``None`` means the default side. ``sec_axis`` (an
+    :class:`~ggmanim.scales.sec_axis.AxisSecondary` from ``sec_axis()`` /
+    ``dup_axis()``, or ``None``) adds a secondary axis on the opposite side.
     """
 
-    def __init__(self, aesthetics, *args, position: str | None = None, **kwargs) -> None:
+    def __init__(
+        self, aesthetics, *args, position: str | None = None, sec_axis=None, **kwargs
+    ) -> None:
         super().__init__(aesthetics, *args, **kwargs)
+        if sec_axis is not None and not callable(getattr(sec_axis, "break_info", None)):
+            raise TypeError(f"sec_axis must come from sec_axis() or dup_axis(), got {sec_axis!r}")
+        self.sec_axis = sec_axis
         axis = "y" if self.aesthetic in Y_AESTHETICS else "x"
         if position is not None and position not in _POSITIONS[axis]:
             raise ValueError(
@@ -521,6 +527,7 @@ def _position(
     n_breaks,
     minor_breaks=None,
     position=None,
+    sec_axis=None,
 ):
     aes = X_AESTHETICS if axis == "x" else Y_AESTHETICS
     return ScaleContinuousPosition(
@@ -535,6 +542,7 @@ def _position(
         n_breaks=n_breaks,
         minor_breaks=minor_breaks,
         position=position,
+        sec_axis=sec_axis,
     )
 
 
@@ -550,11 +558,23 @@ def scale_x_continuous(
     n_breaks=5,
     minor_breaks=None,
     position=None,
+    sec_axis=None,
 ):
     """Continuous x position scale. See :class:`ScaleContinuous` for arguments;
     ``position`` is "bottom"/"top" (see :class:`ScaleContinuousPosition`)."""
     return _position(
-        "x", trans, name, breaks, labels, limits, expand, oob, n_breaks, minor_breaks, position
+        "x",
+        trans,
+        name,
+        breaks,
+        labels,
+        limits,
+        expand,
+        oob,
+        n_breaks,
+        minor_breaks,
+        position,
+        sec_axis,
     )
 
 
@@ -570,11 +590,23 @@ def scale_y_continuous(
     n_breaks=5,
     minor_breaks=None,
     position=None,
+    sec_axis=None,
 ):
     """Continuous y position scale. See :class:`ScaleContinuous` for arguments;
     ``position`` is "left"/"right" (see :class:`ScaleContinuousPosition`)."""
     return _position(
-        "y", trans, name, breaks, labels, limits, expand, oob, n_breaks, minor_breaks, position
+        "y",
+        trans,
+        name,
+        breaks,
+        labels,
+        limits,
+        expand,
+        oob,
+        n_breaks,
+        minor_breaks,
+        position,
+        sec_axis,
     )
 
 
@@ -589,10 +621,22 @@ def scale_x_log10(
     n_breaks=5,
     minor_breaks=None,
     position=None,
+    sec_axis=None,
 ):
     """x scale with a log10 transform (breaks at powers of ten)."""
     return _position(
-        "x", "log10", name, breaks, labels, limits, expand, oob, n_breaks, minor_breaks, position
+        "x",
+        "log10",
+        name,
+        breaks,
+        labels,
+        limits,
+        expand,
+        oob,
+        n_breaks,
+        minor_breaks,
+        position,
+        sec_axis,
     )
 
 
@@ -607,10 +651,22 @@ def scale_y_log10(
     n_breaks=5,
     minor_breaks=None,
     position=None,
+    sec_axis=None,
 ):
     """y scale with a log10 transform (breaks at powers of ten)."""
     return _position(
-        "y", "log10", name, breaks, labels, limits, expand, oob, n_breaks, minor_breaks, position
+        "y",
+        "log10",
+        name,
+        breaks,
+        labels,
+        limits,
+        expand,
+        oob,
+        n_breaks,
+        minor_breaks,
+        position,
+        sec_axis,
     )
 
 
@@ -625,10 +681,22 @@ def scale_x_sqrt(
     n_breaks=5,
     minor_breaks=None,
     position=None,
+    sec_axis=None,
 ):
     """x scale with a square-root transform."""
     return _position(
-        "x", "sqrt", name, breaks, labels, limits, expand, oob, n_breaks, minor_breaks, position
+        "x",
+        "sqrt",
+        name,
+        breaks,
+        labels,
+        limits,
+        expand,
+        oob,
+        n_breaks,
+        minor_breaks,
+        position,
+        sec_axis,
     )
 
 
@@ -643,10 +711,22 @@ def scale_y_sqrt(
     n_breaks=5,
     minor_breaks=None,
     position=None,
+    sec_axis=None,
 ):
     """y scale with a square-root transform."""
     return _position(
-        "y", "sqrt", name, breaks, labels, limits, expand, oob, n_breaks, minor_breaks, position
+        "y",
+        "sqrt",
+        name,
+        breaks,
+        labels,
+        limits,
+        expand,
+        oob,
+        n_breaks,
+        minor_breaks,
+        position,
+        sec_axis,
     )
 
 
@@ -661,10 +741,22 @@ def scale_x_reverse(
     n_breaks=5,
     minor_breaks=None,
     position=None,
+    sec_axis=None,
 ):
     """Reversed x scale (large values on the left)."""
     return _position(
-        "x", "reverse", name, breaks, labels, limits, expand, oob, n_breaks, minor_breaks, position
+        "x",
+        "reverse",
+        name,
+        breaks,
+        labels,
+        limits,
+        expand,
+        oob,
+        n_breaks,
+        minor_breaks,
+        position,
+        sec_axis,
     )
 
 
@@ -679,10 +771,22 @@ def scale_y_reverse(
     n_breaks=5,
     minor_breaks=None,
     position=None,
+    sec_axis=None,
 ):
     """Reversed y scale (large values at the bottom)."""
     return _position(
-        "y", "reverse", name, breaks, labels, limits, expand, oob, n_breaks, minor_breaks, position
+        "y",
+        "reverse",
+        name,
+        breaks,
+        labels,
+        limits,
+        expand,
+        oob,
+        n_breaks,
+        minor_breaks,
+        position,
+        sec_axis,
     )
 
 
