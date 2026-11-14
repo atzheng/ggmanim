@@ -48,3 +48,4 @@
 {"id":"int-b99868dd","kind":"field_change","created_at":"2026-11-14T12:02:25.594441Z","actor":"Andrew Zheng","issue_id":"ggm-913.3","extra":{"field":"status","new_value":"closed","old_value":"in_progress","reason":"Closed"}}
 {"id":"int-6a407d34","kind":"field_change","created_at":"2026-11-14T12:06:02.571277Z","actor":"Andrew Zheng","issue_id":"ggm-913.2","extra":{"field":"status","new_value":"closed","old_value":"in_progress","reason":"Closed"}}
 {"id":"int-b57e1d93","kind":"field_change","created_at":"2026-11-14T12:09:36.967853Z","actor":"Andrew Zheng","issue_id":"ggm-2m8.2","extra":{"field":"status","new_value":"closed","old_value":"in_progress","reason":"Closed"}}
+{"id":"int-ebee8eef","kind":"field_change","created_at":"2026-11-14T12:16:05.093747Z","actor":"Andrew Zheng","issue_id":"ggm-2m8.8","extra":{"field":"status","new_value":"closed","old_value":"in_progress","reason":"Closed"}}
