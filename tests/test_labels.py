@@ -6,7 +6,7 @@ import pandas as pd
 import pytest
 
 import ggmanim
-from ggmanim.coords import coord_cartesian
+from ggmanim.coords import coord_cartesian, grid_line_count
 from ggmanim.labels import (
     breaks_extended,
     breaks_log,
@@ -251,8 +251,10 @@ def test_minor_grid_drawn():
     nmaj = len(p.panel_params.x_breaks) + len(p.panel_params.y_breaks)
     nmin = len(p.panel_params.x_minor_breaks) + len(p.panel_params.y_minor_breaks)
     assert nmin > 0
-    assert len(p.grid_major) == nmaj and len(p.grid_minor) == nmin
-    assert len(p.grid) == nmaj + nmin
+    # one GridLines mobject per axis (ggm-bam.2)
+    assert len(p.grid_major) == 2 and len(p.grid_minor) == 2
+    assert grid_line_count(p.grid_major) == nmaj and grid_line_count(p.grid_minor) == nmin
+    assert grid_line_count(p.grid) == nmaj + nmin
     minor, major = p.grid_minor[0], p.grid_major[0]
     assert minor.get_stroke_width() < major.get_stroke_width()
     assert minor.get_stroke_opacity() < major.get_stroke_opacity()
@@ -282,7 +284,7 @@ def test_minor_grid_theme_fields():
     assert line.get_stroke_color().to_hex().lower() == "#ff0000"
     # minor lines are independent of the per-axis major switches
     p = _panel(th=t.merge(theme(panel_grid_major_x=False)))
-    assert len(p.grid_minor) == len(p.panel_params.x_minor_breaks) + len(
+    assert grid_line_count(p.grid_minor) == len(p.panel_params.x_minor_breaks) + len(
         p.panel_params.y_minor_breaks
     )
 
@@ -370,7 +372,7 @@ def test_minor_grid_and_position_under_coord_flip():
     # panel_params stay in aesthetic orientation, minor breaks included
     np.testing.assert_allclose(pp.x_minor_breaks, sx.get_minor_breaks(pp.x_range))
     np.testing.assert_allclose(pp.y_minor_breaks, sy.get_minor_breaks(pp.y_range))
-    assert len(p.grid_minor) == len(pp.x_minor_breaks) + len(pp.y_minor_breaks)
+    assert grid_line_count(p.grid_minor) == len(pp.x_minor_breaks) + len(pp.y_minor_breaks)
     # x aesthetic is vertical: its "top" goes to the right; y's "right" to the top
     corner = p.axes.c2p(pp.y_range[1], pp.x_range[1])  # drawn axes are swapped
     right_edge, top_edge = corner[0], corner[1]
