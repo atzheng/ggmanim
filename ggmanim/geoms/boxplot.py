@@ -52,6 +52,7 @@ from .base import (
     make_layer,
     multi_path_mobject,
     num,
+    paint_stroke,
     resolve_color,
     transform_points,
 )
@@ -247,7 +248,7 @@ class GeomBoxplot(Geom):
         lw = num(row.get("linewidth"), 2.0)
         poly: VMobject = Polygon(*transform_points(coord, px_, py_))
         poly.set_fill(fill if fill is not None else color, opacity=alpha if fill is not None else 0)
-        poly.set_stroke(color=color, width=lw, opacity=alpha)
+        paint_stroke(poly, color, lw, alpha)
         dashed = apply_linetype(poly.copy(), row.get("linetype"))
         if dashed is not poly and isinstance(dashed, VGroup):
             poly.set_stroke(width=0, opacity=0)

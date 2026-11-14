@@ -116,7 +116,12 @@ _COMMON_PARAMS = frozenset({"na_rm", "show_legend"})
 
 
 def resolve_color(value: Any, fallback: Any = None) -> ManimColor | None:
-    """``value`` as a ``ManimColor``; ``None``/NaN -> ``fallback`` (also coerced)."""
+    """``value`` as a ``ManimColor``; ``None``/NaN -> ``fallback`` (also coerced).
+
+    A blank colour (``"NA"``/``"none"``/``"transparent"``, see :func:`is_blank`)
+    gives ``None`` whatever the ``fallback``: draw nothing."""
+    if is_blank(value):
+        return None
     if value is None or (isinstance(value, float) and np.isnan(value)):
         if fallback is None:
             return None
@@ -175,12 +180,18 @@ class Geom:
         return frozenset(self.required_aes) | frozenset(self.default_aes) | _KNOWN_AES
 
     def aes_params(self, params: Mapping[str, Any]) -> dict[str, Any]:
-        """The constant aesthetics in ``params`` (names standardised)."""
+        """The constant aesthetics in ``params`` (names standardised).
+
+        ``color``/``fill`` set to ``None`` or ``"NA"`` (ggplot2's ``fill = NA``)
+        become :data:`NA_COLOR`, which blanks the stroke / fill even when the
+        aesthetic is mapped or has a default (see :func:`is_blank`)."""
         out = {}
         aes = self.aesthetics()
         for k, v in params.items():
             k = standardise_aes_name(k)
-            if k in aes and v is not None:
+            if k in aes and k in _BLANKABLE_AES and (v is None or is_blank(v)):
+                out[k] = NA_COLOR  # fill=None / "NA" overrides mapping and default
+            elif k in aes and v is not None:
                 out[k] = v
         return out
 
@@ -320,12 +331,13 @@ def num(v: Any, default: float) -> float:
 
 
 def path_mobject(points: np.ndarray, color: Any, linewidth: float, alpha: float) -> VMobject:
-    """An open polyline through ``points`` built with ``set_points_as_corners``."""
+    """An open polyline through ``points`` built with ``set_points_as_corners``
+    (no stroke when ``color`` is ``None``, e.g. a blank colour)."""
     m = VMobject()
     if len(points):
         m.set_points_as_corners(points)
     m.set_fill(opacity=0)
-    m.set_stroke(color=color, width=linewidth, opacity=alpha)
+    paint_stroke(m, color, linewidth, alpha)
     return m
 
 
@@ -352,7 +364,7 @@ def multi_path_mobject(
     for piece in pieces[1:]:
         m.start_new_path(piece[0])
         m.add_points_as_corners(piece[1:])
-    m.set_stroke(color=color, width=linewidth, opacity=alpha)
+    paint_stroke(m, color, linewidth, alpha)
     return m
 
 
@@ -447,6 +459,35 @@ def color_resolver(fallback: Any = None):
         return hit
 
     return resolve
+
+
+#: The constant a blank ``color``/``fill`` param is stored as in layer data.
+NA_COLOR = "NA"
+
+#: Aesthetics whose ``None``/``"NA"`` constant means "draw no stroke / fill".
+_BLANKABLE_AES = frozenset({"color", "fill"})
+
+_BLANK_NAMES = frozenset({"na", "none", "transparent"})
+
+
+def is_blank(value: Any) -> bool:
+    """True for a blank colour: ``"NA"``, ``"none"`` or ``"transparent"`` (any
+    case). Geoms draw no fill / stroke for it (:func:`resolve_color` -> ``None``)."""
+    return isinstance(value, str) and value.strip().lower() in _BLANK_NAMES
+
+
+def paint_fill(mob: VMobject, color: Any, opacity: float) -> VMobject:
+    """``mob.set_fill(color, opacity)``; no fill (opacity 0) when ``color`` is ``None``."""
+    if color is None:
+        return mob.set_fill(opacity=0)
+    return mob.set_fill(color, opacity=opacity)
+
+
+def paint_stroke(mob: VMobject, color: Any, width: float, opacity: float) -> VMobject:
+    """``mob.set_stroke(color, width, opacity)``; no stroke when ``color`` is ``None``."""
+    if color is None:
+        return mob.set_stroke(width=0, opacity=0)
+    return mob.set_stroke(color=color, width=width, opacity=opacity)
 
 
 # endregion
