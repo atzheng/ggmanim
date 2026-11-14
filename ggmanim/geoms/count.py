@@ -1,10 +1,11 @@
 """geom_count (points sized by stat_sum counts) and the layer plumbing behind the
 standalone ``stat_*`` constructors (``stat_ecdf``, ``stat_qq``, ``stat_sum`` ...).
 
-``stat_ecdf`` draws with a step function. Until ``geom_step`` exists (bead
-ggm-2m8.3), :class:`GeomStepFallback` -- a :class:`GeomPath` that expands the
-data into a staircase and resolves ``x = +-inf`` to the panel edges -- stands in
-for it; ``geom="step"`` resolves to it.
+``stat_ecdf`` draws with :class:`~ggmanim.geoms.step.GeomStep`. Its padding
+rows sit at ``x = +-inf``, which ggplot2's coord squishes to the panel edges;
+``GeomStep`` drops non-finite rows, so ``geom="step"`` resolves to
+:class:`GeomStepEdges`, a ``GeomStep`` that first moves infinite positions onto
+the panel edges.
 """
 
 from __future__ import annotations
@@ -20,9 +21,9 @@ from ..aes import Aes, AfterStat, standardise_aes_name
 from ..registry import register
 from ..stats import STATS
 from ..theme import Theme
-from .base import Geom, finite_rows, make_layer
-from .line import GeomPath
+from .base import Geom, make_layer
 from .point import GeomPoint
+from .step import GeomStep
 
 __all__ = ["GeomCount", "geom_count"]
 
@@ -60,47 +61,13 @@ def geom_count(
     )
 
 
-# -- step fallback ----------------------------------------------------------------
+# -- step geom for stat_ecdf --------------------------------------------------------
 
 
-def _step_rows(n: int, direction: str) -> tuple[np.ndarray, np.ndarray]:
-    """Source rows of the staircase vertices through ``n`` points sorted by x: the
-    row giving each vertex's x and the row giving its y (and other columns)."""
-    if direction not in ("hv", "vh", "mid"):
-        raise ValueError(f"step direction must be 'hv', 'vh' or 'mid', got {direction!r}")
-    if n < 2:
-        return np.arange(n), np.arange(n)
-    i = np.repeat(np.arange(n), 2)
-    if direction == "hv":  # across, then up
-        return i[1:], i[:-1]
-    if direction == "vh":  # up, then across
-        return i[:-1], i[1:]
-    return i, i  # mid: x is replaced by the midpoints
-
-
-def step_expand(x, y, direction: str = "hv") -> tuple[np.ndarray, np.ndarray]:
-    """Staircase vertices ``(xs, ys)`` through ``(x, y)`` (sorted by x): ``"hv"``
-    goes across then up, ``"vh"`` up then across, ``"mid"`` steps half-way
-    between consecutive x values."""
-    x = np.asarray(x, dtype=float)
-    y = np.asarray(y, dtype=float)
-    xr, yr = _step_rows(len(x), direction)
-    xs = x[xr]
-    if direction == "mid" and len(x) > 1:
-        mids = (x[:-1] + x[1:]) / 2
-        xs = np.concatenate([[x[0]], np.repeat(mids, 2), [x[-1]]])
-    return xs, y[yr]
-
-
-class GeomStepFallback(GeomPath):
-    """A step function drawn as a :class:`GeomPath` (stand-in for ``geom_step``).
-
-    Each group is sorted by x and expanded into a staircase (``direction``
-    ``"hv"``/``"vh"``/``"mid"``). Infinite x / y (``stat_ecdf``'s padding) are
-    placed on the panel edges; NaN rows are dropped.
-    """
-
-    extra_params: tuple[str, ...] = ("label", "direction")
+class GeomStepEdges(GeomStep):
+    """:class:`~ggmanim.geoms.step.GeomStep` that keeps ``x``/``y = +-inf`` rows
+    (``stat_ecdf``'s padding) and draws them on the panel edges, like ggplot2's
+    coord squishing infinite values. NaN positions are still dropped."""
 
     def handle_na(
         self, data: pd.DataFrame, params: Mapping[str, Any] | None = None, label: str | None = None
@@ -126,20 +93,14 @@ class GeomStepFallback(GeomPath):
         direction: str = "hv",
         **params,
     ) -> VMobject:
-        self.check_required_aes(data)
-        pieces = []
-        for _, gdf in data.groupby("group", sort=True):
-            gdf = gdf.sort_values("x", kind="stable")
-            gdf = gdf.assign(
-                x=_edges(gdf["x"], getattr(panel_params, "x_range", None)),
-                y=_edges(gdf["y"], getattr(panel_params, "y_range", None)),
+        if len(data):
+            data = data.assign(
+                x=_edges(data["x"], getattr(panel_params, "x_range", None)),
+                y=_edges(data["y"], getattr(panel_params, "y_range", None)),
             )
-            gdf = finite_rows(gdf, ("x", "y"))
-            _, rows = _step_rows(len(gdf), direction)
-            xs, ys = step_expand(gdf["x"], gdf["y"], direction)
-            pieces.append(gdf.iloc[rows].assign(x=xs, y=ys))
-        expanded = pd.concat(pieces, ignore_index=True) if pieces else data.iloc[0:0]
-        return super().draw_panel(expanded, panel_params, coord, theme, label=label, **params)
+        return super().draw_panel(
+            data, panel_params, coord, theme, label=label, direction=direction, **params
+        )
 
 
 def _edges(values: pd.Series, rng) -> np.ndarray:
@@ -155,15 +116,15 @@ def _edges(values: pd.Series, rng) -> np.ndarray:
 
 def _resolve_geom(geom) -> Geom:
     """A ``Geom`` instance from an instance, a class or a name (``"point"``,
-    ``"qq_line"``; ``"step"`` -> :class:`GeomStepFallback`)."""
+    ``"qq_line"``; ``"step"`` -> :class:`GeomStepEdges`)."""
     if isinstance(geom, Geom):
         return geom
     if isinstance(geom, type) and issubclass(geom, Geom):
         return geom()
     if isinstance(geom, str):
         stem = geom[5:] if geom.startswith("geom_") else geom
-        if stem == "step":  # TODO(ggm-2m8.3): use geoms.step.GeomStep once merged
-            return GeomStepFallback()
+        if stem == "step":
+            return GeomStepEdges()
         from .. import geoms
 
         cls = getattr(geoms, "Geom" + "".join(p.capitalize() for p in stem.split("_")), None)

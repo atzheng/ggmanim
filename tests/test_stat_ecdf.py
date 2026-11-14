@@ -1,11 +1,12 @@
-"""stat_ecdf and the step fallback geom that draws it."""
+"""stat_ecdf and the step geom that draws it."""
 
 import numpy as np
 import pandas as pd
 import pytest
 
 from ggmanim import aes, geom_point, ggplot, stat_ecdf
-from ggmanim.geoms.count import GeomStepFallback, step_expand
+from ggmanim.geoms.count import GeomStepEdges
+from ggmanim.geoms.step import GeomStep
 from ggmanim.layer import Layer
 from ggmanim.stats import StatEcdf, get_stat
 
@@ -42,21 +43,9 @@ def test_ecdf_per_group_and_registered():
 def test_stat_ecdf_returns_a_step_layer():
     layer = stat_ecdf(pad=False, color="red")
     assert isinstance(layer, Layer)
-    assert isinstance(layer.geom, GeomStepFallback)
+    assert isinstance(layer.geom, GeomStepEdges) and isinstance(layer.geom, GeomStep)
     assert isinstance(layer.stat, StatEcdf) and layer.stat.params["pad"] is False
     assert isinstance(stat_ecdf(geom="point").geom, type(geom_point().geom))
-
-
-def test_step_expand_directions():
-    x, y = np.array([0.0, 1, 2]), np.array([0.0, 1, 2])
-    xs, ys = step_expand(x, y, "hv")
-    assert xs.tolist() == [0, 1, 1, 2, 2] and ys.tolist() == [0, 0, 1, 1, 2]
-    xs, ys = step_expand(x, y, "vh")
-    assert xs.tolist() == [0, 0, 1, 1, 2] and ys.tolist() == [0, 1, 1, 2, 2]
-    xs, ys = step_expand(x, y, "mid")
-    assert xs.tolist() == [0, 0.5, 0.5, 1.5, 1.5, 2] and ys.tolist() == [0, 0, 1, 1, 2, 2]
-    with pytest.raises(ValueError, match="direction"):
-        step_expand(x, y, "diag")
 
 
 def test_ecdf_plot_reaches_panel_edges():
@@ -75,3 +64,26 @@ def test_ecdf_plot_reaches_panel_edges():
         # horizontal-then-vertical staircase: every segment is axis-aligned
         d = np.diff(pts[:, :2], axis=0)
         assert np.all((np.abs(d[:, 0]) < 1e-9) | (np.abs(d[:, 1]) < 1e-9))
+
+
+def test_ecdf_step_direction_and_geom_step_semantics():
+    df = pd.DataFrame({"v": [0.0, 1.0, 2.0]})
+    for direction in ("hv", "vh", "mid"):
+        m = ggplot(df, aes("v")).add(stat_ecdf(pad=False, direction=direction)).build()
+        pts = np.asarray(m.layers[0].marks[0].points)[:, :2]
+        d = np.diff(pts, axis=0)
+        assert np.all((np.abs(d[:, 0]) < 1e-9) | (np.abs(d[:, 1]) < 1e-9))
+        start = m.panel.transform([0.0], [1 / 3])[0][:2]
+        if direction == "hv":
+            np.testing.assert_allclose(pts[0], start, atol=1e-6)
+            # first move is horizontal (to x = 1)
+            assert abs(pts[1][1] - start[1]) < 1e-9
+
+
+def test_ecdf_nan_rows_dropped_inf_kept():
+    data = pd.DataFrame(
+        {"x": [-np.inf, 1.0, np.nan, np.inf], "y": [0.0, 0.5, 0.7, 1.0], "group": [1] * 4}
+    )
+    with pytest.warns(UserWarning, match="removed 1 row"):
+        kept = GeomStepEdges().handle_na(data)
+    assert kept["x"].tolist() == [-np.inf, 1.0, np.inf]
