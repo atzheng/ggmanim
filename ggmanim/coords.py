@@ -76,6 +76,8 @@ __all__ = [
     "coord_flip",
     "CoordFixed",
     "coord_fixed",
+    "is_linear",
+    "coord_munch",
 ]
 
 _CLIP = ("on", "off")
@@ -719,4 +721,76 @@ def coord_fixed(
 # endregion
 
 # region: nonlinear
+#: Munching resolution: a path segment is cut into pieces no longer than
+#: ``1 / MUNCH_SEGMENTS`` of the panel (in the coord's normalised output space).
+MUNCH_SEGMENTS = 50
+#: Upper bound on the pieces one segment is cut into.
+_MUNCH_MAX = 1000
+
+
+def is_linear(coord: Any) -> bool:
+    """``coord.is_linear`` (default ``True``): whether straight lines in the coord's
+    input space stay straight on screen. Works on coord specs and built panels.
+
+    Linear coords (cartesian, flip, fixed) map input space affinely to the scene,
+    so geoms transform only the vertices; non-linear ones
+    (:func:`~ggmanim.coords_trans.coord_trans`)
+    need paths and polygons *munched* (:func:`coord_munch`) first."""
+    return bool(getattr(coord, "is_linear", True))
+
+
+def _munch_distance(coord: Any, x: np.ndarray, y: np.ndarray) -> np.ndarray:
+    """Length of each segment of the path ``(x, y)`` as a fraction of the panel:
+    ``coord.munch_distance(x, y)`` when the coord defines it, else the scene
+    distance with each axis divided by the panel's scene width/height."""
+    dist = getattr(coord, "munch_distance", None)
+    if dist is not None:
+        return np.asarray(dist(x, y), dtype=float)
+    pts = np.asarray(coord.transform(x, y), dtype=float).reshape(-1, 3)
+    pp = getattr(coord, "panel_params", None)
+    w = h = 1.0
+    if pp is not None:
+        c = np.asarray(coord.transform(list(pp.x_range), list(pp.y_range)), dtype=float)
+        w = abs(c[1, 0] - c[0, 0]) or 1.0
+        h = abs(c[1, 1] - c[0, 1]) or 1.0
+    d = np.diff(pts[:, :2], axis=0) / np.array([w, h])
+    return np.hypot(d[:, 0], d[:, 1])
+
+
+def coord_munch(
+    coord: Any, x: Any, y: Any, *, closed: bool = False, segments: int = MUNCH_SEGMENTS
+) -> tuple[np.ndarray, np.ndarray]:
+    """Interpolate the path ``(x, y)`` (coord *input* space) so that it draws as a
+    curve under a non-linear coord (ggplot2's ``coord_munch``).
+
+    Each segment is cut into ``ceil(length * segments)`` equal pieces (``length``
+    measured in the coord's output space as a fraction of the panel, see
+    ``coord.munch_distance``); the new vertices are placed *linearly in input
+    space*, so after ``coord.transform`` they follow the image of the straight
+    segment. ``closed=True`` also munches the closing edge (polygons); the result
+    is still a ring without the first vertex repeated.
+
+    Returns float arrays ``(x, y)``: unchanged (copies) when the coord is linear
+    or the path has fewer than two vertices. Segments with a non-finite end are
+    not subdivided, so NaN path breaks survive.
+    """
+    xs, ys = np.broadcast_arrays(np.asarray(x, dtype=float), np.asarray(y, dtype=float))
+    xs, ys = xs.ravel(), ys.ravel()
+    if is_linear(coord) or len(xs) < 2:
+        return xs.copy(), ys.copy()
+    if closed:
+        xs, ys = np.append(xs, xs[0]), np.append(ys, ys[0])
+    with np.errstate(invalid="ignore"):
+        d = _munch_distance(coord, xs, ys) * segments
+        n = np.where(np.isfinite(d), np.clip(np.ceil(d), 1, _MUNCH_MAX), 1).astype(int)
+    seg = np.repeat(np.arange(len(n)), n)
+    t = (np.arange(n.sum()) - np.repeat(np.cumsum(n) - n, n)) / np.repeat(n, n)
+    with np.errstate(invalid="ignore"):
+        mx = np.where(t == 0, xs[seg], xs[seg] + (xs[seg + 1] - xs[seg]) * t)
+        my = np.where(t == 0, ys[seg], ys[seg] + (ys[seg + 1] - ys[seg]) * t)
+    if closed:
+        return mx, my
+    return np.append(mx, xs[-1]), np.append(my, ys[-1])
+
+
 # endregion

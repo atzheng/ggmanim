@@ -249,6 +249,7 @@ _COMPONENT_MODULES = (
     "scales.discrete",
     "stats",
     "coords",
+    "coords_trans",
     "positions",
     "facets",
     "theme",

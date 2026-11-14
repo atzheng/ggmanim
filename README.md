@@ -537,8 +537,10 @@ Not yet: `guide_axis`, `guide_bins`.
 |---|---|---|
 | `coord_cartesian(xlim =, ylim =)` | same | zoom without dropping rows; `clip="on"` |
 | `coord_flip()`, `coord_fixed(ratio)` | same | |
+| `coord_trans(x = "log10", y = "sqrt", xlim, ylim)` | `coord_trans(x="log10", y="sqrt", xlim=, ylim=)` | transforms at draw time: stats fit untransformed data, breaks are the scale's placed at transformed positions, lines/polygons/rects are munched into curves |
+| `coord_munch(coord, data, range)` | `coord_munch(panel, x, y, closed=False)` | interpolate a path for a non-linear coord (`panel.is_linear` false); geoms use `geoms.base.munch_path` |
 
-Not yet: `coord_trans`, `coord_polar`.
+Not yet: `coord_polar`.
 
 <!-- section: themes -->
 ### Themes

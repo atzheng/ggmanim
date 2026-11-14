@@ -16,9 +16,9 @@ from .base import (
     attach_marks,
     finite_rows,
     make_layer,
+    munch_rect_corners,
     num,
     resolve_color,
-    transform_points,
 )
 
 __all__ = ["GeomCol", "GeomBar", "geom_col", "geom_bar", "resolution"]
@@ -104,7 +104,7 @@ class GeomCol(Geom):
         # one vectorised transform for all corners: (n, 4, 3)
         cx = np.stack([xmin, xmax, xmax, xmin], axis=1)
         cy = np.stack([ymin, ymin, ymax, ymax], axis=1)
-        corners = transform_points(coord, cx.ravel(), cy.ravel()).reshape(-1, 4, 3)
+        corners = munch_rect_corners(coord, cx, cy)
         bars = VGroup()
         for c, row in zip(corners, data.to_dict("records")):
             bars.add(self._bar(Polygon(*c), row, theme))

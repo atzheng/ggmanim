@@ -19,6 +19,7 @@ import numpy as np
 import pandas as pd
 from manim import VGroup, VMobject
 
+from ..coords import is_linear
 from ..registry import register
 from ..theme import Theme, theme_default
 from ._rect import clipped_rects, draw_rects, filled_key, ring_points, seal_seams
@@ -181,7 +182,7 @@ class GeomRaster(GeomTile):
         x = pd.to_numeric(data["x"], errors="coerce").to_numpy(dtype=float)
         y = pd.to_numeric(data["y"], errors="coerce").to_numpy(dtype=float)
         cells = pd.DataFrame({"x": x, "y": y})
-        if not (_regular(x) and _regular(y)) or cells.duplicated().any():
+        if not (_regular(x) and _regular(y) and is_linear(coord)) or cells.duplicated().any():
             out, drawn = draw_rects(data, panel_params, coord, theme, seal=True)
             return attach_marks(out, drawn, per="row")
         data, corners = clipped_rects(data, coord, panel_params)

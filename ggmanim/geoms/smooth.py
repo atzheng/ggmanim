@@ -23,6 +23,7 @@ from .base import (
     group_label,
     make_layer,
     multi_path_mobject,
+    munch_path,
     num,
     resolve_color,
     transform_points,
@@ -64,7 +65,7 @@ class GeomSmooth(GeomLine):
         for i, (gid, gdf) in enumerate(data.groupby("group", sort=True)):
             gdf = gdf.sort_values("x", kind="stable")
             x = gdf["x"].to_numpy(float)
-            pieces = clipped_path_points(coord, panel_params, x, gdf["y"].to_numpy(float))
+            pieces = clipped_path_points(coord, panel_params, *munch_path(coord, x, gdf["y"]))
             color = label_color = resolve_color(first(gdf, "color"), fg)
             line: VMobject
             if varies_within(gdf, ("color", "linewidth")):
@@ -84,6 +85,7 @@ class GeomSmooth(GeomLine):
                 rx = np.concatenate([x[ok], x[ok][::-1]])
                 ry = np.concatenate([ymax[ok], ymin[ok][::-1]])
                 rect = panel_rect(coord, panel_params)
+                rx, ry = munch_path(coord, rx, ry, closed=True)
                 if rect is not None and ok.sum() >= 2:
                     rx, ry = clip_polygon(rx, ry, rect)
                 if ok.sum() >= 2 and len(rx) >= 3:
