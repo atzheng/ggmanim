@@ -64,3 +64,6 @@
 {"id":"int-a2d5389d","kind":"field_change","created_at":"2026-11-14T12:45:04.536066Z","actor":"Andrew Zheng","issue_id":"ggm-aji.1","extra":{"field":"status","new_value":"closed","old_value":"in_progress","reason":"Closed"}}
 {"id":"int-604c3715","kind":"field_change","created_at":"2026-11-14T12:45:47.325637Z","actor":"Andrew Zheng","issue_id":"ggm-5iz","extra":{"field":"status","new_value":"open","old_value":"in_progress"}}
 {"id":"int-04efb042","kind":"field_change","created_at":"2026-11-14T12:45:47.900496Z","actor":"Andrew Zheng","issue_id":"ggm-78e","extra":{"field":"status","new_value":"open","old_value":"in_progress"}}
+{"id":"int-942d2db6","kind":"field_change","created_at":"2026-11-14T13:00:25.597682Z","actor":"Andrew Zheng","issue_id":"ggm-2m8.9","extra":{"field":"status","new_value":"closed","old_value":"in_progress","reason":"Closed"}}
+{"id":"int-9a264d65","kind":"field_change","created_at":"2026-11-14T13:00:26.508185Z","actor":"Andrew Zheng","issue_id":"ggm-bam.2","extra":{"field":"status","new_value":"closed","old_value":"in_progress","reason":"Closed"}}
+{"id":"int-176ff8c9","kind":"field_change","created_at":"2026-11-14T13:00:29.99314Z","actor":"Andrew Zheng","issue_id":"ggm-2m8","extra":{"field":"status","new_value":"closed","old_value":"open","reason":"Phase 3 complete (#33-#37, #39, #41, #43-#48, #54); P3 follow-ups tracked separately"}}
