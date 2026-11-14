@@ -212,14 +212,13 @@ class Geom:
         """``data`` with every :attr:`default_aes` column filled in (where absent)
         and constant aesthetics from ``params`` overriding mapped values."""
         out = data.copy()
-        n = len(out)
         for k, v in self.default_aes.items():
             if k not in out.columns:
-                out[k] = pd.Series([v] * n, index=out.index, dtype=object)
+                out[k] = constant_column(v, out.index)
         for k, v in self.aes_params(params).items():
             if k in ("x", "y", "group") or k in self.x_aes or k in self.y_aes:
                 continue  # position constants are handled by the constructor (data)
-            out[k] = pd.Series([v] * n, index=out.index, dtype=object)
+            out[k] = constant_column(v, out.index)
         if "group" not in out.columns:
             out["group"] = _group_ids(data)
         return out
@@ -410,6 +409,44 @@ def make_label(theme: Theme, label: Any, color: Any) -> Mobject | None:
     if str(label) == "":
         return None
     return theme.make_text(str(label), font_size=theme.axis_text_size, color=color)
+
+
+def num_array(values: Any, default: float) -> np.ndarray:
+    """Vectorised :func:`num`: ``values`` as a float array, ``None``/NaN/non-finite/
+    non-numeric entries replaced by ``default``."""
+    vals = values.to_numpy() if isinstance(values, pd.Series) else values
+    try:
+        out = np.asarray(vals, dtype=float).reshape(-1)
+    except (TypeError, ValueError):
+        return np.array([num(v, default) for v in vals], dtype=float).reshape(-1)
+    if not np.isfinite(out).all():
+        out = np.where(np.isfinite(out), out, default)
+    return out
+
+
+def constant_column(value: Any, index: pd.Index) -> pd.Series:
+    """An ``object`` column holding ``value`` (as is, even a tuple) in every row."""
+    arr = np.empty(len(index), dtype=object)
+    arr.fill(value)
+    return pd.Series(arr, index=index, dtype=object)
+
+
+def color_resolver(fallback: Any = None):
+    """``resolve_color(value, fallback)`` memoised per distinct ``value`` (for
+    per-row colour columns that hold few distinct colours)."""
+    cache: dict = {}
+
+    def resolve(value: Any) -> ManimColor | None:
+        try:
+            key = (type(value), value)
+            hit = cache.get(key, cache)
+        except TypeError:  # unhashable (e.g. an RGB list)
+            return resolve_color(value, fallback)
+        if hit is cache:
+            hit = cache[key] = resolve_color(value, fallback)
+        return hit
+
+    return resolve
 
 
 # endregion
