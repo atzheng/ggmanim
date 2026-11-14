@@ -47,6 +47,7 @@ from .interval import (
     geom_linerange,
     geom_pointrange,
 )
+from .jitter import geom_jitter
 from .line import GeomLine, GeomPath, geom_line, geom_path
 from .point import GeomPoint, geom_point
 from .polygon import GeomPolygon, geom_polygon
@@ -133,6 +134,7 @@ __all__ = [
     "geom_hex",
     "geom_histogram",
     "geom_hline",
+    "geom_jitter",
     "geom_label",
     "geom_line",
     "geom_linerange",

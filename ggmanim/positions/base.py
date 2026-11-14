@@ -38,6 +38,7 @@ through :func:`get_position` without editing any other file.
 
 from __future__ import annotations
 
+import ast
 from typing import Any, ClassVar
 
 import pandas as pd
@@ -47,6 +48,7 @@ __all__ = [
     "Position",
     "PositionIdentity",
     "get_position",
+    "parse_position",
     "position_identity",
 ]
 
@@ -152,14 +154,50 @@ def position_identity() -> PositionIdentity:
     return PositionIdentity()
 
 
+def parse_position(spec: str) -> tuple[str, tuple[Any, ...], dict[str, Any]]:
+    """Split a position string into ``(name, args, kwargs)``.
+
+    ``"dodge"`` -> ``("dodge", (), {})``; ``"dodge(width=0.8)"`` ->
+    ``("dodge", (), {"width": 0.8})``; ``"position_nudge(0, y=-0.1)"`` ->
+    ``("position_nudge", (0,), {"y": -0.1})``. Arguments must be Python literals
+    (numbers, strings, booleans, ``None``, tuples/lists/dicts of those): they are
+    read with :func:`ast.literal_eval`, never evaluated. Raises ``ValueError``
+    for anything else.
+    """
+    try:
+        node = ast.parse(spec.strip(), mode="eval").body
+    except SyntaxError:
+        raise ValueError(f"Cannot parse position {spec!r}") from None
+    if isinstance(node, ast.Name):
+        return node.id, (), {}
+    if not (isinstance(node, ast.Call) and isinstance(node.func, ast.Name)):
+        raise ValueError(f"Cannot parse position {spec!r}: expected 'name' or 'name(arg=...)'")
+    try:
+        args = tuple(ast.literal_eval(a) for a in node.args)
+        kwargs = {}
+        for kw in node.keywords:
+            if kw.arg is None:
+                raise ValueError("**kwargs")
+            kwargs[kw.arg] = ast.literal_eval(kw.value)
+    except ValueError:
+        raise ValueError(
+            f"Cannot parse position {spec!r}: arguments must be literals (numbers, strings, "
+            "True/False/None, ...)"
+        ) from None
+    return node.func.id, args, kwargs
+
+
 def get_position(position: Any = None, **params: Any) -> Position:
     """Resolve ``position`` to a :class:`Position` instance.
 
     Accepts ``None`` (identity), a :class:`Position` instance (returned as is;
     ``params`` must then be empty), a :class:`Position` subclass (instantiated with
     ``params``), or a name such as ``"stack"`` / ``"position_stack"`` looked up in
-    :data:`POSITIONS`. Raises ``ValueError`` for an unknown name and ``TypeError``
-    for anything else.
+    :data:`POSITIONS`. A name may carry literal arguments, ``"dodge(width=0.8)"``
+    or ``"position_jitter(0.1, seed=1)"`` (parsed safely, see
+    :func:`parse_position`); a keyword given both there and in ``params`` is a
+    ``TypeError``. Raises ``ValueError`` for an unknown name or an unparsable
+    string and ``TypeError`` for anything else.
     """
     if position is None:
         position = "identity"
@@ -170,11 +208,15 @@ def get_position(position: Any = None, **params: Any) -> Position:
     if isinstance(position, type) and issubclass(position, Position):
         return position(**params)
     if isinstance(position, str):
-        key = position[9:] if position.startswith("position_") else position
+        name, args, kwargs = parse_position(position)
+        key = name[9:] if name.startswith("position_") else name
         cls = POSITIONS.get(key)
         if cls is None:
             raise ValueError(
                 f"Unknown position {position!r}; available: {', '.join(sorted(POSITIONS))}"
             )
-        return cls(**params)
+        both = sorted(set(kwargs) & set(params))
+        if both:
+            raise TypeError(f"position {position!r}: {', '.join(both)} given twice")
+        return cls(*args, **kwargs, **params)
     raise TypeError(f"Cannot interpret {position!r} as a position")
