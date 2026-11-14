@@ -1,4 +1,10 @@
-"""geom_vline / geom_hline: reference lines spanning the whole panel."""
+"""geom_vline / geom_hline: reference lines spanning the whole panel.
+
+Under a non-linear coord (``coord_trans``, ``coord_polar``) each line is
+munched (:func:`._segments.munched_segment`) so it bends with the coord: under
+``coord_polar`` a reference line on the radius aesthetic becomes a circle and
+one on the angle aesthetic a ray from the centre.
+"""
 
 from __future__ import annotations
 
@@ -12,6 +18,7 @@ from ..theme import Theme, theme_default
 from ._clip import inside
 from ._labels import direct_label
 from ._linetype import apply_linetype
+from ._segments import munched_segment
 from .base import (
     KEY_SIZE,
     Geom,
@@ -20,6 +27,7 @@ from .base import (
     finite_rows,
     group_label,
     make_layer,
+    multi_path_mobject,
     num,
     paint_stroke,
     resolve_color,
@@ -34,7 +42,8 @@ class _RefLine(Geom):
 
     ``draw_panel`` returns ``VGroup(*lines, *labels)`` (``.marks`` / ``.labels``):
     one ``Line`` per row spanning the panel's full y (vline) or x (hline) range
-    from ``panel_params``. ``label=`` (str/Mobject for every line, list in row
+    from ``panel_params`` (under a non-linear coord a munched path instead: a
+    circle or a ray under ``coord_polar``). ``label=`` (str/Mobject for every line, list in row
     order or dict row-index -> label) is drawn in the line's colour: rotated along
     the top-left of a vline, above the right end of an hline.
     """
@@ -61,20 +70,31 @@ class _RefLine(Geom):
             lo, hi = sorted(panel_params.x_range if self.vertical else panel_params.y_range)
             vis = inside(v, 0.0, (lo, hi, -1.0, 1.0))  # drop lines outside the panel
             v, data = v[vis], data[vis]
-        if self.vertical:
-            lo, hi = panel_params.y_range
-            a = transform_points(coord, v, lo)
-            b = transform_points(coord, v, hi)
-        else:
-            lo, hi = panel_params.x_range
-            a = transform_points(coord, lo, v)
-            b = transform_points(coord, hi, v)
-        lines, labels = VGroup(), VGroup()
-        for i, (p, q, row) in enumerate(zip(a, b, data.to_dict("records"))):
+        lo, hi = (
+            float(r) for r in (panel_params.y_range if self.vertical else panel_params.x_range)
+        )
+        ones = np.ones_like(v)
+        x0, y0, x1, y1 = (
+            (v, lo * ones, v, hi * ones) if self.vertical else (lo * ones, v, hi * ones, v)
+        )
+        munch = not getattr(coord, "is_linear", True)
+        a, b = transform_points(coord, x0, y0), transform_points(coord, x1, y1)
+        lines, labels, drawn = VGroup(), VGroup(), []
+        for i, row in enumerate(data.to_dict("records")):
             color = resolve_color(row.get("color"), fg)
             alpha = num(row.get("alpha"), 1.0)
-            line = paint_stroke(Line(p, q), color, num(row.get("linewidth"), 2.0), alpha)
+            width = num(row.get("linewidth"), 2.0)
+            if munch:  # bends with the coord: circles / rays under coord_polar
+                pieces, _, _ = munched_segment(coord, panel_params, x0[i], y0[i], x1[i], y1[i])
+                if not pieces:
+                    continue
+                line = multi_path_mobject(pieces, color, width, alpha)
+                q = pieces[-1][-1]
+            else:
+                line = paint_stroke(Line(a[i], b[i]), color, width, alpha)
+                q = b[i]
             lines.add(apply_linetype(line, row.get("linetype")))
+            drawn.append(i)
             text = group_label(label, i, i)
             if self.vertical:  # reading upwards, along the top-left of the line
                 lab = direct_label(
@@ -85,7 +105,7 @@ class _RefLine(Geom):
             if lab is not None:
                 labels.add(lab)
         # one line per row, so marks are per row (each intercept is its own mark)
-        return attach_marks(assemble(lines, labels), data, per="row")
+        return attach_marks(assemble(lines, labels), data.iloc[drawn], per="row")
 
     def draw_key(self, data_row, theme: Theme | None = None) -> VMobject:
         theme = theme if theme is not None else theme_default()

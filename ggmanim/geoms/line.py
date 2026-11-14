@@ -52,6 +52,26 @@ def squish_infinite(data: pd.DataFrame, panel_params) -> pd.DataFrame:
     return data.assign(**out) if out else data
 
 
+def close_group(gdf: pd.DataFrame, coord: Any) -> pd.DataFrame:
+    """``gdf`` with its first row appended, closing the path (``closed=True``).
+
+    Under ``coord_polar`` with theta on x the copy's x is shifted by one full
+    turn of the theta range (``coord.theta_range``) in the direction the path
+    runs (first to last x), so the closing edge, once munched, continues round
+    the circle instead of sweeping back across it. Groups of fewer than two
+    rows are returned unchanged."""
+    if len(gdf) < 2:
+        return gdf
+    head = gdf.iloc[[0]]
+    t_range = getattr(coord, "theta_range", None)
+    if t_range is not None and getattr(coord, "theta", None) == "x":
+        x = pd.to_numeric(gdf["x"], errors="coerce").to_numpy(dtype=float)
+        turn = float(t_range[1]) - float(t_range[0])
+        if np.isfinite(x[[0, -1]]).all() and turn > 0 and x[0] != x[-1]:
+            head = head.assign(x=x[0] + np.sign(x[-1] - x[0]) * turn)
+    return pd.concat([gdf, head])
+
+
 class GeomPath(Geom):
     """Connect observations in data order, one ``VMobject`` per group.
 
@@ -68,11 +88,17 @@ class GeomPath(Geom):
 
     ``x``/``y`` of ``+-inf`` are kept and drawn on the panel edges
     (:func:`squish_infinite`); only NaN positions are dropped.
+
+    ``closed=True`` joins each group's last point back to its first (after the
+    x sort for ``geom_line``), e.g. a radar chart under ``coord_polar`` without
+    :func:`~ggmanim.coords_polar.coord_radar`. Under ``coord_polar`` with the
+    angle on x the closing edge runs on *forwards* round the circle (to the
+    first point's angle one turn later) instead of back across the whole turn.
     """
 
     required_aes = ("x", "y")
     default_aes = {"color": None, "linewidth": 3.0, "alpha": 1.0, "linetype": "solid"}
-    extra_params: tuple[str, ...] = ("label",)
+    extra_params: tuple[str, ...] = ("label", "closed")
     sort_by_x = False
 
     def handle_na(
@@ -93,6 +119,9 @@ class GeomPath(Geom):
         self, data, panel_params, coord, theme: Theme | None = None, label=None, **params
     ) -> VMobject:
         theme = theme if theme is not None else theme_default()
+        # a keyword in ``params`` (not in the signature): subclasses (step,
+        # smooth) take further positional parameters after ``label``
+        closed = bool(params.pop("closed", False))
         self.check_required_aes(data)
         data = squish_infinite(data, panel_params)
         data = finite_rows(self.use_defaults(data, params), ("x", "y"))
@@ -101,6 +130,8 @@ class GeomPath(Geom):
         for i, (gid, gdf) in enumerate(data.groupby("group", sort=True)):
             if self.sort_by_x:
                 gdf = gdf.sort_values("x", kind="stable")
+            if closed:
+                gdf = close_group(gdf, coord)
             pieces = clipped_path_points(
                 coord, panel_params, *munch_path(coord, gdf["x"], gdf["y"])
             )
@@ -160,6 +191,9 @@ def geom_path(
     ``label=`` (str or Mobject for every group, a list in group order, or a dict
     group value or id -> label) is drawn at each group's last point in the group's colour
     (a *direct label*, drawn like ``geom_text``; see :mod:`ggmanim.geoms._labels`).
+
+    ``closed=True`` joins each group's last point back to its first (see
+    :class:`GeomPath`).
     """
     return make_layer(
         GeomPath(),
@@ -189,6 +223,9 @@ def geom_line(
     ``label=`` (str or Mobject for every group, a list in group order, or a dict
     group value or id -> label) is drawn at each group's last point in the group's colour
     (a *direct label*, drawn like ``geom_text``; see :mod:`ggmanim.geoms._labels`).
+
+    ``closed=True`` joins each group's last point back to its first (see
+    :class:`GeomPath`).
     """
     return make_layer(
         GeomLine(),
