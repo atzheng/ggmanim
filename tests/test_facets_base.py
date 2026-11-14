@@ -247,11 +247,14 @@ def test_coord_flip_facets():
         .add(FacetBy(scales="free_x"))
         .build()
     )
-    p2 = plot.panels[(1, 2)]
+    p1, p2 = plot.panels[(1, 1)], plot.panels[(1, 2)]
     assert p2.flipped
-    # x is vertical under flip: free x -> vertical axis on every panel
-    assert len(p2.y_tick_labels) > 0
-    assert len(p2.x_tick_labels) > 0  # bottom row
+    # coord_flip swaps SCALE_X/SCALE_Y (ggm-udx, as ggplot2): free_x frees the
+    # horizontal axis (the y aesthetic), drawn on every panel; x stays shared
+    assert len(p2.x_tick_labels) > 0
+    assert len(p2.y_tick_labels) == 0  # inner column, shared vertical axis
+    assert p1.panel_params.x_range == p2.panel_params.x_range
+    assert p1.panel_params.y_range != p2.panel_params.y_range
 
 
 def test_strip_sides_and_placement():

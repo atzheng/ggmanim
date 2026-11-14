@@ -49,6 +49,7 @@ builds from the same inputs give identically positioned mobjects.
 
 from __future__ import annotations
 
+import warnings
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, replace
 from typing import Any
@@ -324,9 +325,10 @@ def fit_breaks(
 
     User-given breaks (sequence or callable) are never changed. Discrete axes are
     left alone too: their labels are the levels, so crowding there is left to the
-    theme (``axis_text_x_angle``, a smaller ``axis_text_size``). So are
-    :func:`~ggmanim.coords_trans.coord_trans` axes (their scale facade does not
-    define ``with_n_breaks``).
+    theme (``axis_text_x_angle``, a smaller ``axis_text_size``); when their drawn
+    labels overlap, a :class:`UserWarning` says so (:func:`_warn_discrete_crowding`).
+    :func:`~ggmanim.coords_trans.coord_trans` axes are thinned like cartesian ones
+    (its scale facade forwards ``with_n_breaks``).
 
     The labels are measured even when the theme hides them, so panels sharing a
     scale and an axis length (a facet column) get the same breaks.
@@ -349,6 +351,8 @@ def _fit_axis(scale, rng, breaks, labels, minor, length: float, theme: Theme, ax
     # looked up on the class: attribute-forwarding facades (coord_trans) opt out
     cls = type(scale)
     if not (hasattr(cls, "has_default_breaks") and hasattr(cls, "with_n_breaks")):
+        if hasattr(scale, "get_break_levels"):  # discrete (ggm-udx)
+            _warn_discrete_crowding(breaks, labels, rng, length, theme, axis, scale)
         return breaks, labels, minor
     if not scale.has_default_breaks() or len(breaks) < 3:
         return breaks, labels, minor
@@ -433,6 +437,27 @@ def _line_height(theme: Theme) -> float:
     return float(theme.make_text("0", **theme.text_style("axis_text")).height)
 
 
+def _warn_discrete_crowding(breaks, labels, rng, length, theme: Theme, axis: str, scale) -> None:
+    """Warn when the drawn tick labels of a discrete axis overlap (ggplot2 draws
+    them overlapping; its ``guide_axis(check.overlap=, n.dodge=)`` are not
+    implemented). ``axis`` is the screen axis (``"x"`` = horizontal). Rotated labels
+    are not checked: their bounding boxes overlap long before the text does."""
+    if len(breaks) < 2 or not theme.axis_element("axis_text", axis):
+        return
+    if getattr(theme, f"axis_text_{axis}_angle", 0.0):
+        return
+    far = _side(scale, "bottom" if axis == "x" else "left") in ("top", "right")
+    if not _crowded(breaks, labels, rng, length, theme, axis, far):
+        return
+    warnings.warn(
+        f"{len(breaks)} discrete {axis}-axis labels overlap; rotate them "
+        f"(theme(axis_text_{axis}_angle=...)), shrink them (axis_text_size) or "
+        "use a larger panel",
+        UserWarning,
+        stacklevel=2,
+    )
+
+
 # endregion
 
 
@@ -478,6 +503,12 @@ class CoordCartesian:
         return (
             f"coord_cartesian(xlim={self.xlim!r}, ylim={self.ylim!r}, expand={self.expand!r}{clip})"
         )
+
+    def setup_layout(self, layout: Any) -> Any:
+        """The facet layout table as this coord uses it (ggplot2's
+        ``Coord$setup_layout``): unchanged here; :class:`CoordFlip` swaps
+        ``SCALE_X``/``SCALE_Y``."""
+        return layout
 
     # -- geometry --------------------------------------------------------------
     def _axis_range(self, scale, lim) -> tuple[float, float]:
@@ -1024,6 +1055,14 @@ class CoordFlip(CoordCartesian):
 
     def __repr__(self):
         return f"coord_flip(xlim={self.xlim!r}, ylim={self.ylim!r}, expand={self.expand!r})"
+
+    def setup_layout(self, layout: Any) -> Any:
+        """``layout`` with ``SCALE_X``/``SCALE_Y`` swapped (ggplot2's
+        ``CoordFlip$setup_layout``): a facet's ``scales="free_x"`` frees the
+        *horizontal* axis, which shows the y aesthetic."""
+        out = layout.copy()
+        out[["SCALE_X", "SCALE_Y"]] = layout[["SCALE_Y", "SCALE_X"]].to_numpy()
+        return out
 
     def build(
         self,

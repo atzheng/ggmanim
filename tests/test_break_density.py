@@ -165,8 +165,9 @@ def test_space_free_under_coord_flip_uses_horizontal_range():
     r1 = plot.panels[(1, 1)].panel_params.y_range
     r2 = plot.panels[(1, 2)].panel_params.y_range
     assert w1 / w2 == pytest.approx((r1[1] - r1[0]) / (r2[1] - r2[0]), rel=1e-6)
-    # the y scale is shared along the row, so equal widths (before ggm-rnm: 5:2)
-    assert w1 == pytest.approx(w2)
+    # coord_flip swaps SCALE_X/SCALE_Y (ggm-udx, as ggplot2): the y scale is free per
+    # column, so the widths are 1.1 : 3.3 (ggplot2's ggplotGrob widths)
+    assert w2 / w1 == pytest.approx(3.0, rel=1e-6)
 
 
 def test_scale_y_continuous_n_breaks_respected_when_room():
