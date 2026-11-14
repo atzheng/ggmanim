@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
+
 import numpy as np
 from manim import LEFT, RIGHT, Line, Polygon, Square, VGroup, VMobject
 
@@ -122,7 +124,7 @@ def geom_smooth(
     mapping=None,
     data=None,
     *,
-    method: str = "lm",
+    method: str | Callable = "lm",
     se: bool = True,
     stat="smooth",
     position="identity",
@@ -132,8 +134,13 @@ def geom_smooth(
 ):
     """Smoothed conditional mean with a confidence ribbon (``se=True``).
 
-    Stat params (``degree``, ``n``, ``level``, ``fullrange``) and constant
-    aesthetics (``color``, ``fill``, ``alpha``, ``linewidth``) go in ``params``.
+    ``method`` is ``"lm"`` (polynomial of ``degree``), ``"loess"`` (``span=0.75``,
+    ``degree=2``, as R's ``loess``), ``"auto"`` (ggplot2's rule: loess below 1000
+    rows per group, else lm) or a callable ``method(x, y, **method_args)``
+    returning a predictor ``f(xgrid) -> fit`` or ``-> (fit, se)``; see
+    :mod:`ggmanim.stats.smooth`. Stat params (``degree``, ``span``, ``n``,
+    ``level``, ``fullrange``, ``method_args``) and constant aesthetics (``color``,
+    ``fill``, ``alpha``, ``linewidth``) go in ``params``.
     """
     params.update(method=method, se=se)
     return make_layer(

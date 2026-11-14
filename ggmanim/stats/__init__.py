@@ -10,9 +10,12 @@ import re as _re
 
 # -- generated exports (scripts/gen_exports.py) --
 from .base import GROUPING_AES, NO_GROUP, Stat, add_group, get_stat, is_discrete, scale_limits
+from .ecdf import StatEcdf, stat_ecdf
 from .function import StatFunction, evaluate_function, stat_function
 from .identity import StatIdentity, stat_identity
+from .qq import StatQq, StatQqLine, ppoints, qnorm, stat_qq, stat_qq_line
 from .smooth import StatSmooth, stat_smooth, t_quantile
+from .sum import StatSum, stat_sum
 from .summary import (
     StatSummary,
     StatSummaryBin,
@@ -24,16 +27,22 @@ from .summary import (
     stat_summary_bin,
     summary_function,
 )
+from .unique import StatUnique, stat_unique
 
 __all__ = [
     "GROUPING_AES",
     "NO_GROUP",
     "Stat",
+    "StatEcdf",
     "StatFunction",
     "StatIdentity",
+    "StatQq",
+    "StatQqLine",
     "StatSmooth",
+    "StatSum",
     "StatSummary",
     "StatSummaryBin",
+    "StatUnique",
     "add_group",
     "evaluate_function",
     "get_stat",
@@ -42,12 +51,19 @@ __all__ = [
     "mean_sdl",
     "mean_se",
     "median_hilow",
+    "ppoints",
+    "qnorm",
     "scale_limits",
+    "stat_ecdf",
     "stat_function",
     "stat_identity",
+    "stat_qq",
+    "stat_qq_line",
     "stat_smooth",
+    "stat_sum",
     "stat_summary",
     "stat_summary_bin",
+    "stat_unique",
     "summary_function",
     "t_quantile",
 ]
