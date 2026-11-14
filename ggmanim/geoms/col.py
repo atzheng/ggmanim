@@ -61,6 +61,7 @@ class GeomCol(Geom):
     }
     extra_params: tuple[str, ...] = ("width",)
     na_aes: tuple[str, ...] | None = ("xmin", "xmax", "ymin", "ymax")
+    default_position = "stack"
 
     def setup_data(self, data: pd.DataFrame, params) -> pd.DataFrame:
         data = data.copy()
@@ -130,7 +131,7 @@ def geom_col(
     data=None,
     *,
     stat="identity",
-    position="identity",
+    position=None,
     inherit_aes: bool = True,
     name: str | None = None,
     **params,
@@ -155,7 +156,7 @@ def geom_bar(
     data=None,
     *,
     stat="identity",
-    position="identity",
+    position=None,
     inherit_aes: bool = True,
     name: str | None = None,
     **params,

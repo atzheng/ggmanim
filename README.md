@@ -375,9 +375,16 @@ Not yet: `stat_count`, `stat_bin`, `stat_summary`, `stat_density`, `stat_boxplot
 
 | ggplot2 | ggmanim | notes |
 |---|---|---|
-| `position = "identity"`, `position_identity()` | same | the default for every geom |
+| `position = "identity"`, `position_identity()` | same | the default for most geoms |
+| `position_stack(vjust, reverse)`, `position_fill()` | same | default for `geom_col`/`geom_bar`; first group on top, negatives stacked below 0 |
+| `position_dodge(width, preserve)` | same | `preserve="single"` keeps equal bar widths |
+| `position_dodge2(width, preserve, padding)` | same | dodges by interval overlap (variable widths) |
+| `position_jitter(width, height, seed)`, `geom_jitter()` | same | numpy `default_rng(seed)`; `seed=None` is derived from the data, so builds are reproducible |
+| `position_jitterdodge(jitter.width, jitter.height, dodge.width)` | `position_jitterdodge(jitter_width, jitter_height, dodge_width)` | needs a mapped fill/colour/... |
+| `position_nudge(x, y)` | same | offsets in transformed units |
 
-Not yet: `position_stack`, `_fill`, `_dodge`, `_dodge2`, `_jitter`, `_jitterdodge`, `_nudge`.
+Positions accept a name (`position="dodge"`), a class or an instance
+(`position=position_dodge(width=0.8)`). See `examples/positions.py`.
 
 <!-- section: scales -->
 ### Scales
