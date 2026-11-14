@@ -28,26 +28,81 @@ def _stack_var(data: pd.DataFrame) -> str | None:
     return None
 
 
-def _pos_stack(df: pd.DataFrame, vjust: float, fill: bool) -> pd.DataFrame:
-    """Stack the rows of ``df`` (one x, already in stacking order)."""
-    y = pd.to_numeric(df["y"], errors="coerce").to_numpy(dtype=float)
+def _num(data: pd.DataFrame, col: str) -> np.ndarray:
+    return np.asarray(pd.to_numeric(data[col], errors="coerce"), dtype=float)
+
+
+def _segmented_cumsum(y: np.ndarray, starts: np.ndarray) -> np.ndarray:
+    """``np.cumsum`` restarted at every ``True`` in ``starts``, with the same
+    left-to-right float additions as one ``np.cumsum`` per segment (pandas'
+    grouped cumsum uses compensated summation, which rounds differently)."""
+    n = len(y)
+    first = np.flatnonzero(starts)
+    if n == 0:
+        return y.copy()
+    lengths = np.diff(np.r_[first, n])
+    if lengths.max() <= len(first):
+        # few rows per stack (e.g. one bar per x): one vectorised step per rank
+        top = y.copy()
+        rank = np.arange(n) - np.repeat(first, lengths)
+        for r in range(1, int(lengths.max())):
+            idx = np.flatnonzero(rank == r)
+            top[idx] = top[idx - 1] + y[idx]
+        return top
+    # few, tall stacks: one cumsum per stack
+    return np.concatenate([np.cumsum(seg) for seg in np.split(y, first[1:])])
+
+
+def _stack_frame(data: pd.DataFrame, vjust: float, fill: bool, reverse: bool) -> pd.DataFrame:
+    """Stack all rows of one panel at once (vectorised).
+
+    Stacks are formed per (sign of ``ymax``, x); within a stack rows are taken in
+    descending ``group`` order (ascending with ``reverse``), stably, and their
+    ``y`` (NaN as 0) accumulated from 0. Rows keep their order in ``data``.
+    """
+    n = len(data)
+    ymax = _num(data, "ymax")
+    negative = np.nan_to_num(ymax, nan=0.0) < 0
+    xcol = "xmin" if "xmin" in data.columns else "x"
+    key = _num(data, xcol)
+    group = _num(data, "group") if "group" in data.columns else np.zeros(n)
+    g = group if reverse else -group
+    # stacking order: sign, then x (NaN last), then group (NaN last); stable
+    order = np.lexsort((g, key, negative))
+    ks = key[order]
+    neg_s = negative[order]
+    # a new stack starts where the sign or x changes (all NaN x share one stack)
+    same_key = (ks[1:] == ks[:-1]) | (np.isnan(ks[1:]) & np.isnan(ks[:-1]))
+    starts = np.ones(n, dtype=bool)
+    starts[1:] = ~(same_key & (neg_s[1:] == neg_s[:-1]))
+    stack_id = np.cumsum(starts) - 1
+
+    y = _num(data, "y")[order]
     y = np.where(np.isnan(y), 0.0, y)
-    heights = np.concatenate([[0.0], np.cumsum(y)])
+    top = _segmented_cumsum(y, starts)
+    bottom = np.empty(n)
+    bottom[1:] = top[:-1]
+    bottom[starts] = 0.0
     if fill:
-        total = abs(heights[-1])
-        heights = heights / total if total > 0 else np.full_like(heights, np.nan)
-    if "ymin" in df.columns and "ymax" in df.columns:
-        top = pd.to_numeric(df["ymax"], errors="coerce").to_numpy(float)
-        bottom = pd.to_numeric(df["ymin"], errors="coerce").to_numpy(float)
-        max_is_lower = top < bottom
+        last = np.r_[starts[1:], True]
+        total = np.abs(top[last])[stack_id]
+        ok = total > 0
+        with np.errstate(divide="ignore", invalid="ignore"):
+            top = np.where(ok, top / np.where(ok, total, 1.0), np.nan)
+            bottom = np.where(ok, bottom / np.where(ok, total, 1.0), np.nan)
+    if "ymin" in data.columns and "ymax" in data.columns:
+        max_is_lower = (ymax < _num(data, "ymin"))[order]
     else:
-        max_is_lower = np.zeros(len(df), dtype=bool)
-    lo = np.minimum(heights[:-1], heights[1:])
-    hi = np.maximum(heights[:-1], heights[1:])
-    out = df.copy()
-    out["y"] = (1.0 - vjust) * lo + vjust * hi
-    out["ymin"] = np.where(max_is_lower, hi, lo)
-    out["ymax"] = np.where(max_is_lower, lo, hi)
+        max_is_lower = np.zeros(n, dtype=bool)
+    lo = np.minimum(bottom, top)
+    hi = np.maximum(bottom, top)
+
+    inv = np.empty(n, dtype=np.intp)
+    inv[order] = np.arange(n)
+    out = data.copy()
+    out["y"] = ((1.0 - vjust) * lo + vjust * hi)[inv]
+    out["ymin"] = np.where(max_is_lower, hi, lo)[inv]
+    out["ymax"] = np.where(max_is_lower, lo, hi)[inv]
     return out
 
 
@@ -98,26 +153,11 @@ class PositionStack(Position):
         if params["var"] is None or "y" not in data.columns:
             return data
         index = data.index
-        data = data.reset_index(drop=True)
-        ymax = pd.to_numeric(data["ymax"], errors="coerce").to_numpy(float)
-        negative = np.nan_to_num(ymax, nan=0.0) < 0
-        pieces = [self._collide(data[mask], params) for mask in (negative, ~negative) if mask.any()]
-        out = pd.concat(pieces).sort_index()
+        out = _stack_frame(
+            data.reset_index(drop=True), params["vjust"], params["fill"], params["reverse"]
+        )
         out.index = index
         return out
-
-    @staticmethod
-    def _collide(df: pd.DataFrame, params: dict[str, Any]) -> pd.DataFrame:
-        xcol = "xmin" if "xmin" in df.columns else "x"
-        key = pd.to_numeric(df[xcol], errors="coerce")
-        group = pd.to_numeric(df["group"], errors="coerce") if "group" in df.columns else 0
-        order = pd.DataFrame({"k": key, "g": group if params["reverse"] else -group})
-        df = df.loc[order.sort_values(["k", "g"], kind="stable").index]
-        out = [
-            _pos_stack(part, params["vjust"], params["fill"])
-            for _, part in df.groupby(key.loc[df.index], sort=False, dropna=False)
-        ]
-        return pd.concat(out)
 
 
 class PositionFill(PositionStack):

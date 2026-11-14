@@ -86,6 +86,40 @@ def bars_500() -> ggplot:
     return ggplot(df, aes("x", "y")).add(geom_col())
 
 
+def bars_stacked() -> ggplot:
+    """500 x positions x 4 stacked groups (2000 bars, ``position_stack``)."""
+    rng = _rng(6)
+    df = pd.DataFrame(
+        {
+            "x": np.repeat(np.arange(500.0), 4),
+            "y": rng.uniform(1, 10, 2000),
+            "g": np.tile(list("abcd"), 500),
+        }
+    )
+    return ggplot(df, aes("x", "y", fill="g")).add(geom_col())
+
+
+def scatter_markers(n: int) -> Callable[[], ggplot]:
+    """``geom_point(fast=False)``: one ``make_marker`` per row."""
+
+    def make() -> ggplot:
+        rng = _rng(1)
+        df = pd.DataFrame({"x": rng.normal(size=n), "y": rng.normal(size=n)})
+        return ggplot(df, aes("x", "y")).add(geom_point(size=0.02, fast=False))
+
+    return make
+
+
+def tile(n: int) -> Callable[[], ggplot]:
+    def make() -> ggplot:
+        xx, yy = np.meshgrid(np.arange(float(n)), np.arange(float(n)))
+        df = pd.DataFrame({"x": xx.ravel(), "y": yy.ravel()})
+        df["z"] = np.sin(df["x"] / 5) * np.cos(df["y"] / 7)
+        return ggplot(df, aes("x", "y", fill="z")).add(geom_tile())
+
+    return make
+
+
 def tile_50x50() -> ggplot:
     xx, yy = np.meshgrid(np.arange(50.0), np.arange(50.0))
     df = pd.DataFrame({"x": xx.ravel(), "y": yy.ravel()})
@@ -135,6 +169,9 @@ SCENARIOS: dict[str, tuple[Callable[[], ggplot], bool]] = {
     "lines_1k_grouped": (grouped_lines, True),
     "col_500": (bars_500, False),
     "tile_50x50": (tile_50x50, False),
+    "col_stacked_2k": (bars_stacked, False),
+    "scatter_markers_2k": (scatter_markers(2_000), False),
+    "tile_100x100": (tile(100), False),
     "facet_3x3": (facet_3x3, False),
     "legend_heavy": (legend_heavy, False),
 }
