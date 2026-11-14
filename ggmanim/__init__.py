@@ -15,14 +15,17 @@ from . import build as _build  # noqa: F401  (the pipeline; registers guides)
 from .aes import aes, after_stat
 from .coords import coord_cartesian, coord_fixed, coord_flip
 from .geoms import (
+    annotate,
     geom_bar,
     geom_col,
     geom_function,
     geom_hline,
+    geom_label,
     geom_line,
     geom_path,
     geom_point,
     geom_smooth,
+    geom_text,
     geom_vline,
 )
 from .guides import (
@@ -177,6 +180,7 @@ __all__ = [
     "VIBRANT",
     "aes",
     "after_stat",
+    "annotate",
     "as_manim_color",
     "breaks_extended",
     "breaks_log",
@@ -191,10 +195,12 @@ __all__ = [
     "geom_function",
     "geom_hline",
     "geom_jitter",
+    "geom_label",
     "geom_line",
     "geom_path",
     "geom_point",
     "geom_smooth",
+    "geom_text",
     "geom_vline",
     "ggplot",
     "gradient_n_pal",

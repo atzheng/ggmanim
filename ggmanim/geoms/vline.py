@@ -4,12 +4,13 @@ from __future__ import annotations
 
 import numpy as np
 import pandas as pd
-from manim import DOWN, LEFT, PI, RIGHT, UP, Line, VGroup, VMobject
+from manim import DOWN, LEFT, RIGHT, UP, Line, VGroup, VMobject
 
 from ..aes import aes
 from ..registry import register
 from ..theme import Theme, theme_default
 from ._clip import inside
+from ._labels import direct_label
 from ._linetype import apply_linetype
 from .base import (
     KEY_SIZE,
@@ -18,7 +19,6 @@ from .base import (
     attach_marks,
     finite_rows,
     group_label,
-    make_label,
     make_layer,
     num,
     resolve_color,
@@ -74,13 +74,15 @@ class _RefLine(Geom):
                 p, q, color=color, stroke_width=num(row.get("linewidth"), 2.0), stroke_opacity=alpha
             )
             lines.add(apply_linetype(line, row.get("linetype")))
-            lab = make_label(theme, group_label(label, i, i), color)
+            text = group_label(label, i, i)
+            if self.vertical:  # reading upwards, along the top-left of the line
+                lab = direct_label(
+                    theme, text, color, q, hjust=1, vjust=0, angle=90, nudge=(-0.05, 0)
+                )
+            else:  # above the right end
+                lab = direct_label(theme, text, color, q, hjust=1, vjust=0, nudge=(0, 0.05))
             if lab is not None:
-                if self.vertical:
-                    lab.rotate(PI / 2).next_to(q, LEFT, buff=0.05).align_to(q, UP)
-                else:
-                    lab.next_to(q, UP, buff=0.05).align_to(q, RIGHT)
-                labels.add(lab)  # type: ignore[arg-type]
+                labels.add(lab)
         # one line per row, so marks are per row (each intercept is its own mark)
         return attach_marks(assemble(lines, labels), data, per="row")
 

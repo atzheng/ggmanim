@@ -8,6 +8,7 @@ from manim import LEFT, RIGHT, Line, Polygon, Square, VGroup, VMobject
 from ..registry import register
 from ..theme import Theme, theme_default
 from ._clip import clip_polygon, panel_rect
+from ._labels import direct_label
 from ._linetype import apply_linetype
 from ._segments import segmented_path, varies_within
 from .base import (
@@ -18,7 +19,6 @@ from .base import (
     finite_rows,
     first,
     group_label,
-    make_label,
     make_layer,
     multi_path_mobject,
     num,
@@ -93,9 +93,12 @@ class GeomSmooth(GeomLine):
                     ribbon.set_stroke(width=0, opacity=0)
                     mob = VGroup(ribbon, line)
             groups.add(mob)
-            lab = make_label(theme, group_label(label, i, gid), label_color)
-            if lab is not None and pieces:
-                labels.add(lab.next_to(pieces[-1][-1], RIGHT, buff=0.1))
+            if pieces:  # direct label right of the last visible point
+                lab = direct_label(
+                    theme, group_label(label, i, gid), label_color, pieces[-1][-1], nudge=(0.1, 0)
+                )
+                if lab is not None:
+                    labels.add(lab)
         return attach_marks(assemble(groups, labels), data, per="group")
 
     def draw_key(self, data_row, theme: Theme | None = None) -> VMobject:
