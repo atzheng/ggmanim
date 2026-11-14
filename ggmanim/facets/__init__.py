@@ -9,11 +9,13 @@ from .base import LAYOUT_COLUMNS, Facet, PanelGrid, PanelLayers
 from .grid import MARGIN_LABEL, FacetGrid, facet_grid
 from .labellers import as_labeller, label_both, label_value, labeller
 from .null import FacetNull, facet_null
+from .wrap import FacetWrap, facet_wrap, wrap_dims
 
 __all__ = [
     "Facet",
     "FacetGrid",
     "FacetNull",
+    "FacetWrap",
     "LAYOUT_COLUMNS",
     "MARGIN_LABEL",
     "PanelGrid",
@@ -21,8 +23,10 @@ __all__ = [
     "as_labeller",
     "facet_grid",
     "facet_null",
+    "facet_wrap",
     "label_both",
     "label_value",
     "labeller",
+    "wrap_dims",
 ]
 # -- end generated --

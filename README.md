@@ -444,11 +444,10 @@ Not yet: `guide_axis`, `guide_bins`.
 |---|---|---|
 | `facet_null()` | same | the default: one panel |
 | `facet_grid(rows ~ cols, scales, space, margins, switch)` | `facet_grid(rows="drv", cols="cyl")` / `facet_grid("drv ~ cyl")` | rows/cols take a name, list, `"a + b"` or `"."`; free scales are per column (x) / row (y); `space="free_x"` sizes columns by their range; `margins=True` adds `"(all)"` panels; `switch="x"/"y"/"both"` |
+| `facet_wrap(~class, nrow, ncol, scales, labeller, dir, as.table, drop, strip.position)` | `facet_wrap("class", nrow=, ncol=, scales=, labeller=, dir=, as_table=, drop=, strip_position=)` | also `["a", "b"]`, `"~ a + b"`, computed `{"big": lambda d: d.x > 4}`; fixed scales put tick labels on the bottom panel of each column / left of each row |
 | `label_value`, `label_both`, `labeller(var = ...)` | same | strip labellers; `labeller(am={0: "auto"}, cyl=label_both)` |
 | `theme(panel.spacing, strip.background, strip.text, strip.placement)` | `theme(panel_spacing=, panel_spacing_x/_y=, strip_background=, strip_text_size=, strip_text_color=, strip_placement=)` | `panel_width`/`panel_height` size the whole grid |
 | faceted plot object | `plot.panels[(row, col)]`, `plot.strips`, `plot.layers[name].panel(row, col)` | `plot.panel`/`plot.axes` are the first panel; custom facets subclass `ggmanim.facets.Facet` |
-
-Not yet: `facet_wrap`, `facet_grid` (the panel layout, strips and free scales they use are in place).
 
 <!-- section: coords -->
 ### Coords
