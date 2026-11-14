@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import warnings
 from dataclasses import dataclass
 from typing import Any
 
@@ -11,6 +12,7 @@ from manim import LEFT, RIGHT, Line, LineJointType, Polygon, VGroup, VMobject
 
 from ..registry import register
 from ..theme import Theme, theme_default
+from ._batch import draw_segments_fast, use_fast
 from ._clip import clip_polyline, clip_segments, inside, panel_rect
 from ._linetype import apply_linetype
 from ._marker_clip import scene_box
@@ -114,18 +116,47 @@ class GeomSegment(Geom):
     """Straight segments from ``(x, y)`` to ``(xend, yend)``: one mark per
     visible row, the line (a ``VMobject``; dashes ``VGroup`` for a non-solid
     ``linetype``) or ``VGroup(line, *heads)`` with ``arrow=``. Clipped to the
-    panel in transformed space; an end cut off by the panel gets no head."""
+    panel in transformed space; an end cut off by the panel gets no head.
+
+    ``fast`` (``None``: above ``theme.fast_threshold`` rows) draws batched marks
+    without arrowheads, one ``VMobject`` per style (:mod:`ggmanim.geoms._batch`;
+    no per-mark ``.keys``); with ``arrow=`` every row is drawn individually."""
 
     required_aes = ("x", "y", "xend", "yend")
     default_aes = {"color": None, "linewidth": 2.0, "alpha": 1.0, "linetype": "solid"}
-    extra_params: tuple[str, ...] = ("arrow", "lineend")
+    extra_params: tuple[str, ...] = ("arrow", "lineend", "fast")
 
     def draw_panel(
-        self, data, panel_params, coord, theme: Theme | None = None, arrow=None, **params
+        self,
+        data,
+        panel_params,
+        coord,
+        theme: Theme | None = None,
+        arrow=None,
+        *,
+        fast=None,
+        **params,
     ) -> VMobject:
         theme = theme if theme is not None else theme_default()
         self.check_required_aes(data)
         data = finite_rows(self.use_defaults(data, params), self.required_aes)
+        if arrow is not None:
+            if fast:
+                warnings.warn(
+                    f"{type(self).__name__}: fast=True is ignored with arrow= "
+                    "(arrowheads are drawn per mark)",
+                    stacklevel=2,
+                )
+        elif use_fast(fast, data, theme, type(self).__name__):
+            return draw_segments_fast(
+                data,
+                panel_params,
+                coord,
+                theme,
+                lambda rows: self.draw_panel(
+                    rows, panel_params, coord, theme, fast=False, **params
+                ),
+            )
         fg = theme.get_foreground()
         x0, y0 = data["x"].to_numpy(float), data["y"].to_numpy(float)
         x1, y1 = data["xend"].to_numpy(float), data["yend"].to_numpy(float)
@@ -376,6 +407,8 @@ def geom_segment(
 
     ``arrow=arrow(...)`` adds arrowheads (sizes in scene units). ``lineend`` is
     accepted for ggplot2 compatibility (manim strokes have round ends).
+    ``fast=True`` draws batched marks (default ``None``: when the panel has more
+    than ``theme.fast_threshold`` rows), see :mod:`ggmanim.geoms._batch`.
     """
     return _layer(GeomSegment(), mapping, data, stat, position, inherit_aes, name, params, arrow)
 

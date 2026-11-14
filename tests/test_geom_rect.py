@@ -156,7 +156,8 @@ def test_tile_heatmap_50x50_builds_fast():
     n = 50
     xx, yy = np.meshgrid(np.arange(n), np.arange(n))
     df = pd.DataFrame({"x": xx.ravel(), "y": yy.ravel(), "z": np.sin(xx.ravel() * yy.ravel())})
-    p = ggplot(df, aes("x", "y", fill="z")).add(geom_tile())
+    # fast=False: the per-row path (2500 rows would be batched automatically)
+    p = ggplot(df, aes("x", "y", fill="z")).add(geom_tile(fast=False))
     t = time.perf_counter()
     g = p.build()
     assert time.perf_counter() - t < 2.0

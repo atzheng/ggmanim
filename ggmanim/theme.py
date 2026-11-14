@@ -382,6 +382,19 @@ class Theme:
     # endregion
 
     # region: performance
+    __doc__ = (
+        (__doc__ or "")
+        + """
+    Performance
+        ``fast_threshold``: above this many rows (per panel) ``geom_point``,
+        ``geom_rect``/``geom_tile``, ``geom_col``/``geom_bar`` and
+        ``geom_segment`` layers with ``fast=None`` (the default) draw batched
+        marks: one ``VMobject`` per distinct style instead of one per row (see
+        :mod:`ggmanim.geoms._batch`). ``None`` turns the automatic switch off;
+        ``0`` batches every such layer.
+    """
+    )
+    fast_threshold: int | None = 2000
     # endregion
 
     # region: animation

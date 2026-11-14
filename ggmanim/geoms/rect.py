@@ -22,6 +22,7 @@ from manim import VGroup, VMobject
 from ..coords import is_linear
 from ..registry import register
 from ..theme import Theme, theme_default
+from ._batch import draw_rects_fast, use_fast
 from ._rect import clipped_rects, draw_rects, filled_key, ring_points, seal_seams
 from .base import Geom, attach_marks, finite_rows, make_layer, num, resolve_color
 from .col import resolution
@@ -37,7 +38,9 @@ class GeomRect(Geom):
     dashed outline (``linetype``) makes a row's mark ``VGroup(fill, dashes)``.
 
     ``color`` (outline) defaults to ``None`` = no outline; ``alpha`` applies to the
-    fill only (as in ggplot2).
+    fill only (as in ggplot2). ``fast`` (``None``: above ``theme.fast_threshold``
+    rows) draws batched marks, one ``VMobject`` per style
+    (:mod:`ggmanim.geoms._batch`; no per-mark ``.keys``).
     """
 
     required_aes: tuple[str, ...] = _RECT_COLS
@@ -48,18 +51,30 @@ class GeomRect(Geom):
         "alpha": 1.0,
         "linetype": "solid",
     }
+    extra_params: tuple[str, ...] = ("fast",)
     na_aes: tuple[str, ...] | None = _RECT_COLS
     #: Hide anti-aliasing seams between abutting rectangles (see ``seal_seams``).
     seal = False
 
     def draw_panel(
-        self, data, panel_params, coord, theme: Theme | None = None, **params
+        self, data, panel_params, coord, theme: Theme | None = None, *, fast=None, **params
     ) -> VMobject:
         theme = theme if theme is not None else theme_default()
         if not set(_RECT_COLS) <= set(data.columns):
             data = self.setup_data(data, params)
         self.check_required_aes(data)
         data = finite_rows(self.use_defaults(data, params), _RECT_COLS)
+        if use_fast(fast, data, theme, type(self).__name__):
+            return draw_rects_fast(
+                data,
+                panel_params,
+                coord,
+                theme,
+                lambda rows: self.draw_panel(
+                    rows, panel_params, coord, theme, fast=False, **params
+                ),
+                seal=self.seal,
+            )
         out, drawn = draw_rects(data, panel_params, coord, theme, seal=self.seal)
         return attach_marks(out, drawn, per="row")
 
@@ -92,7 +107,7 @@ class GeomTile(GeomRect):
     """
 
     required_aes = ("x", "y")
-    extra_params: tuple[str, ...] = ("width", "height")
+    extra_params: tuple[str, ...] = ("width", "height", "fast")
     seal = True
 
     def setup_data(self, data: pd.DataFrame, params) -> pd.DataFrame:
@@ -139,8 +154,8 @@ class GeomRaster(GeomTile):
     When the ``(x, y)`` positions lie on a regular lattice without duplicate cells,
     ``draw_panel`` returns a ``VGroup`` with **one** ``VMobject`` per distinct
     ``(fill, alpha)``, each tile of that colour a closed subpath, in order of first
-    appearance; ``.marks`` are those mobjects and ``.keys`` their fill colours (hex
-    strings). Otherwise it falls back to :class:`GeomTile` drawing (one mark per
+    appearance; ``.marks`` are those mobjects, ``.keys`` their fill colours (hex
+    strings) and ``.batched`` is ``True``. Otherwise it falls back to :class:`GeomTile` drawing (one mark per
     row). Tile sizes are always the resolutions (no ``width``/``height``); there
     is no outline (``color``/``linetype`` are not raster aesthetics).
     """

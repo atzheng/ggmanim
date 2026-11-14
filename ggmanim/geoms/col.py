@@ -9,6 +9,7 @@ from manim import Polygon, Square, VGroup, VMobject
 
 from ..registry import register
 from ..theme import Theme, theme_default
+from ._batch import draw_bars_fast, use_fast
 from ._clip import clip_rects, panel_rect
 from .base import (
     KEY_SIZE,
@@ -50,6 +51,10 @@ class GeomCol(Geom):
 
     The four corners go through ``coord.transform``, so bars are correct under
     any scale transform. ``color`` (outline) defaults to ``None`` = no outline.
+
+    ``fast`` (``None``: above ``theme.fast_threshold`` rows) draws batched marks,
+    one ``VMobject`` per style (:mod:`ggmanim.geoms._batch`; no per-mark
+    ``.keys``).
     """
 
     required_aes = ("x", "y")
@@ -60,7 +65,7 @@ class GeomCol(Geom):
         "alpha": 1.0,
         "linetype": "solid",
     }
-    extra_params: tuple[str, ...] = ("width",)
+    extra_params: tuple[str, ...] = ("width", "fast")
     na_aes: tuple[str, ...] | None = ("xmin", "xmax", "ymin", "ymax")
     default_position = "stack"
 
@@ -86,13 +91,23 @@ class GeomCol(Geom):
         return data
 
     def draw_panel(
-        self, data, panel_params, coord, theme: Theme | None = None, width=None, **params
+        self,
+        data,
+        panel_params,
+        coord,
+        theme: Theme | None = None,
+        width=None,
+        *,
+        fast=None,
+        **params,
     ) -> VMobject:
         theme = theme if theme is not None else theme_default()
         self.check_required_aes(data)
         if not {"xmin", "xmax", "ymin", "ymax"} <= set(data.columns):
             data = self.setup_data(data, {"width": width})
         data = finite_rows(self.use_defaults(data, params), ("xmin", "xmax", "ymin", "ymax"))
+        if use_fast(fast, data, theme, type(self).__name__):
+            return draw_bars_fast(data, panel_params, coord, theme)
         xmin = data["xmin"].to_numpy(float)
         xmax = data["xmax"].to_numpy(float)
         ymin = data["ymin"].to_numpy(float)
