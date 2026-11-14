@@ -74,9 +74,7 @@ def test_vline():
     ],
 )
 def test_rect_and_segment(geom, kw):
-    if "geom_" + geom not in COMPONENTS:
-        pytest.skip(f"geom_{geom} not merged yet")
-    layer = annotate(geom, **kw)  # pragma: no cover - until geom_rect/segment land
+    layer = annotate(geom, **kw)
     assert layer.inherit_aes is False and len(layer.data) == 1
     m = _plot(layer).build()
     assert len(m.layers[1].marks) == 1

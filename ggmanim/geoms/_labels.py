@@ -27,6 +27,17 @@ the same machinery as ``geom_text`` (:func:`direct_label`): in the group's
 colour at ``theme.axis_text_size``, justified against an anchor -- right of a
 line's last visible point (``hjust=0``), along the top-left of a vline
 (rotated 90 degrees) and above the right end of an hline.
+
+*Group order* is the order of the integer ``group`` ids, which
+:func:`~ggmanim.stats.add_group` numbers ``1..k`` in **sorted** order of the
+discrete grouping aesthetics' values (``color``/``fill``/``linetype``/... or an
+explicit ``group``; category order for a pandas ``Categorical``), not in order
+of appearance in the data. So with ``aes(color="species")`` and species
+``"b", "a"`` in that order in the data, ``label=["A", "B"]`` puts ``"A"`` on
+species ``"a"``. A dict is keyed by those group ids (``{1: "A", 2: "B"}``;
+``-1`` when there is no grouping aesthetic); groups missing from the dict, or beyond the end of a list, get no label. For
+``geom_vline``/``geom_hline`` a list follows the order of the intercepts as
+given (drawn rows) and a dict is keyed by that 0-based position.
 """
 
 from __future__ import annotations
