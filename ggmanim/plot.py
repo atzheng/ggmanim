@@ -118,6 +118,11 @@ class ggplot:
             plot = plot._replace(layers=plot.layers[:n_before] + (added[0].replace(name=name),))
         return plot
 
+    def with_data(self, data: pd.DataFrame | None) -> ggplot:
+        """A copy of this plot with ``data`` as the plot data (layers with their
+        own data frame keep it). The spec itself is unchanged."""
+        return self._replace(data=data)
+
     # -- helpers used by components ---------------------------------------
     def _with_layer(self, layer: Layer) -> ggplot:
         if layer.name is not None and any(l.name == layer.name for l in self.layers):

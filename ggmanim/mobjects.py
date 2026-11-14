@@ -185,4 +185,18 @@ class GGPlot(VGroup):
     # endregion
 
     # region: live
+    # See ggmanim.live. ``spec``/``live_theme`` are recorded by
+    # ggmanim.live.build_live (and LivePlot / always_rebuild).
+    spec: Any = None
+    live_theme: Any = None
+
+    def update_data(self, data, layers=None, *, spec=None):
+        """Move the marks to the rows of ``data`` (new plot data) in place,
+        without rebuilding text or legends; needs fixed x/y limits and identity
+        stats (:func:`ggmanim.live.update_data`). Returns ``self``, so it can be
+        used in ``add_updater``."""
+        from .live import update_data
+
+        return update_data(self, data, layers, spec=spec)
+
     # endregion
