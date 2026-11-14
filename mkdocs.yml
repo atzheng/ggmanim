@@ -1,0 +1,101 @@
+site_name: ggmanim
+site_description: A ggplot2-style grammar of graphics for manim
+site_url: https://atzheng.github.io/ggmanim/
+repo_url: https://github.com/atzheng/ggmanim
+repo_name: atzheng/ggmanim
+edit_uri: edit/main/docs/
+
+theme:
+  name: material
+  features:
+    - navigation.sections
+    - navigation.indexes
+    - navigation.top
+    - content.code.copy
+    - search.suggest
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+
+plugins:
+  - search
+  - mkdocstrings:
+      default_handler: python
+      handlers:
+        python:
+          paths: [.]
+          options:
+            docstring_style: numpy
+            show_source: false
+            show_root_heading: true
+            show_root_full_path: true
+            show_submodules: false
+            members_order: source
+            filters: ["!^_"]
+            show_if_no_docstring: false
+            heading_level: 2
+            docstring_options:
+              warn_missing_types: false
+              warn_unknown_params: false
+              warnings: false
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - tables
+  - toc:
+      permalink: true
+  - pymdownx.details
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.superfences
+  - pymdownx.snippets:
+      base_path: [.]
+      check_paths: true
+
+nav:
+  - Home: index.md
+  - Getting started: getting-started.md
+  - Concepts:
+      - concepts/index.md
+      - The grammar: concepts/grammar.md
+      - Scales & guides: concepts/scales-guides.md
+      - Geoms, stats & positions: concepts/geoms.md
+      - Facets & coords: concepts/facets-coords.md
+      - Themes: concepts/themes.md
+      - Animation: concepts/animation.md
+      - Performance: concepts/performance.md
+  - Cheat sheet: cheatsheet.md
+  - Gallery: gallery/index.md
+  - API reference:
+      - api/index.md
+      - Plot & aesthetics: api/plot.md
+      - Geoms: api/geoms.md
+      - Stats: api/stats.md
+      - Positions: api/positions.md
+      - Scales: api/scales.md
+      - Breaks & labels: api/labels.md
+      - Guides: api/guides.md
+      - Coords: api/coords.md
+      - Facets: api/facets.md
+      - Themes: api/theme.md
+      - Palettes: api/palettes.md
+      - Built plot: api/mobjects.md
+      - Animation: api/animate.md
+      - Transitions: api/transition.md
+      - Build pipeline & registry: api/extending.md
+
+validation:
+  omitted_files: warn
+  absolute_links: warn
+  unrecognized_links: warn
+  anchors: warn
