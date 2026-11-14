@@ -242,6 +242,7 @@ from .theme import (
     theme_minimal,
     theme_void,
 )
+from .transition import animate_reveal, animate_states, transition
 
 __all__ = [
     "BRIGHT",
@@ -254,6 +255,8 @@ __all__ = [
     "VIBRANT",
     "aes",
     "after_stat",
+    "animate_reveal",
+    "animate_states",
     "annotate",
     "arrow",
     "as_manim_color",
@@ -467,6 +470,7 @@ __all__ = [
     "theme_manim",
     "theme_minimal",
     "theme_void",
+    "transition",
     "viridis_pal",
     "xlab",
     "xlim",
