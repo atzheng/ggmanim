@@ -211,7 +211,8 @@ def assign_panels(layers: list[LayerData], plot=None) -> pd.DataFrame:
     Without a facet (or ``plot=None``) every non-empty layer gets ``PANEL = 1``.
     Otherwise the plot data and each layer's raw data first go through
     ``facet.facet_data`` (computed facet columns; the result replaces
-    ``LayerData.raw``), ``facet.compute_layout`` sees them, and ``facet.map_data`` gets each layer's evaluated aesthetics plus the
+    ``LayerData.raw``), ``facet.compute_layout`` sees them, and
+    ``facet.map_data`` gets each layer's evaluated aesthetics plus the
     facet-variable columns of its raw data (dropped again afterwards). Empty
     layers (``geom_function`` without data) get ``PANEL`` after the stat, which
     runs once per panel for them. Returns the layout table.
