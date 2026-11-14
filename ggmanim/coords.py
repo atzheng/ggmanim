@@ -481,9 +481,204 @@ class CoordCartesian:
             axes, pp, grid, x_ticks, y_ticks, x_tick_labels, y_tick_labels, x_title, y_title
         )
         panel.grid_major, panel.grid_minor = grid_major, grid_minor
+        _add_secondary_axes(panel, theme, x_scale, y_scale, labels, x_top, y_right)
         _add_panel_decorations(panel, theme)
         panel.clip = self.clip
         return panel
+
+
+# -- secondary axes (sec_axis / dup_axis) ----------------------------------------------
+_SEC_PARTS = ("sec_line", "sec_ticks", "sec_tick_labels")
+
+
+def _add_secondary_axes(
+    panel: CartesianPanel,
+    theme: Theme,
+    x_scale,
+    y_scale,
+    labels: Mapping[str, Any] | None,
+    x_top: bool,
+    y_right: bool,
+) -> None:
+    """Draw each scale's ``sec_axis`` on the side opposite its primary axis.
+
+    Sets, for the horizontal (``x_``) and vertical (``y_``) axis of the panel
+    (screen orientation, like ``x_ticks``; under :func:`coord_flip` ``x_`` is the
+    y aesthetic's): ``x_sec_breaks``/``x_sec_labels`` (positions on the drawn
+    axis, i.e. the scale's transformed space, coord-transformed under
+    :func:`~ggmanim.coords_trans.coord_trans`; and the label strings), ``x_sec_line`` (axis line or ``None``),
+    ``x_sec_ticks``, ``x_sec_tick_labels`` (``VGroup``), ``x_sec_title``
+    (``Mobject`` or ``None``) and ``x_sec_side``; plus ``panel.secondary_parts``,
+    ``{side: [ticks, tick labels]}`` for the facet strip placement. Empty groups
+    and ``None`` when the scale has no secondary axis."""
+    axes = panel.axes
+    (x0, x1), (y0, y1) = axes.x_range[:2], axes.y_range[:2]
+    centre = _c2p(axes, (x0 + x1) / 2, (y0 + y1) / 2)[0]
+    tl = theme.tick_length
+    tick_color = theme.color_of("axis_ticks_color")
+    line_color = theme.color_of("axis_line_color")
+    panel.secondary_parts = {}  # type: ignore[attr-defined]
+    for axis, scale, far in (("x", x_scale, x_top), ("y", y_scale, y_right)):
+        sec = getattr(scale, "sec_axis", None) if scale is not None else None
+        ticks, tick_labels = VGroup(), VGroup()
+        line: Mobject | None = None
+        title: Mobject | None = None
+        breaks: tuple[float, ...] = ()
+        strings: tuple[str, ...] = ()
+        if axis == "x":
+            side, direction = ("bottom", DOWN) if far else ("top", UP)
+            edge = y0 if far else y1
+        else:
+            side, direction = ("left", LEFT) if far else ("right", RIGHT)
+            edge = x0 if far else x1
+        if sec is not None:
+            breaks, strings = _sec_break_info(sec, scale, (x0, x1) if axis == "x" else (y0, y1))
+            b = np.asarray(breaks, dtype=float)
+            at = _c2p(axes, b, edge) if axis == "x" else _c2p(axes, edge, b)
+            if theme.axis_element("axis_line", axis):
+                ends = ((x0, edge), (x1, edge)) if axis == "x" else ((edge, y0), (edge, y1))
+                line = Line(
+                    _c2p(axes, *ends[0])[0],
+                    _c2p(axes, *ends[1])[0],
+                    stroke_width=theme.axis_stroke_width,
+                    stroke_color=line_color,
+                )
+            if theme.axis_element("axis_ticks", axis):
+                for p in at:
+                    ticks.add(
+                        Line(
+                            p,
+                            p + tl * direction,
+                            stroke_width=theme.axis_stroke_width,
+                            stroke_color=tick_color,
+                        )
+                    )
+            gap = (tl if len(ticks) else 0.0) + theme.tick_label_buff
+            if theme.axis_element("axis_text", axis):
+                for p, s in zip(at, strings):
+                    lab = _place_tick_label(_label(theme, s, axis), p, direction, gap, theme, axis)
+                    tick_labels.add(lab)  # type: ignore[arg-type]
+            if theme.axis_element("axis_title", axis):
+                title = _make_title(theme, sec.title(_title(scale, labels, axis)))
+            if title is not None:
+                corner = _c2p(axes, *((x0, edge) if axis == "x" else (edge, y0)))[0]
+                beside = (
+                    tick_labels
+                    if len(tick_labels)
+                    else VGroup(Line(corner, corner + gap * direction))
+                )
+                if axis == "y":
+                    title.rotate(PI / 2 if far else -PI / 2)
+                title.next_to(beside, direction, buff=theme.axis_title_buff)
+                if axis == "x":
+                    title.set_x(centre[0])
+                else:
+                    title.set_y(centre[1])
+            panel.secondary_parts[side] = [ticks, tick_labels]
+            if line is not None:
+                panel.add(line)  # type: ignore[arg-type]
+            panel.add(ticks, tick_labels)
+            if title is not None:
+                panel.add(title)  # type: ignore[arg-type]
+        setattr(panel, f"{axis}_sec_breaks", breaks)
+        setattr(panel, f"{axis}_sec_labels", strings)
+        setattr(panel, f"{axis}_sec_line", line)
+        setattr(panel, f"{axis}_sec_ticks", ticks)
+        setattr(panel, f"{axis}_sec_tick_labels", tick_labels)
+        setattr(panel, f"{axis}_sec_title", title)
+        setattr(panel, f"{axis}_sec_side", side if sec is not None else None)
+
+
+def _sec_break_info(sec, scale, rng) -> tuple[tuple[float, ...], tuple[str, ...]]:
+    """``sec.break_info`` over the drawn range ``rng``. A :func:`coord_trans` axis
+    scale (a facade with ``input_range``) is drawn in coord-transformed space:
+    the breaks are found over its input range and mapped through its transform."""
+    inner = getattr(scale, "input_range", None)
+    trans = getattr(scale, "_trans", None)
+    if inner is None or trans is None:
+        return sec.break_info(scale, rng)
+    pos, strings = sec.break_info(scale, inner)
+    with np.errstate(all="ignore"):
+        t = np.asarray(trans.transform(np.asarray(pos, dtype=float)), dtype=float)
+    keep = np.isfinite(t)
+    return (
+        tuple(float(v) for v in t[keep]),
+        tuple(lab for lab, k in zip(strings, keep) if k),
+    )
+
+
+def _keep_axes(
+    panel: Any, horizontal: bool, vertical: bool, sec_horizontal: bool, sec_vertical: bool
+) -> None:
+    """Facets: empty the tick marks / labels of the primary axes and drop the
+    secondary axis line, ticks and labels that the facet does not draw (inner
+    panels). Groups are emptied in place, so ``panel.x_ticks``,
+    ``panel.x_sec_ticks`` etc. stay valid (and empty)."""
+    for axis, keep in (("x", horizontal), ("y", vertical)):
+        if not keep:
+            for name in ("ticks", "tick_labels"):
+                group = getattr(panel, f"{axis}_{name}")
+                group.remove(*group.submobjects)
+    for axis, keep in (("x", sec_horizontal), ("y", sec_vertical)):
+        if keep:
+            continue
+        line = getattr(panel, f"{axis}_sec_line", None)
+        if line is not None:
+            panel.remove(line)
+            setattr(panel, f"{axis}_sec_line", None)
+        for name in ("sec_ticks", "sec_tick_labels"):
+            group = getattr(panel, f"{axis}_{name}", None)
+            if group is not None:
+                group.remove(*group.submobjects)
+
+
+def _secondary_title_content(scale, labels: Mapping[str, Any] | None, aes: str):
+    """Title content of ``scale``'s secondary axis (``None``: no title / no axis)."""
+    sec = getattr(scale, "sec_axis", None) if scale is not None else None
+    if sec is None:
+        return None
+    return sec.title(_title(scale, labels, aes))
+
+
+def _add_secondary_titles(
+    grid: Any,
+    h_scale,
+    v_scale,
+    h_aes: str,
+    v_aes: str,
+    labels: Mapping[str, Any] | None,
+    theme: Theme,
+    sides: tuple[str, str],
+) -> None:
+    """Facets: one secondary axis title per direction for the whole panel grid,
+    outside it on the side opposite ``sides`` (the primary axis sides). Sets
+    ``grid.x_sec_title`` / ``grid.y_sec_title`` (horizontal / vertical axis)."""
+    lo = grid.axes.get_corner(DL)
+    hi = grid.axes.get_corner(UR)
+    grid.x_sec_title = grid.y_sec_title = None
+    if theme.axis_element("axis_title", "x"):
+        t = _make_title(theme, _secondary_title_content(h_scale, labels, h_aes))
+        if t is not None:
+            t.next_to(
+                VGroup(*grid.submobjects),
+                UP if sides[0] == "bottom" else DOWN,
+                buff=theme.axis_title_buff,
+            )
+            t.set_x((lo[0] + hi[0]) / 2)
+            grid.x_sec_title = t
+    if theme.axis_element("axis_title", "y"):
+        t = _make_title(theme, _secondary_title_content(v_scale, labels, v_aes))
+        if t is not None:
+            left = sides[1] == "right"
+            t.rotate(PI / 2 if left else -PI / 2)
+            t.next_to(
+                VGroup(*grid.submobjects), LEFT if left else RIGHT, buff=theme.axis_title_buff
+            )
+            t.set_y((lo[1] + hi[1]) / 2)
+            grid.y_sec_title = t
+    for m in (grid.x_sec_title, grid.y_sec_title):
+        if m is not None:
+            grid.add(m)
 
 
 def _label(theme: Theme, s: str, axis: str = "x") -> Mobject:

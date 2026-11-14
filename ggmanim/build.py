@@ -707,7 +707,7 @@ def _scale_title(scale, labels: dict[str, Any], aes: str):
     return name if name is not None else labels.get(aes)
 
 
-def _measure_key(scales: dict, visible: tuple[bool, bool], strips) -> tuple:
+def _measure_key(scales: dict, visible: tuple[bool, ...], strips) -> tuple:
     """What a pass-1 panel's measurements depend on: its scale objects, which
     axes it draws and the sides (and depth) of its strips."""
     return (
@@ -745,29 +745,40 @@ def build_panels(
     panel_ids = [int(p) for p in layout["PANEL"]]
     cells = {int(r.PANEL): (int(r.ROW), int(r.COL)) for r in layout.itertuples(index=False)}
 
-    def make(p: int, w: float, h: float, vis: tuple[bool, bool]) -> CartesianPanel:
+    def make(p: int, w: float, h: float, vis: tuple[bool, ...]) -> CartesianPanel:
         changes: dict[str, Any] = {
             "panel_width": w,
             "panel_height": h,
             "axis_title_x": False,
             "axis_title_y": False,
         }
-        if not vis[0]:
+        # vis: (horizontal, vertical[, horizontal secondary, vertical secondary])
+        if not (vis[0] or vis[2:3] == (True,)):
             changes.update(axis_text_x=False, axis_ticks_x=False)
-        if not vis[1]:
+        if not (vis[1] or vis[3:4] == (True,)):
             changes.update(axis_text_y=False, axis_ticks_y=False)
         sc = panel_scales[p]
-        return coord.build(sc["x"], sc["y"], theme.replace(**changes), labels, has_legend=False)
+        panel = coord.build(sc["x"], sc["y"], theme.replace(**changes), labels, has_legend=False)
+        if len(vis) > 2:  # secondary axes (sec_axis): drop the sides not drawn
+            _coords._keep_axes(panel, *vis)
+        return panel
 
     # pass 1: nominal sizes, to learn the orientation and measure decorations
     nominal = (total[0] / ncol, total[1] / nrow)
-    first = make(panel_ids[0], *nominal, (True, True))
+    first = make(panel_ids[0], *nominal, (True, True, True, True))
     flipped = bool(getattr(first, "flipped", False))
     sc1 = panel_scales[panel_ids[0]]
     h_scale, v_scale = (sc1["y"], sc1["x"]) if flipped else (sc1["x"], sc1["y"])
     sides = (_axis_side(h_scale, "bottom"), _axis_side(v_scale, "left"))
     h_col, v_col = ("SCALE_Y", "SCALE_X") if flipped else ("SCALE_X", "SCALE_Y")
     visible = facet.draw_axes(layout, h_col, v_col, *sides)
+    # secondary axes (sec_axis) go on the opposite sides; drawn: (h, v, h sec, v sec)
+    sec_sides = (
+        "top" if sides[0] == "bottom" else "bottom",
+        "right" if sides[1] == "left" else "left",
+    )
+    sec_visible = facet.draw_axes(layout, h_col, v_col, *sec_sides)
+    drawn = {p: tuple(visible[p]) + tuple(sec_visible[p]) for p in visible}
     specs = facet.strips(layout)
     thickness = _facet_base.strip_thickness(theme, specs)
     ext = {}
@@ -777,14 +788,14 @@ def build_panels(
     # so pass 1 builds one panel per such kind; ``first`` is reused for its kind.
     measured: dict[tuple, tuple] = {}
     spare: Any = first  # built at the nominal size with every axis drawn, no strips
-    spare_kind = _measure_key(sc1, (True, True), [])[:3]
+    spare_kind = _measure_key(sc1, (True, True, True, True), [])[:3]
     for p in panel_ids:
-        key = _measure_key(panel_scales[p], visible[p], specs.get(p, []))
+        key = _measure_key(panel_scales[p], drawn[p], specs.get(p, []))
         if key not in measured:
             if spare is not None and key[:3] == spare_kind:
                 panel, spare = spare, None
             else:
-                panel = make(p, *nominal, visible[p])
+                panel = make(p, *nominal, drawn[p])
             strips = _facet_base.add_strips(
                 panel, specs.get(p, []), thickness, theme, visible[p], sides
             )
@@ -806,7 +817,7 @@ def build_panels(
 
     # pass 2: final sizes
     panels = {
-        p: make(p, widths[cells[p][1] - 1], heights[cells[p][0] - 1], visible[p]) for p in panel_ids
+        p: make(p, widths[cells[p][1] - 1], heights[cells[p][0] - 1], drawn[p]) for p in panel_ids
     }
     grid = facet.draw_panels(panels, layout, theme, widths, heights, visible, sides)
 
@@ -820,6 +831,8 @@ def build_panels(
     x_title = _shared_title(h_content, theme) if theme.axis_element("axis_title", "x") else None
     y_title = _shared_title(v_content, theme) if theme.axis_element("axis_title", "y") else None
     grid.add_titles(x_title, y_title, theme, sides)
+    h_aes, v_aes = ("y", "x") if flipped else ("x", "y")
+    _coords._add_secondary_titles(grid, sc1[h_aes], sc1[v_aes], h_aes, v_aes, labels, theme, sides)
     return grid
 
 

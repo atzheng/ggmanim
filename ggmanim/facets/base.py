@@ -383,7 +383,8 @@ def _axis_parts(panel: Any, side: str, sides: tuple[str, str]) -> list:
         return [panel.x_ticks, panel.x_tick_labels]
     if side == sides[1]:
         return [panel.y_ticks, panel.y_tick_labels]
-    return []
+    # a secondary axis (sec_axis) on the opposite side; emptied where not drawn
+    return list(getattr(panel, "secondary_parts", {}).get(side, []))
 
 
 def add_strips(
@@ -407,7 +408,7 @@ def add_strips(
     out_dir = {"top": UP, "bottom": DOWN, "left": LEFT, "right": RIGHT}
     for side, labels in entries:
         parts = _axis_parts(panel, side, sides)
-        drawn = visible[0] if side == sides[0] else visible[1] if side == sides[1] else False
+        drawn = visible[0] if side == sides[0] else visible[1] if side == sides[1] else True
         parts = [m for m in parts if len(m)] if drawn else []
         if not parts:
             continue
