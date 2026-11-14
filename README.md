@@ -369,9 +369,12 @@ roadmap.
 | `geom_abline(slope, intercept)` | same | trains no scale; slope/intercept in transformed units (as ggplot2) |
 | `geom_errorbar()`, `geom_errorbarh()`, `geom_linerange()`, `geom_pointrange()`, `geom_crossbar()` | same | `orientation="y"` (or `xmin`/`xmax`) for horizontal |
 | `stat_summary(fun.data = mean_se)` | `stat_summary(fun_data="mean_se")` | also `mean_cl_normal`, `mean_sdl`, `median_hilow`, `fun`/`fun_min`/`fun_max`; `stat_summary_bin()` |
+| `geom_boxplot(outlier.colour, notch, varwidth, staplewidth)` | `geom_boxplot(outlier_color=..., notch=True, varwidth=True, staplewidth=0.5)` | dodged by `position_dodge2`; `outliers=False` hides them; horizontal when `y` is discrete |
+| `geom_violin(scale, trim, draw_quantiles)` | same | `scale="area"`/`"count"`/`"width"`; dodged by `position_dodge` |
+| `geom_density(adjust, bw, kernel, bounds)` | same | outline only unless `fill` is set; `alpha` is the fill's |
+| `geom_rug(sides = "bl", length = unit(0.03, "npc"))` | `geom_rug(sides="bl", length=None)` | `length` in scene units (default 3% of the panel); `outside=True` |
 
-Not yet: `geom_histogram`, `geom_boxplot`, `geom_violin`, `geom_density`;
-`stat_align` for `geom_area`.
+Not yet: `geom_dotplot`; `stat_align` for `geom_area`.
 
 <!-- section: stats -->
 ### Stats
@@ -392,7 +395,11 @@ Not yet: `geom_histogram`, `geom_boxplot`, `geom_violin`, `geom_density`;
 | `geom_density_2d()`, `geom_density_2d_filled()` | same (`geom_density2d` too) | `MASS::kde2d` (`n=100`, `h`, `adjust`); `contour_var`; `contour=False` gives the grid |
 | `geom_contour(aes(z = z))`, `geom_contour_filled()` | `geom_contour(aes(z="z"))`, `geom_contour_filled()` | numpy marching squares; `bins`/`binwidth`/`breaks`; filled `level` is an ordered category `"(lo, hi]"` |
 
-Not yet: `stat_density`, `stat_boxplot`; `orientation="y"` for `stat_count`/`stat_bin`.
+| `stat_boxplot(coef = 1.5)` | same | quantile type 7, whiskers to the last point within `coef * IQR`; `weight` gives weighted quantiles |
+| `stat_density(bw = "nrd0", adjust, kernel, n = 512, bounds)` | same; `bounds=(0, np.inf)` | matches R's `density()` (numpy FFT); `bw` `"nrd0"`, `"nrd"`/`"scott"`, a number or a callable; `after_stat("count")`, `"scaled"` |
+| `stat_ydensity(scale, trim, quantiles)` | same | the violins' densities, plus `violinwidth` |
+
+Not yet: `orientation="y"` for `stat_count`/`stat_bin`; `bw = "ucv"`/`"bcv"`/`"SJ"`.
 
 <!-- section: positions -->
 ### Positions

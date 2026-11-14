@@ -11,6 +11,7 @@ from .annotate import annotate
 from .area import GeomArea, GeomRibbon, geom_area, geom_ribbon
 from .base import KEY_SIZE, Geom, attach_marks, group_label, make_layer, resolve_color
 from .bin2d import GeomBin2d, geom_bin2d, geom_bin_2d
+from .boxplot import GeomBoxplot, geom_boxplot
 from .col import GeomBar, GeomCol, geom_bar, geom_col, resolution
 from .contour import (
     GeomContour,
@@ -20,6 +21,7 @@ from .contour import (
     geom_contour_filled,
 )
 from .count import GeomCount, geom_count
+from .density import GeomDensity, geom_density
 from .density2d import (
     GeomDensity2d,
     GeomDensity2dFilled,
@@ -50,10 +52,12 @@ from .point import GeomPoint, geom_point
 from .polygon import GeomPolygon, geom_polygon
 from .qq import GeomQq, GeomQqLine, geom_qq, geom_qq_line
 from .rect import GeomRaster, GeomRect, GeomTile, geom_raster, geom_rect, geom_tile
+from .rug import GeomRug, geom_rug
 from .segment import ArrowSpec, GeomCurve, GeomSegment, arrow, geom_curve, geom_segment
 from .smooth import GeomSmooth, geom_smooth
 from .step import GeomStep, geom_step, stairstep
 from .text import GeomLabel, GeomText, geom_label, geom_text
+from .violin import GeomViolin, geom_violin
 from .vline import GeomHline, GeomVline, geom_hline, geom_vline
 
 __all__ = [
@@ -63,12 +67,14 @@ __all__ = [
     "GeomArea",
     "GeomBar",
     "GeomBin2d",
+    "GeomBoxplot",
     "GeomCol",
     "GeomContour",
     "GeomContourFilled",
     "GeomCount",
     "GeomCrossbar",
     "GeomCurve",
+    "GeomDensity",
     "GeomDensity2d",
     "GeomDensity2dFilled",
     "GeomErrorbar",
@@ -88,11 +94,13 @@ __all__ = [
     "GeomRaster",
     "GeomRect",
     "GeomRibbon",
+    "GeomRug",
     "GeomSegment",
     "GeomSmooth",
     "GeomStep",
     "GeomText",
     "GeomTile",
+    "GeomViolin",
     "GeomVline",
     "KEY_SIZE",
     "annotate",
@@ -106,12 +114,14 @@ __all__ = [
     "geom_bar",
     "geom_bin2d",
     "geom_bin_2d",
+    "geom_boxplot",
     "geom_col",
     "geom_contour",
     "geom_contour_filled",
     "geom_count",
     "geom_crossbar",
     "geom_curve",
+    "geom_density",
     "geom_density2d",
     "geom_density2d_filled",
     "geom_density_2d",
@@ -135,11 +145,13 @@ __all__ = [
     "geom_raster",
     "geom_rect",
     "geom_ribbon",
+    "geom_rug",
     "geom_segment",
     "geom_smooth",
     "geom_step",
     "geom_text",
     "geom_tile",
+    "geom_violin",
     "geom_vline",
     "group_label",
     "make_layer",

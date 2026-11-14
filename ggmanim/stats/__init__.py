@@ -12,6 +12,7 @@ import re as _re
 from .base import GROUPING_AES, NO_GROUP, Stat, add_group, get_stat, is_discrete, scale_limits
 from .bin import StatBin, bin_breaks, bin_breaks_bins, bin_breaks_width, stat_bin
 from .bin2d import StatBin2d, bin2d_breaks, stat_bin2d, stat_bin_2d
+from .boxplot import StatBoxplot, flip_names, resolve_flipped, stat_boxplot
 from .contour import (
     StatContour,
     StatContourFilled,
@@ -21,6 +22,7 @@ from .contour import (
     stat_contour_filled,
 )
 from .count import StatCount, stat_count
+from .density import StatDensity, StatYdensity, density_mapping, stat_density, stat_ydensity
 from .density2d import (
     StatDensity2d,
     StatDensity2dFilled,
@@ -58,9 +60,11 @@ __all__ = [
     "StatBin",
     "StatBin2d",
     "StatBinHex",
+    "StatBoxplot",
     "StatContour",
     "StatContourFilled",
     "StatCount",
+    "StatDensity",
     "StatDensity2d",
     "StatDensity2dFilled",
     "StatEcdf",
@@ -73,6 +77,7 @@ __all__ = [
     "StatSummary",
     "StatSummaryBin",
     "StatUnique",
+    "StatYdensity",
     "add_group",
     "bandwidth_nrd",
     "bin2d_breaks",
@@ -80,7 +85,9 @@ __all__ = [
     "bin_breaks_bins",
     "bin_breaks_width",
     "contour_breaks",
+    "density_mapping",
     "evaluate_function",
+    "flip_names",
     "get_stat",
     "hexagon_vertices",
     "hexbin",
@@ -93,15 +100,18 @@ __all__ = [
     "median_hilow",
     "ppoints",
     "qnorm",
+    "resolve_flipped",
     "scale_limits",
     "stat_bin",
     "stat_bin2d",
     "stat_bin_2d",
     "stat_bin_hex",
     "stat_binhex",
+    "stat_boxplot",
     "stat_contour",
     "stat_contour_filled",
     "stat_count",
+    "stat_density",
     "stat_density2d",
     "stat_density2d_filled",
     "stat_density_2d",
@@ -116,6 +126,7 @@ __all__ = [
     "stat_summary",
     "stat_summary_bin",
     "stat_unique",
+    "stat_ydensity",
     "summary_function",
     "t_quantile",
 ]
