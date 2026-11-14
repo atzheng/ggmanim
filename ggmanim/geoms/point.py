@@ -7,6 +7,7 @@ from manim import ORIGIN, VGroup, VMobject
 
 from ..registry import register
 from ..theme import Theme, theme_default
+from ._batch import draw_points_fast, use_fast
 from ._clip import panel_rect
 from ._marker_clip import clip_marker, marker_extent, near_box, scene_box
 from ._markers import make_marker
@@ -35,16 +36,31 @@ class GeomPoint(Geom):
     markers instead of ``color``. ``shape`` (``None`` = circle) selects the
     marker, see :mod:`ggmanim.geoms._markers` and
     :func:`ggmanim.scales.shape.parse_shape`.
+
+    ``fast`` (``None``: above ``theme.fast_threshold`` rows) draws batched marks
+    instead, one ``VMobject`` per style (:mod:`ggmanim.geoms._batch`; no
+    per-mark ``.keys``).
     """
 
     required_aes = ("x", "y")
     default_aes = {"color": None, "fill": None, "size": 0.06, "alpha": 1.0, "shape": None}
+    extra_params: tuple[str, ...] = ("fast",)
 
     def draw_panel(
-        self, data, panel_params, coord, theme: Theme | None = None, **params
+        self, data, panel_params, coord, theme: Theme | None = None, *, fast=None, **params
     ) -> VMobject:
         theme = theme if theme is not None else theme_default()
         self.check_required_aes(data)
+        if use_fast(fast, data, theme, type(self).__name__):
+            return draw_points_fast(
+                self.use_defaults(data, params),
+                panel_params,
+                coord,
+                theme,
+                lambda rows: self.draw_panel(
+                    rows, panel_params, coord, theme, fast=False, **params
+                ),
+            )
         data = finite_rows(self.use_defaults(data, params), ("x", "y"))
         rect = panel_rect(coord, panel_params)
         fg = theme.get_foreground()
@@ -119,7 +135,9 @@ def geom_point(
     **params,
 ):
     """Scatter plot: one dot per row. Constant aesthetics (``color=RED``,
-    ``size=0.08``, ``alpha=0.5``) go in ``params``."""
+    ``size=0.08``, ``alpha=0.5``) go in ``params``. ``fast=True`` draws batched
+    marks (default ``None``: when the panel has more than
+    ``theme.fast_threshold`` rows), see :mod:`ggmanim.geoms._batch`."""
     return make_layer(
         GeomPoint(),
         mapping,

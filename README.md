@@ -448,6 +448,14 @@ roadmap.
 | `geom_density(adjust, bw, kernel, bounds)` | same | outline only unless `fill` is set; `alpha` is the fill's |
 | `geom_rug(sides = "bl", length = unit(0.03, "npc"))` | `geom_rug(sides="bl", length=None)` | `length` in scene units (default 3% of the panel); `outside=True` |
 
+Large layers: above `theme(fast_threshold=2000)` rows per panel, `geom_point`,
+`geom_rect`/`geom_tile`, `geom_col`/`geom_bar` and `geom_segment` draw *batched*
+marks (one `VMobject` per style, every mark a subpath; a 10k-point scatter builds
+in well under a second). `fast=True`/`fast=False` forces it either way. Batched
+layers look the same, but `layer.keys` is `None`, so per-mark animation and
+`plot.mark()` are not available. Mapping `key` turns the automatic switch off.
+See `examples/large_scatter.py`.
+
 Not yet: `geom_dotplot`, `geom_spoke`, `geom_quantile`, `geom_blank`, `geom_sf`/`geom_map`.
 
 <!-- section: stats -->
