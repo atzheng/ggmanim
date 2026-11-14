@@ -550,8 +550,9 @@ Not yet: `guide_axis`, `guide_bins`.
 | `coord_flip()`, `coord_fixed(ratio)` | same | |
 | `coord_trans(x = "log10", y = "sqrt", xlim, ylim)` | `coord_trans(x="log10", y="sqrt", xlim=, ylim=)` | transforms at draw time: stats fit untransformed data, breaks are the scale's placed at transformed positions, lines/polygons/rects are munched into curves |
 | `coord_munch(coord, data, range)` | `coord_munch(panel, x, y, closed=False)` | interpolate a path for a non-linear coord (`panel.is_linear` false); geoms use `geoms.base.munch_path` |
-
-Not yet: `coord_polar`.
+| `coord_polar(theta = "x", start = 0, direction = 1)` | `coord_polar(theta="x", start=0, direction=1, inner_radius=0)` | bars are munched into wedges; `geom_bar(width=1)` + `coord_polar(theta="y")` is a pie, `geom_col(width=1)` + `coord_polar()` a coxcomb/rose; theta labels around the circle, radius axis on the left; never clips |
+| donut: `xlim(c(0.5, 2.5))` with bars at `x = 2` | same (`xlim(0.5, 2.5)`), or `coord_polar(theta="y", inner_radius=0.5)` | `inner_radius` is a fraction of the outer radius (like `coord_radial(inner.radius=)`) |
+| radar chart (`geom_polygon(fill = NA)` + a straight-edged polar coord) | `geom_polygon(fill=None)` + `coord_radar()` | `coord_polar` mapping, but edges stay straight (not munched); add `ylim(0, max)` so the centre is 0 |
 
 <!-- section: themes -->
 ### Themes

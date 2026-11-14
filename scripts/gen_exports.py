@@ -67,6 +67,7 @@ TOP_LEVEL: tuple[tuple[str, tuple[str, ...]], ...] = (
     ("aes", ("aes", "after_stat")),
     ("coords", ("coord_",)),
     ("coords_trans", ("coord_",)),
+    ("coords_polar", ("coord_",)),
     ("facets", ("facet_",)),
     ("geoms", ("geom_",)),
     ("guides", ("guide_", "guides")),
