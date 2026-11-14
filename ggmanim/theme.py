@@ -342,6 +342,31 @@ class Theme:
     # endregion
 
     # region: facets
+    # (documented here so the section stays inside this region)
+    __doc__ = (
+        (__doc__ or "")
+        + """
+    Facets
+        ``panel_spacing``: gap between the panels of a faceted plot
+        (``panel_spacing_x``/``panel_spacing_y`` override it per direction;
+        ``None`` = ``panel_spacing``). Strips: ``strip_background`` fill colour
+        (``None`` = the foreground at ``strip_background_opacity``; ``False`` =
+        no rectangle), ``strip_text_size``, ``strip_text_color`` (``None`` =
+        foreground), ``strip_margin`` (padding round the text) and
+        ``strip_placement``: ``"inside"`` (strips touch the panel; an axis on the
+        same side moves outward) or ``"outside"`` (strips go beyond the axis).
+        In faceted plots ``panel_width``/``panel_height`` size the whole grid.
+    """
+    )
+    panel_spacing: float = 0.3
+    panel_spacing_x: float | None = None
+    panel_spacing_y: float | None = None
+    strip_background: Any | None = None
+    strip_background_opacity: float = 0.15
+    strip_text_size: float = 22
+    strip_text_color: Any | None = None
+    strip_margin: float = 0.08
+    strip_placement: str = "inside"
     # endregion
 
     # region: coords
