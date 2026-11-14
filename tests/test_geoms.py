@@ -5,7 +5,7 @@ import warnings
 import numpy as np
 import pandas as pd
 import pytest
-from manim import BLUE, RED, Polygon, VGroup, VMobject
+from manim import BLUE, RED, VGroup, VMobject
 
 from ggmanim.aes import aes, evaluate_aes
 from ggmanim.coords import CoordCartesian
@@ -259,7 +259,7 @@ def test_col_rectangles_width_height(xs, x):
     y = [2.0, 5.0, 3.0]
     data, panel = _col_panel(x, y, xs)
     bars = GeomCol().draw_panel(data, panel.panel_params, panel)
-    assert len(bars) == 3 and all(isinstance(b, Polygon) for b in bars)
+    assert len(bars) == 3 and all(type(b) is VMobject for b in bars)
     (x0, x1), (y0, y1) = panel.panel_params.x_range, panel.panel_params.y_range
     ux = panel.axes.x_length / (x1 - x0)
     uy = panel.axes.y_length / (y1 - y0)

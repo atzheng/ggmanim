@@ -5,22 +5,13 @@ from __future__ import annotations
 
 import numpy as np
 import pandas as pd
-from manim import Polygon, Square, VGroup, VMobject
+from manim import VMobject
 
 from ..registry import register
 from ..theme import Theme, theme_default
-from ._batch import draw_bars_fast, use_fast
-from ._clip import clip_rects, panel_rect
-from .base import (
-    KEY_SIZE,
-    Geom,
-    attach_marks,
-    finite_rows,
-    make_layer,
-    munch_rect_corners,
-    num,
-    resolve_color,
-)
+from ._batch import draw_rects_fast, use_fast
+from ._rect import draw_rects, filled_key
+from .base import Geom, attach_marks, finite_rows, make_layer
 
 __all__ = ["GeomCol", "GeomBar", "geom_col", "geom_bar", "resolution"]
 
@@ -37,8 +28,9 @@ def resolution(x) -> float:
 
 
 class GeomCol(Geom):
-    """Bars. ``draw_panel`` returns a ``VGroup`` with one ``Polygon`` per (finite,
-    visible) row, in data order (``.marks``/``.keys``: one per drawn row).
+    """Bars. ``draw_panel`` returns a ``VGroup`` with one ``VMobject`` per (finite,
+    visible) row, in data order (``.marks``/``.keys``: one per drawn row); a
+    dashed outline (``linetype``) makes a row's mark ``VGroup(fill, dashes)``.
 
     :meth:`setup_data` (run by the pipeline after the stat, in transformed space)
     adds ``xmin = x - width/2``, ``xmax = x + width/2``, ``ymin = min(y, 0)``,
@@ -49,8 +41,12 @@ class GeomCol(Geom):
     value 1 on a log10 y scale, like ggplot2), and both ends are clipped to the
     panel (``clip="on"``) so bars never extend past the axes.
 
-    The four corners go through ``coord.transform``, so bars are correct under
-    any scale transform. ``color`` (outline) defaults to ``None`` = no outline.
+    Drawing and styling are shared with ``geom_rect``/``geom_tile``
+    (:func:`~._rect.draw_rects`): the four corners go through
+    ``coord.transform``, so bars are correct under any scale transform;
+    ``color`` (outline) defaults to ``None`` = no outline, and ``alpha``
+    applies to the fill only (as in ggplot2). Seams are not sealed by default
+    (``seal = False``, like ``GeomRect``; a subclass may set it).
 
     ``fast`` (``None``: above ``theme.fast_threshold`` rows) draws batched marks,
     one ``VMobject`` per style (:mod:`ggmanim.geoms._batch`; no per-mark
@@ -68,6 +64,8 @@ class GeomCol(Geom):
     extra_params: tuple[str, ...] = ("width", "fast")
     na_aes: tuple[str, ...] | None = ("xmin", "xmax", "ymin", "ymax")
     default_position = "stack"
+    #: Hide anti-aliasing seams between abutting bars (see ``_rect.seal_seams``).
+    seal = False
 
     def setup_data(self, data: pd.DataFrame, params) -> pd.DataFrame:
         data = data.copy()
@@ -107,38 +105,22 @@ class GeomCol(Geom):
             data = self.setup_data(data, {"width": width})
         data = finite_rows(self.use_defaults(data, params), ("xmin", "xmax", "ymin", "ymax"))
         if use_fast(fast, data, theme, type(self).__name__):
-            return draw_bars_fast(data, panel_params, coord, theme)
-        xmin = data["xmin"].to_numpy(float)
-        xmax = data["xmax"].to_numpy(float)
-        ymin = data["ymin"].to_numpy(float)
-        ymax = data["ymax"].to_numpy(float)
-        rect = panel_rect(coord, panel_params)
-        if rect is not None:  # clip="on": clamp bars to the panel, drop invisible ones
-            xmin, xmax, ymin, ymax, vis = clip_rects(xmin, xmax, ymin, ymax, rect)
-            xmin, xmax, ymin, ymax, data = xmin[vis], xmax[vis], ymin[vis], ymax[vis], data[vis]
-        # one vectorised transform for all corners: (n, 4, 3)
-        cx = np.stack([xmin, xmax, xmax, xmin], axis=1)
-        cy = np.stack([ymin, ymin, ymax, ymax], axis=1)
-        corners = munch_rect_corners(coord, cx, cy)
-        bars = VGroup()
-        for c, row in zip(corners, data.to_dict("records")):
-            bars.add(self._bar(Polygon(*c), row, theme))
-        return attach_marks(bars, data, per="row")
-
-    @staticmethod
-    def _bar(poly: VMobject, row, theme) -> VMobject:
-        alpha = num(row.get("alpha"), 1.0)
-        poly.set_fill(resolve_color(row.get("fill"), theme.get_foreground()), opacity=alpha)
-        outline = resolve_color(row.get("color"))
-        if outline is None:
-            poly.set_stroke(width=0, opacity=0)
-        else:
-            poly.set_stroke(color=outline, width=num(row.get("linewidth"), 1.0), opacity=alpha)
-        return poly
+            return draw_rects_fast(
+                data,
+                panel_params,
+                coord,
+                theme,
+                lambda rows: self.draw_panel(
+                    rows, panel_params, coord, theme, width, fast=False, **params
+                ),
+                seal=self.seal,
+            )
+        bars, drawn = draw_rects(data, panel_params, coord, theme, seal=self.seal)
+        return attach_marks(bars, drawn, per="row")
 
     def draw_key(self, data_row, theme: Theme | None = None) -> VMobject:
         theme = theme if theme is not None else theme_default()
-        return self._bar(Square(side_length=KEY_SIZE), self.key_aes(data_row), theme)
+        return filled_key(self.key_aes(data_row), theme)
 
 
 @register
