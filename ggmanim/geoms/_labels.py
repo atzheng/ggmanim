@@ -34,8 +34,11 @@ discrete grouping aesthetics' values (``color``/``fill``/``linetype``/... or an
 explicit ``group``; category order for a pandas ``Categorical``), not in order
 of appearance in the data. So with ``aes(color="species")`` and species
 ``"b", "a"`` in that order in the data, ``label=["A", "B"]`` puts ``"A"`` on
-species ``"a"``. A dict is keyed by those group ids (``{1: "A", 2: "B"}``;
-``-1`` when there is no grouping aesthetic); groups missing from the dict, or beyond the end of a list, get no label. For
+species ``"a"``. A dict is keyed by the raw grouping value (``{"a": "A"}``; a
+tuple when several aesthetics group) or by those group ids (``{1: "A", 2: "B"}``;
+``-1`` when there is no grouping aesthetic); the build re-keys raw values by
+group id (:func:`~ggmanim.build.draw_layers`), and a raw value wins over an equal
+group id. Groups missing from the dict, or beyond the end of a list, get no label. For
 ``geom_vline``/``geom_hline`` a list follows the order of the intercepts as
 given (drawn rows) and a dict is keyed by that 0-based position.
 """

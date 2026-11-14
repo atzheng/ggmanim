@@ -5,7 +5,6 @@ import pandas as pd
 import pytest
 
 from ggmanim import aes, geom_point, ggplot, stat_ecdf
-from ggmanim.geoms.count import GeomStepEdges
 from ggmanim.geoms.step import GeomStep
 from ggmanim.layer import Layer
 from ggmanim.stats import StatEcdf, get_stat
@@ -43,7 +42,7 @@ def test_ecdf_per_group_and_registered():
 def test_stat_ecdf_returns_a_step_layer():
     layer = stat_ecdf(pad=False, color="red")
     assert isinstance(layer, Layer)
-    assert isinstance(layer.geom, GeomStepEdges) and isinstance(layer.geom, GeomStep)
+    assert type(layer.geom) is GeomStep
     assert isinstance(layer.stat, StatEcdf) and layer.stat.params["pad"] is False
     assert isinstance(stat_ecdf(geom="point").geom, type(geom_point().geom))
 
@@ -85,5 +84,5 @@ def test_ecdf_nan_rows_dropped_inf_kept():
         {"x": [-np.inf, 1.0, np.nan, np.inf], "y": [0.0, 0.5, 0.7, 1.0], "group": [1] * 4}
     )
     with pytest.warns(UserWarning, match="removed 1 row"):
-        kept = GeomStepEdges().handle_na(data)
+        kept = GeomStep().handle_na(data)
     assert kept["x"].tolist() == [-np.inf, 1.0, np.inf]

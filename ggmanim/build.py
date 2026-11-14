@@ -39,6 +39,7 @@ data is copied, user Mobjects (titles) are copied, and the spec is never mutated
 from __future__ import annotations
 
 import warnings
+from collections.abc import Mapping
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -65,6 +66,7 @@ from .scales.date import ScaleDatePosition, data_timezone, date_kind
 from .scales.discrete import CATEGORICAL_AESTHETICS, default_scale_for
 from .scales.discrete_position import ScaleDiscretePosition
 from .stats import add_group, is_discrete
+from .stats.base import GROUPING_AES
 from .theme import Theme, theme_default
 
 __all__ = [
@@ -105,6 +107,8 @@ class LayerData:
     data: pd.DataFrame = field(default_factory=pd.DataFrame)
     #: the layer's resolved user data (facet variables are read from it)
     raw: pd.DataFrame | None = None
+    #: ``{group id: raw grouping value}`` (a tuple when several aesthetics group)
+    group_values: dict[int, Any] = field(default_factory=dict)
 
     @property
     def key(self):
@@ -146,9 +150,52 @@ def resolve_layers(plot) -> list[LayerData]:
             df = ld.mapping.evaluate(raw)
         except Exception as e:  # callables, length mismatches ...
             raise BuildError(f"{ld.label}: could not evaluate aesthetics: {e}") from e
-        ld.data = add_group(df.reset_index(drop=True))
+        df = df.reset_index(drop=True)
+        ld.data = add_group(df)
+        ld.group_values = _group_values(df, ld.data["group"])
         ld.raw = raw
         out.append(ld)
+    return out
+
+
+def _scalar(v: Any) -> Any:
+    return v.item() if isinstance(v, np.generic) else v
+
+
+def _group_values(df: pd.DataFrame, group: pd.Series) -> dict[int, Any]:
+    """``{group id: raw value}`` of the grouping aesthetics (an explicit ``group``,
+    else the discrete :data:`~ggmanim.stats.base.GROUPING_AES`; a tuple when
+    several are present) before scales map them."""
+    if "group" in df.columns:
+        cols = ["group"]
+    else:
+        cols = [a for a in GROUPING_AES if a in df.columns and is_discrete(df[a])]
+    if not cols or not len(df):
+        return {}
+    firsts = df[cols].assign(_gid=group.to_numpy()).drop_duplicates("_gid")
+    out: dict[int, Any] = {}
+    for row in firsts.itertuples(index=False):
+        vals = tuple(_scalar(v) for v in row[:-1])
+        out[int(row[-1])] = vals[0] if len(vals) == 1 else vals
+    return out
+
+
+def _labels_by_group(label: Mapping, group_values: dict[int, Any]) -> dict:
+    """A line geom's ``label=`` dict with keys that are raw grouping values
+    (``{"setosa": ...}``) re-keyed by group id; other keys (group ids) are kept."""
+    out: dict = {}
+    matched = []
+    for gid, value in group_values.items():
+        try:
+            hit = value in label
+        except TypeError:  # unhashable value
+            hit = False
+        if hit:
+            out[gid] = label[value]
+            matched.append(value)
+    for k, v in label.items():
+        if not any(k is m or k == m for m in matched):
+            out.setdefault(k, v)
     return out
 
 
@@ -513,11 +560,14 @@ def apply_positions(
     :mod:`ggmanim.positions.base`. ``position_identity`` returns the data
     unchanged. ``scales`` are the build's position scales (read-only here; they
     are retrained afterwards by :func:`train_position_scales`). With
-    ``panel_scales`` each panel's rows are adjusted with that panel's scales."""
+    ``panel_scales`` each panel's rows are adjusted with that panel's scales.
+    ``params["layer_index"]`` is the layer's index in the plot (unless the
+    position set it), e.g. so ``position_jitter`` seeds each layer differently."""
     for ld in layers:
         pos = get_position(ld.layer.position)
         try:
             params = pos.setup_params(ld.data)
+            params.setdefault("layer_index", ld.index)
             data = pos.setup_data(ld.data, params)
             groups = _by_panel(data) if panel_scales is not None else []
             if groups and panel_scales is not None:
@@ -773,10 +823,21 @@ def draw_layers(
 
     With a :class:`~ggmanim.facets.PanelGrid` each layer is drawn once per panel
     on that panel's rows; the mobject is a :class:`~ggmanim.facets.PanelLayers`
-    (one group per panel, ``.panel(row, col)``, ``.marks`` in panel order)."""
+    (one group per panel, ``.panel(row, col)``, ``.marks`` in panel order).
+
+    A ``label=`` dict of a geom with ``label_by == "group"`` (the line geoms'
+    direct labels) may be keyed by raw grouping values; they are re-keyed by
+    group id here."""
     out: list[tuple[Any, Mobject]] = []
     for ld in layers:
         geom, params = ld.layer.geom, ld.layer.params
+        label = params.get("label")
+        if (
+            isinstance(label, Mapping)
+            and ld.group_values
+            and getattr(geom, "label_by", "group") == "group"
+        ):
+            params = {**params, "label": _labels_by_group(label, ld.group_values)}
         data = geom.handle_na(ld.data, params, ld.label) if hasattr(geom, "handle_na") else ld.data
         if not isinstance(panel, PanelGrid):
             mob = geom.draw_panel(data, panel.panel_params, panel, theme, **params)

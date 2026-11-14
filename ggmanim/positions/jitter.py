@@ -5,8 +5,10 @@ Jitter adds uniform random noise to the x and y of every row (all x-like columns
 get the row's x offset, all y-like columns its y offset, so bar extents and error
 bars move with their row). Noise comes from :func:`numpy.random.default_rng`, so a
 given ``seed`` gives the same result on every platform. With ``seed=None`` (the
-default) the seed is derived from a hash of the layer's positions, so building a
-plot twice gives identical output (:func:`~ggmanim.build.build_plot` is pure).
+default) the seed is derived from a hash of the layer's positions and its index in
+the plot (``params["layer_index"]``, set by :func:`~ggmanim.build.apply_positions`),
+so building a plot twice gives identical output (:func:`~ggmanim.build.build_plot`
+is pure) while two layers with the same data jitter differently.
 
 Defaults follow ggplot2: ``width``/``height`` are 40% of the resolution of the
 data (on a discrete axis the resolution is 1, so points stay within their level).
@@ -54,9 +56,13 @@ def _resolution(data: pd.DataFrame, axis: str, scales: dict[str, Any] | None) ->
     return float(d.min()) if len(d) else 1.0
 
 
-def _auto_seed(data: pd.DataFrame) -> int:
-    """Deterministic seed from the layer's x/y values (same data -> same noise)."""
+def _auto_seed(data: pd.DataFrame, params: dict[str, Any] | None = None) -> int:
+    """Deterministic seed from the layer's x/y values and ``params["layer_index"]``
+    (same data in the same layer -> same noise)."""
     h = zlib.crc32(np.int64(len(data)).tobytes())
+    index = (params or {}).get("layer_index")
+    if isinstance(index, (int, np.integer)):
+        h = zlib.crc32(np.int64(index).tobytes(), h)
     for c in ("x", "y"):
         if c in data.columns:
             h = zlib.crc32(np.ascontiguousarray(_num(data[c])).tobytes(), h)
@@ -106,7 +112,7 @@ class PositionJitter(Position):
         if height is None:
             height = 0.4 * _resolution(data, "y", scales)
         seed = params.get("seed")
-        seed = _auto_seed(data) if seed is None else seed
+        seed = _auto_seed(data, params) if seed is None else seed
         dx, dy = jitter_offsets(len(data), float(width), float(height), seed)
         for d, col in ((dx, "x"), (dy, "y")):
             if col in data.columns:
@@ -178,7 +184,7 @@ class PositionJitterdodge(Position):
         pieces = [pos_dodge(p, width) for _, p in work.groupby(key, sort=False, dropna=False)]
         work = pd.concat(pieces).sort_index()
         seed = params.get("seed")
-        seed = _auto_seed(data) if seed is None else seed
+        seed = _auto_seed(data, params) if seed is None else seed
         dx, dy = jitter_offsets(len(work), params["_jitter"], float(params["jitter_height"]), seed)
         out = shift_positions(work, dx, dy)
         out.index = index
