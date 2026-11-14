@@ -21,6 +21,7 @@ from .base import (
     group_label,
     make_layer,
     num,
+    paint_stroke,
     resolve_color,
     transform_points,
 )
@@ -72,9 +73,7 @@ class _RefLine(Geom):
         for i, (p, q, row) in enumerate(zip(a, b, data.to_dict("records"))):
             color = resolve_color(row.get("color"), fg)
             alpha = num(row.get("alpha"), 1.0)
-            line = Line(
-                p, q, color=color, stroke_width=num(row.get("linewidth"), 2.0), stroke_opacity=alpha
-            )
+            line = paint_stroke(Line(p, q), color, num(row.get("linewidth"), 2.0), alpha)
             lines.add(apply_linetype(line, row.get("linetype")))
             text = group_label(label, i, i)
             if self.vertical:  # reading upwards, along the top-left of the line
@@ -94,12 +93,11 @@ class _RefLine(Geom):
         a, b = (DOWN, UP) if self.vertical else (LEFT, RIGHT)
         # hline keys widen in linetype legends; vline keys keep the cell height
         w = KEY_SIZE if self.vertical else getattr(theme, "legend_key_width", None) or KEY_SIZE
-        line = Line(
-            a * w / 2,
-            b * w / 2,
-            color=resolve_color(row.get("color"), theme.get_foreground()),
-            stroke_width=num(row.get("linewidth"), 2.0),
-            stroke_opacity=num(row.get("alpha"), 1.0),
+        line = paint_stroke(
+            Line(a * w / 2, b * w / 2),
+            resolve_color(row.get("color"), theme.get_foreground()),
+            num(row.get("linewidth"), 2.0),
+            num(row.get("alpha"), 1.0),
         )
         return apply_linetype(line, row.get("linetype"), max_period=w / 2)
 

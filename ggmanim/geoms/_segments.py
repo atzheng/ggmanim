@@ -36,7 +36,7 @@ from manim import ManimColor, VGroup, VMobject
 from ..scales.shape import parse_linetype
 from ._clip import clip_segments, panel_rect
 from ._linetype import DASH_UNIT
-from .base import _scalar, num, resolve_color, transform_points
+from .base import _scalar, num, paint_stroke, resolve_color, transform_points
 
 __all__ = ["VARYING_AES", "varies_within", "dash_polyline_phase", "segmented_path"]
 
@@ -108,7 +108,7 @@ def _stroke(points: np.ndarray, style: tuple[Any, float, float]) -> VMobject:
     m = VMobject()
     m.set_points_as_corners(points)
     m.set_fill(opacity=0)
-    m.set_stroke(color=color, width=width, opacity=alpha)
+    paint_stroke(m, color, width, alpha)  # None: blank colour
     return m
 
 

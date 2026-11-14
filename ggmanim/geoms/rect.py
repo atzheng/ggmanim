@@ -24,7 +24,7 @@ from ..registry import register
 from ..theme import Theme, theme_default
 from ._batch import draw_rects_fast, use_fast
 from ._rect import clipped_rects, draw_rects, filled_key, ring_points, seal_seams
-from .base import Geom, attach_marks, finite_rows, make_layer, num, resolve_color
+from .base import Geom, attach_marks, finite_rows, make_layer, num, paint_fill, resolve_color
 from .col import resolution
 
 __all__ = ["GeomRect", "GeomTile", "GeomRaster", "geom_rect", "geom_tile", "geom_raster"]
@@ -215,7 +215,7 @@ class GeomRaster(GeomTile):
         for (_hexcol, alpha), idx in batches.items():
             m = VMobject()
             m.set_points(np.concatenate([ring_points(corners[i]) for i in idx], axis=0))
-            m.set_fill(fills[idx[0]], opacity=alpha)
+            paint_fill(m, fills[idx[0]], alpha)
             m.set_stroke(width=0, opacity=0)
             out.add(seal_seams(m))
         keys = pd.DataFrame({"key": [k[0] for k in batches]})

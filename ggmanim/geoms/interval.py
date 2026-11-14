@@ -53,6 +53,7 @@ from .base import (
     make_layer,
     multi_path_mobject,
     num,
+    paint_stroke,
     resolve_color,
     transform_points,
 )
@@ -146,7 +147,7 @@ def _style(mob: VMobject, row: Mapping[str, Any], fg: Any, linewidth: float) -> 
     """Stroke ``mob`` with the row's colour/alpha, then dash it (``linetype``)."""
     color: Any = resolve_color(row.get("color"), fg)
     mob.set_fill(opacity=0)
-    mob.set_stroke(color=color, width=linewidth, opacity=num(row.get("alpha"), 1.0))
+    paint_stroke(mob, color, linewidth, num(row.get("alpha"), 1.0))  # None: blank colour
     return apply_linetype(mob, row.get("linetype"))
 
 
@@ -236,12 +237,11 @@ class _IntervalGeom(Geom):
         raise NotImplementedError
 
     def _key_line(self, row, theme) -> VMobject:
-        return Line(
-            DOWN * KEY_SIZE / 2,
-            UP * KEY_SIZE / 2,
-            color=resolve_color(row.get("color"), theme.get_foreground()),
-            stroke_width=num(row.get("linewidth"), 2.0),
-            stroke_opacity=num(row.get("alpha"), 1.0),
+        return paint_stroke(
+            Line(DOWN * KEY_SIZE / 2, UP * KEY_SIZE / 2),
+            resolve_color(row.get("color"), theme.get_foreground()),
+            num(row.get("linewidth"), 2.0),
+            num(row.get("alpha"), 1.0),
         )
 
 
@@ -458,7 +458,7 @@ def draw_crossbar(
         fill = resolve_color(row.get("fill"))
         box: VMobject = Polygon(*corners)
         box.set_fill(fill if fill is not None else color, opacity=alpha if fill is not None else 0)
-        box.set_stroke(color=color, width=lw, opacity=alpha)
+        paint_stroke(box, color, lw, alpha)
         dashed = apply_linetype(box.copy(), row.get("linetype"))
         if dashed is not box and isinstance(dashed, VGroup):
             box.set_stroke(width=0, opacity=0)

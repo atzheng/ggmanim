@@ -92,9 +92,9 @@ def make_marker(
     """One marker for ``shape`` centred at ``point``.
 
     ``radius`` is the radius (scene units) of the circle with the same area;
-    ``color`` is the outline / solid colour, ``fill`` the fill (``None``: not set,
-    solid shapes then use ``color``); ``alpha`` applies to fill and stroke;
-    ``stroke_width`` overrides :func:`outline_width` for outlined shapes.
+    ``color`` is the outline / solid colour (``None``: blank, no outline), ``fill``
+    the fill (``None``: not set, solid shapes then use ``color``); ``alpha``
+    applies to fill and stroke; ``stroke_width`` overrides :func:`outline_width` for outlined shapes.
     Raises ``ValueError`` for unknown shapes.
     """
     base, style = parse_shape(shape)
@@ -105,20 +105,16 @@ def make_marker(
     if isinstance(m, Dot):
         m.radius = radius
     sw = outline_width(radius) if stroke_width is None else float(stroke_width)
+    solid = fill if fill is not None else color
     if style == "solid":
-        m.set_fill(fill if fill is not None else color, opacity=alpha)
-        m.set_stroke(width=0, opacity=0)
-    elif style == "open":
-        m.set_fill(color, opacity=0)
-        m.set_stroke(color, width=sw, opacity=alpha)
+        m.set_fill(solid, opacity=alpha if solid is not None else 0)
     elif style == "filled":
-        if fill is None:
-            m.set_fill(color, opacity=0)
-        else:
-            m.set_fill(fill, opacity=alpha)
-        m.set_stroke(color, width=sw, opacity=alpha)
-    else:  # stroke-only cross / plus
+        m.set_fill(solid, opacity=alpha if fill is not None else 0)
+    else:  # open, or stroke-only cross / plus
         m.set_fill(color, opacity=0)
-        m.set_stroke(color, width=sw * 1.2, opacity=alpha)
+    if style == "solid" or color is None:  # no outline (None: blank colour)
+        m.set_stroke(width=0, opacity=0)
+    else:
+        m.set_stroke(color, width=sw if style in ("open", "filled") else sw * 1.2, opacity=alpha)
     m.marker_shape = base  # type: ignore[attr-defined]
     return m
