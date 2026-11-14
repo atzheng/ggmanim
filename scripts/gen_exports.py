@@ -98,6 +98,7 @@ TOP_LEVEL: tuple[tuple[str, tuple[str, ...]], ...] = (
     ("scales", ("scale_", "xlim", "ylim")),
     ("stats", ("stat_",)),
     ("theme", ("theme", "theme_", "element_")),
+    ("transition", ("transition", "animate_states", "animate_reveal")),
 )
 
 

@@ -17,8 +17,9 @@ Both plots are built with one layout: the second plot gets the first one's
 panel size (``theme.panel_width``/``panel_height``) and legend position and is
 then scaled and shifted so the two panels coincide. ``limits=`` decides whether
 the position scales are shared (``"union"`` of both, ``"a"``, ``"b"``, or an
-explicit ``{"x": (lo, hi), "y": (lo, hi)}`` in data space; continuous scales
-only, discrete and date axes keep their own).
+explicit ``{"x": (lo, hi), "y": [levels]}``): continuous axes share a data-space
+``(lo, hi)``, date axes a ``(lo, hi)`` of dates (or days / seconds since the
+epoch), discrete axes a list of levels.
 
 Then, part by part:
 
@@ -31,7 +32,9 @@ Then, part by part:
   lines are matched by label text: shared ones move to their new place, the
   others fade, sliding along with the axis (an outgoing ``"20"`` moves to where
   20 is on the new axis) when both axes are continuous with the same transform.
-  Minor grid lines match by value.
+  A sliding tick stops at the panel edge and has faded out by the time its
+  value is a little beyond it, so outgoing labels do not pile up there. Minor
+  grid lines match by value.
 * **legend, titles, backgrounds** -- ``Transform`` when their shape is
   compatible (same text / same number of pieces), else a cross-fade.
 
@@ -59,6 +62,7 @@ from manim import (
     Mobject,
     Succession,
     Transform,
+    VMobject,
     Wait,
 )
 from manim.utils.rate_functions import linear
@@ -110,20 +114,37 @@ def _with_key(spec: Any, key: str | None) -> Any:
     return spec._replace(layers=tuple(layers))
 
 
-def _limitable(scale: Any) -> bool:
-    return isinstance(scale, ScaleContinuousPosition) and not isinstance(scale, ScaleDatePosition)
+Limits = dict[str, Any]
+"""``{"x": (lo, hi) or [levels], "y": ...}``: shared position limits."""
 
 
-def _position_limits(plot: Any) -> dict[str, tuple[float, float]]:
-    """Data-space ``{"x": (lo, hi), "y": ...}`` of a built plot's continuous
-    (non-date) position scales."""
-    out: dict[str, tuple[float, float]] = {}
+def _limit_kind(scale: Any) -> str | None:
+    """``"discrete"``, ``"date"`` or ``"continuous"`` for a position scale."""
+    if isinstance(scale, ScaleDiscretePosition):
+        return "discrete"
+    if isinstance(scale, ScaleDatePosition):
+        return "date"
+    if isinstance(scale, ScaleContinuousPosition):
+        return "continuous"
+    return None
+
+
+def _position_limits(plot: Any) -> Limits:
+    """``{"x": ..., "y": ...}`` of a built plot's position scales: data-space
+    ``(lo, hi)`` for continuous and date scales (dates as days / seconds since
+    the epoch), the list of levels for discrete ones."""
+    out: Limits = {}
     for ax in ("x", "y"):
         scale = plot.scales.get(ax)
-        if not _limitable(scale):
+        kind = _limit_kind(scale)
+        if kind is None:
             continue
         lim = scale.get_limits()
         if lim is None:
+            continue
+        if kind == "discrete":
+            if len(lim):
+                out[ax] = list(lim)
             continue
         d = np.asarray(scale.trans.inverse(np.asarray(lim, dtype=float)), dtype=float)
         if np.all(np.isfinite(d)):
@@ -131,38 +152,120 @@ def _position_limits(plot: Any) -> dict[str, tuple[float, float]]:
     return out
 
 
-def shared_limits(*plots: Any) -> dict[str, tuple[float, float]]:
-    """The union of the continuous position-scale limits (data space) of
-    ``plots`` (specs are built), as ``{"x": (lo, hi), "y": (lo, hi)}``."""
-    out: dict[str, tuple[float, float]] = {}
-    for p in plots:
-        built = p.build() if _is_spec(p) else p
-        for ax, (lo, hi) in _position_limits(built).items():
-            if ax in out:
-                lo, hi = min(lo, out[ax][0]), max(hi, out[ax][1])
-            out[ax] = (lo, hi)
+def _union_levels(levels: Sequence[list[Any]]) -> list[Any]:
+    """Ordered union of level lists (first appearance), sorted when every input
+    is sorted (as default discrete levels are)."""
+    out: list[Any] = []
+    seen: set[Hashable] = set()
+    for lv in levels:
+        for v in lv:
+            if _hkey(v) not in seen:
+                seen.add(_hkey(v))
+                out.append(v)
+    try:
+        if all(list(lv) == sorted(lv) for lv in levels):
+            return sorted(out)
+    except TypeError:
+        pass
     return out
 
 
-def _apply_limits(spec: Any, limits: Mapping[str, Any]) -> Any:
-    """``spec`` with its continuous x/y scales' ``limits`` set (a copy of the
-    spec's own scale when it has one, else ``xlim``/``ylim``). Discrete and date
-    scales are left alone."""
+def _union_limits(all_limits: Sequence[Limits]) -> Limits:
+    out: Limits = {}
+    for ax in ("x", "y"):
+        vals = [lim[ax] for lim in all_limits if ax in lim]
+        if not vals:
+            continue
+        if all(isinstance(v, list) for v in vals):
+            out[ax] = _union_levels(vals)
+        elif all(isinstance(v, tuple) for v in vals):
+            out[ax] = (min(v[0] for v in vals), max(v[1] for v in vals))
+        # discrete in one plot, continuous in another: nothing to share
+    return out
+
+
+def shared_limits(*plots: Any) -> Limits:
+    """The union of the position-scale limits of ``plots`` (specs are built), as
+    ``{"x": ..., "y": ...}``: ``(lo, hi)`` in data space for continuous and date
+    axes (dates as days / seconds since the epoch), the ordered union of the
+    levels for discrete axes."""
+    return _union_limits([_position_limits(p.build() if _is_spec(p) else p) for p in plots])
+
+
+def _is_levels(lim: Any) -> bool:
+    """Whether explicit limits ``lim`` look like discrete levels rather than a
+    ``(lo, hi)`` pair."""
+    if isinstance(lim, (str, bytes)):
+        return True
+    vals = list(lim)
+    if len(vals) != 2:
+        return True
+    if any(isinstance(v, (bool, np.bool_)) for v in vals):
+        return True
+    return all(isinstance(v, str) for v in vals) and not _date_strings(vals)
+
+
+def _date_strings(vals: Sequence[Any]) -> bool:
+    import warnings
+
+    try:
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            pd.to_datetime(list(vals))
+    except (ValueError, TypeError):
+        return False
+    return True
+
+
+def _apply_limits(spec: Any, limits: Mapping[str, Any], ref: Any = None) -> Any:
+    """``spec`` with its x/y position scales' ``limits`` set.
+
+    The spec's own scale is copied when it has one; otherwise the trained scale
+    of the built plot ``ref`` (default: ``spec`` built, when needed) is cloned
+    for date and discrete axes, and ``xlim``/``ylim`` is used for continuous
+    ones. Date limits may be dates, ISO strings or days / seconds since the
+    epoch; discrete limits are levels. Limits that do not fit the axis (levels
+    for a continuous axis ...) are ignored."""
     import copy
 
     from .scales.continuous import xlim, ylim
+    from .scales.date import _to_num
+    from .scales.discrete_position import scale_x_discrete, scale_y_discrete
 
     for ax, lim in limits.items():
         if lim is None or ax not in ("x", "y"):
             continue
-        lo, hi = (float(v) for v in lim)
-        scale = spec.get_scale(ax)
-        if scale is None:
-            spec = spec.add((xlim if ax == "x" else ylim)(lo, hi))
-        elif _limitable(scale):
-            new = copy.copy(scale)
+        own = spec.get_scale(ax)
+        template = own
+        if template is None:
+            if ref is None:
+                ref = spec.build()
+            template = ref.scales.get(ax)
+        kind = _limit_kind(template)
+        levels = _is_levels(lim)
+        new: Any
+        if kind == "discrete" or (kind is None and levels):
+            lv = [lim] if isinstance(lim, (str, bytes)) else list(lim)
+            if template is None:
+                new = (scale_x_discrete if ax == "x" else scale_y_discrete)(limits=lv)
+            else:
+                new = copy.copy(own) if own is not None else template.clone()
+                new.limits = lv
+        elif levels:
+            continue
+        elif kind == "date":
+            lo, hi = (_to_num(v, template.unit) for v in lim)
+            new = copy.copy(own) if own is not None else template.clone()
             new.limits = (lo, hi)
-            spec = spec.add(new)
+        elif own is None:
+            lo, hi = (float(v) for v in lim)
+            new = (xlim if ax == "x" else ylim)(lo, hi)
+        elif kind == "continuous":
+            new = copy.copy(own)
+            new.limits = tuple(float(v) for v in lim)
+        else:
+            continue
+        spec = spec.add(new)
     return spec
 
 
@@ -260,6 +363,13 @@ class _Builder:
         if _has_points(y):
             kw = {"shift": shift} if shift is not None else {}
             (self.anims if out is None else out).append(FadeIn(y, **kw))
+
+    def add(self, m: Mobject, anim: Animation, entering: bool, out: list | None = None) -> None:
+        """A custom animation of ``m`` (a part of the second plot when
+        ``entering``, else of the first)."""
+        self._mark(self._seen_b if entering else self._seen_a, m)
+        if _has_points(m):
+            (self.anims if out is None else out).append(anim)
 
     def pair(self, x: Mobject | None, y: Mobject | None, out: list | None = None) -> None:
         """Transform when both exist with compatible shape, else cross-fade."""
@@ -378,23 +488,101 @@ def _ticks(panel: Any, horizontal: bool) -> tuple[list[_Tick], list[tuple[float,
     return items, minor
 
 
+#: How far (scene units) beyond the panel edge an unmatched tick's value travels
+#: while it fades out (or in) at the edge.
+EDGE_FADE = 0.35
+
+
+class _AxisSlide:
+    """Mixin for an unmatched tick part (label, tick mark, grid line) riding
+    along the axis as it rescales: its axis coordinate goes from ``p0`` (the
+    value's place on the old axis) to ``p1`` (on the new one), clamped to the
+    panel ``[lo, hi]``; it fades out or in, and is fully transparent whenever
+    the value is more than :data:`EDGE_FADE` beyond the edge, so parts leaving
+    the panel vanish there instead of piling up. ``home`` is the axis coordinate
+    the mobject is drawn at. Used through :class:`_AxisSlideOut` /
+    :class:`_AxisSlideIn` (a ``FadeOut`` / ``FadeIn``)."""
+
+    entering = False
+
+    def _slide(
+        self, p0: float, p1: float, home: float, lo: float, hi: float, unit: np.ndarray
+    ) -> None:
+        self.p0, self.p1, self.home = p0, p1, home
+        self.lo, self.hi = lo, hi
+        self.unit = np.asarray(unit, dtype=float)
+
+    def place(self, alpha: float) -> tuple[float, float]:
+        """``(axis coordinate, opacity factor)`` at ``alpha``."""
+        p = self.p0 + (self.p1 - self.p0) * alpha
+        pc = float(np.clip(p, self.lo, self.hi))
+        outside = max(self.lo - p, p - self.hi, 0.0)
+        edge = float(np.clip(1.0 - outside / EDGE_FADE, 0.0, 1.0))
+        base = alpha if self.entering else 1.0 - alpha
+        return pc, base * edge
+
+    def _slide_submobject(
+        self, submobject: Mobject, starting_submobject: Mobject, target_copy: Mobject, alpha: float
+    ) -> None:
+        # FadeIn starts from a transparent copy and ends at the original; FadeOut
+        # the other way round: take the opaque, unshifted one as the reference
+        ref = target_copy if self.entering else starting_submobject
+        pc, f = self.place(float(alpha))
+        submobject.points = ref.points + (pc - self.home) * self.unit
+        if isinstance(submobject, VMobject) and isinstance(ref, VMobject):
+            for attr in ("fill_rgbas", "stroke_rgbas", "background_stroke_rgbas"):
+                rgbas = getattr(ref, attr, None)
+                if rgbas is None or len(rgbas) == 0:
+                    continue
+                new = np.array(rgbas, dtype=float)
+                new[:, 3] *= f
+                setattr(submobject, attr, new)
+
+
+class _AxisSlideOut(_AxisSlide, FadeOut):
+    def __init__(self, mobject: Mobject, *slide: Any, **kwargs: Any):
+        self._slide(*slide)
+        super().__init__(mobject, **kwargs)
+
+    def interpolate_submobject(  # type: ignore[override]  # as manim.Transform
+        self, submobject: Mobject, starting_submobject: Mobject, target_copy: Mobject, alpha: float
+    ) -> Transform:
+        self._slide_submobject(submobject, starting_submobject, target_copy, alpha)
+        return self
+
+
+class _AxisSlideIn(_AxisSlide, FadeIn):
+    entering = True
+
+    def __init__(self, mobject: Mobject, *slide: Any, **kwargs: Any):
+        self._slide(*slide)
+        super().__init__(mobject, **kwargs)
+
+    def interpolate_submobject(  # type: ignore[override]  # as manim.Transform
+        self, submobject: Mobject, starting_submobject: Mobject, target_copy: Mobject, alpha: float
+    ) -> Transform:
+        self._slide_submobject(submobject, starting_submobject, target_copy, alpha)
+        return self
+
+
 def _axis_anims(
     bld: _Builder, pa: Any, pb: Any, horizontal: bool, comparable: bool, out: list
 ) -> None:
     unit = RIGHT if horizontal else UP
-    k = 0 if horizontal else 1
-    ends = [pa.axes.get_critical_point(-unit)[k], pa.axes.get_critical_point(unit)[k]]
+    rng = pa.axes.x_range if horizontal else pa.axes.y_range
+    lo, hi = sorted((_pos(pa, rng[0], horizontal), _pos(pa, rng[1], horizontal)))
 
-    def delta(v: float) -> np.ndarray | None:
-        """Where ``v`` moves along the axis (its place on ``pb`` minus its place
-        on ``pa``), each end clamped to the panel so nothing flies in from afar."""
-        if not comparable:
-            return None
-        p_a, p_b = _pos(pa, v, horizontal), _pos(pb, v, horizontal)
+    def move(m: Mobject, v: float, entering: bool) -> None:
+        """Fade ``m`` (a part of the tick at value ``v``) out or in, riding
+        along the axis when both axes place ``v`` comparably."""
+        p_a = _pos(pa, v, horizontal) if comparable else np.nan
+        p_b = _pos(pb, v, horizontal) if comparable else np.nan
         if not (np.isfinite(p_a) and np.isfinite(p_b)):
-            return None
-        d = float(np.clip(p_b, *ends) - np.clip(p_a, *ends))
-        return d * unit
+            (bld.fade_in if entering else bld.fade_out)(m, None, out)
+            return
+        home = p_b if entering else p_a
+        cls = _AxisSlideIn if entering else _AxisSlideOut
+        bld.add(m, cls(m, p_a, p_b, home, lo, hi, unit), entering, out)
 
     items_a, minor_a = _ticks(pa, horizontal)
     items_b, minor_b = _ticks(pb, horizontal)
@@ -407,7 +595,7 @@ def _axis_anims(
         other = queue.popleft() if queue else None
         if other is None or it.label == "":
             for m in it.parts.values():
-                bld.fade_out(m, delta(it.value), out)
+                move(m, it.value, False)
             continue
         matched_b.add(id(other))
         for part in ("tick", "label", "grid"):
@@ -415,9 +603,8 @@ def _axis_anims(
     for it in items_b:
         if id(it) in matched_b:
             continue
-        d = delta(it.value)
         for m in it.parts.values():
-            bld.fade_in(m, d, out)
+            move(m, it.value, True)
 
     span = abs(float((pb.axes.x_range if horizontal else pb.axes.y_range)[1]))
     used: set[int] = set()
@@ -428,13 +615,13 @@ def _axis_anims(
                 hit = j
                 break
         if hit is None:
-            bld.fade_out(line, delta(v), out)
+            move(line, v, False)
         else:
             used.add(hit)
             bld.transform(line, minor_b[hit][1], out)
     for j, (w, line_b) in enumerate(minor_b):
         if j not in used:
-            bld.fade_in(line_b, delta(w), out)
+            move(line_b, w, True)
 
 
 def _panel_anims(bld: _Builder, a: Any, b: Any, cell: Any, pa: Any, pb: Any) -> list:
@@ -666,22 +853,23 @@ def transition(
     built_a = spec_a.build() if spec_a is not None else plot_a
 
     if limits is not None:
+        pre_b = spec_b.build() if spec_b is not None else plot_b
         if isinstance(limits, str):
             if limits not in _LIMIT_MODES:
                 raise ValueError(f"limits must be one of {_LIMIT_MODES}, a mapping or None")
             if limits == "a":
                 target = _position_limits(built_a)
             elif limits == "b":
-                target = shared_limits(spec_b if spec_b is not None else plot_b)
+                target = shared_limits(pre_b)
             else:
-                target = shared_limits(built_a, spec_b if spec_b is not None else plot_b)
+                target = shared_limits(built_a, pre_b)
         else:
             target = dict(limits)
         if spec_a is not None and target != _position_limits(built_a):
-            spec_a = _apply_limits(spec_a, target)
+            spec_a = _apply_limits(spec_a, target, built_a)
             built_a = spec_a.build()
         if spec_b is not None:
-            spec_b = _apply_limits(spec_b, target)
+            spec_b = _apply_limits(spec_b, target, pre_b)
 
     if spec_b is not None:
         built_b = _build_like(spec_b, built_a, spec_a)
@@ -762,6 +950,79 @@ def _map_data(spec: Any, col: str, fn: Any) -> Any:
     return spec._replace(layers=layers)
 
 
+_GROUP_COL = ".ggm_group_{}"
+
+
+def _stable_groups(spec: Any) -> Any:
+    """``spec`` with an explicit ``group`` mapping on every layer whose groups
+    come from discrete aesthetics (``colour``, ``fill``, ``linetype`` ...).
+
+    The ids are computed once on the full data (stored in a hidden column of the
+    layer's data frame), so a subset of the rows keeps the same group ids even
+    when some groups are missing from it: per-group marks (lines, areas, smooths)
+    then match across states instead of swapping. Layers that map ``group``
+    themselves, or have no discrete grouping aesthetic, are left alone."""
+    from .aes import evaluate_aes
+    from .stats.base import GROUPING_AES, add_group, is_discrete
+
+    data = spec.data
+    layers = list(spec.layers)
+    for i, layer in enumerate(layers):
+        mapping = layer.resolve_mapping(spec.mapping)
+        if "group" in mapping:
+            continue
+        own = isinstance(layer.data, pd.DataFrame)
+        frame = layer.data if own else data
+        if not isinstance(frame, pd.DataFrame) or frame.empty:
+            continue
+        try:
+            ev = evaluate_aes(mapping, frame)
+        except Exception:  # noqa: BLE001 - leave layers we cannot evaluate alone
+            continue
+        cols = [a for a in GROUPING_AES if a in ev.columns and is_discrete(ev[a])]
+        if not cols:
+            continue
+        col = _GROUP_COL.format(i)
+        ids = add_group(ev[cols])["group"].to_numpy()
+        frame = frame.assign(**{col: ids})
+        if own:
+            layer = layer.replace(data=frame)
+        else:
+            data = frame
+        base = layer.mapping if layer.mapping is not None else Aes()
+        layers[i] = layer.replace(mapping=Aes({**dict(base), "group": col}))
+    return spec._replace(data=data, layers=tuple(layers))
+
+
+def _stable_discrete_scales(spec: Any) -> Any:
+    """``spec`` with the levels of its discrete non-position scales (``colour``,
+    ``fill``, ``shape`` ...) fixed to those of the full data, so a group keeps
+    its colour (and legend entry) in every state. Scales with user ``limits``
+    and identity scales are left alone."""
+    import copy
+
+    from .scales.discrete import ScaleDiscrete, ScaleDiscreteIdentity
+
+    full = spec.build()
+    seen: set[int] = set()
+    for aes_name, scale in full.scales.items():
+        if aes_name in ("x", "y") or id(scale) in seen:
+            continue
+        seen.add(id(scale))
+        if not isinstance(scale, ScaleDiscrete) or isinstance(scale, ScaleDiscreteIdentity):
+            continue
+        levels = scale.get_limits()
+        if not levels:
+            continue
+        own = spec.get_scale(aes_name)
+        if own is not None and getattr(own, "limits", None) is not None:
+            continue
+        new = copy.copy(own) if own is not None else scale.clone()
+        new.limits = list(levels)
+        spec = spec.add(new)
+    return spec
+
+
 def _chain(
     specs: list[Any],
     states: list[Any],
@@ -775,14 +1036,13 @@ def _chain(
     **kwargs: Any,
 ) -> StatesAnimation:
     specs = [_with_key(s, key) for s in specs]
-    if limits == "union":
-        shared: Mapping[str, Any] | None = shared_limits(*specs)
-    elif limits is None or isinstance(limits, Mapping):
-        shared = limits
-    else:
+    if not (limits is None or limits == "union" or isinstance(limits, Mapping)):
         raise ValueError("limits must be 'union', a mapping or None here")
-    if shared:
-        specs = [_apply_limits(s, shared) for s in specs]
+    if limits is not None:
+        built = [s.build() for s in specs]
+        shared = shared_limits(*built) if limits == "union" else dict(limits)  # type: ignore[arg-type]
+        if shared:
+            specs = [_apply_limits(s, shared, b) for s, b in zip(specs, built)]
     first = specs[0].build()
     plots = [first]
     transitions: list[Transition] = []
@@ -822,6 +1082,12 @@ def animate_states(
     ``states`` (the rows with that value), shown for ``state_length`` seconds
     and morphed into the next over ``transition_length``.
 
+    Group ids (from discrete ``colour``/``fill``/``linetype`` ... mappings) are
+    computed on the full data, so a line or area keeps its id in every state and
+    morphs into itself even when other groups are missing from a state; the
+    levels of discrete colour/fill/shape/... scales are those of the full data,
+    so colours and legends do not change between states.
+
     Parameters
     ----------
     spec : ``ggplot`` spec; its data (and layers' own data with the column) is
@@ -830,7 +1096,8 @@ def animate_states(
     key : column matching marks between states (see :func:`transition`)
     levels : state values in order (default: category order, else sorted)
     wrap : transition from the last state back to the first
-    limits : shared position limits, ``"union"`` of all states (default), a
+    limits : shared position limits, ``"union"`` of all states (default; the
+        levels of discrete axes, the range of continuous and date axes), a
         mapping or ``None`` (axes rescale)
     title : format string for a per-state title, e.g. ``"Year: {state}"``
     lag_ratio, **kwargs : passed to each :func:`transition`
@@ -846,6 +1113,7 @@ def animate_states(
     values = _state_values(data[states], levels)
     if not values:
         raise ValueError(f"column {states!r} has no values")
+    spec = _stable_discrete_scales(_stable_groups(spec))
     specs = []
     for v in values:
         s = _map_data(spec, states, lambda df, v=v: df[df[states] == v])

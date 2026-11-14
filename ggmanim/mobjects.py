@@ -182,6 +182,14 @@ class GGPlot(VGroup):
 
         return mark(self, layer, key)
 
+    def transition_to(self, other, key=None, **kwargs):
+        """Animation morphing this plot into ``other`` (a spec or built plot),
+        matching marks by ``key``; ``.plot`` of the result is the built
+        ``other`` (:func:`ggmanim.transition.transition`)."""
+        from .transition import transition
+
+        return transition(self, other, key, **kwargs)
+
     # endregion
 
     # region: live
