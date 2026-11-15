@@ -34,8 +34,10 @@ drawn on the side opposite its primary axis: ``panel.x_sec_ticks``,
 screen orientation, like ``x_ticks``), with its breaks mapped onto the primary axis
 by :meth:`~ggmanim.scales.sec_axis.AxisSecondary.break_info`. The theme switches
 ``axis_text_x_top``/``axis_text_y_right`` and ``axis_title_x_top``/
-``axis_title_y_right`` (``None``: inherit ``axis_text_x`` ...) control its labels
-and title on the top / right sides.
+``axis_title_y_right`` (``None``: inherit ``axis_text_x`` ...) control the labels
+and title drawn on the top / right sides, whether of a secondary axis or of the main
+axis moved there by ``position=``; ``axis_ticks_x_top``/``axis_ticks_y_right`` do the
+same for its ticks.
 Tick-label strings go through :func:`ggmanim.labels.render_label` (``"$...$"`` math
 -> Unicode superscripts with the Text engine; LaTeX specials escaped with Tex).
 
@@ -598,7 +600,9 @@ class CoordCartesian:
         tl = theme.tick_length
         x_ticks, y_ticks = VGroup(), VGroup()
         tick_color = theme.color_of("axis_ticks_color")
-        if theme.axis_element("axis_ticks", "x"):
+        x_side = "top" if x_top else "bottom"
+        y_side = "right" if y_right else "left"
+        if _sec_element(theme, "axis_ticks", "x", x_side):
             for p in x_at:
                 x_ticks.add(
                     Line(
@@ -608,7 +612,7 @@ class CoordCartesian:
                         stroke_color=tick_color,
                     )
                 )
-        if theme.axis_element("axis_ticks", "y"):
+        if _sec_element(theme, "axis_ticks", "y", y_side):
             for p in y_at:
                 y_ticks.add(
                     Line(
@@ -622,19 +626,19 @@ class CoordCartesian:
         x_gap = (tl if len(x_ticks) else 0.0) + theme.tick_label_buff
         y_gap = (tl if len(y_ticks) else 0.0) + theme.tick_label_buff
         x_tick_labels, y_tick_labels = VGroup(), VGroup()
-        if theme.axis_element("axis_text", "x"):
+        if _sec_element(theme, "axis_text", "x", x_side):
             for p, s in zip(x_at, pp.x_labels):
                 lab = _place_tick_label(_label(theme, s, "x"), p, x_dir, x_gap, theme, "x")
                 x_tick_labels.add(lab)  # type: ignore[arg-type]
-        if theme.axis_element("axis_text", "y"):
+        if _sec_element(theme, "axis_text", "y", y_side):
             for p, s in zip(y_at, pp.y_labels):
                 lab = _place_tick_label(_label(theme, s, "y"), p, y_dir, y_gap, theme, "y")
                 y_tick_labels.add(lab)  # type: ignore[arg-type]
 
         x_title = y_title = None
-        if theme.axis_element("axis_title", "x"):
+        if _sec_element(theme, "axis_title", "x", x_side):
             x_title = _make_title(theme, _title(x_scale, labels, "x"))
-        if theme.axis_element("axis_title", "y"):
+        if _sec_element(theme, "axis_title", "y", y_side):
             y_title = _make_title(theme, _title(y_scale, labels, "y"))
         corner = _c2p(axes, x1 if y_right else x0, y1 if x_top else y0)[0]
         centre = _c2p(axes, (x0 + x1) / 2, (y0 + y1) / 2)[0]
@@ -673,8 +677,8 @@ _SIDE_FIELDS = {("x", "top"): "x_top", ("y", "right"): "y_right"}
 
 
 def _sec_element(theme: Theme, element: str, axis: str, side: str) -> bool:
-    """Whether ``element`` (``"axis_text"``/``"axis_title"``) of the secondary axis on
-    ``side`` is drawn: ``theme.axis_text_x_top`` etc. for the top / right sides,
+    """Whether ``element`` (``"axis_text"``/``"axis_title"``/``"axis_ticks"``) of the
+    axis (primary or secondary) on ``side`` is drawn: ``theme.axis_text_x_top`` etc. for the top / right sides,
     inheriting :meth:`Theme.axis_element` when ``None`` (or on bottom / left)."""
     suffix = _SIDE_FIELDS.get((axis, side))
     own = getattr(theme, f"{element}_{suffix}", None) if suffix else None
@@ -733,7 +737,7 @@ def _add_secondary_axes(
                     stroke_width=theme.axis_stroke_width,
                     stroke_color=line_color,
                 )
-            if theme.axis_element("axis_ticks", axis):
+            if _sec_element(theme, "axis_ticks", axis, side):
                 for p in at:
                     ticks.add(
                         Line(
