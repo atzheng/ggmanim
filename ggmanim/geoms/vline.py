@@ -78,13 +78,20 @@ class _RefLine(Geom):
             (v, lo * ones, v, hi * ones) if self.vertical else (lo * ones, v, hi * ones, v)
         )
         munch = not getattr(coord, "is_linear", True)
+        # coord_radar is linear, so a line along theta would collapse onto itself
+        # (both ends at the same angle): draw a closed polygon through the spokes
+        spokes = self._radar_spokes(coord, panel_params)
         a, b = transform_points(coord, x0, y0), transform_points(coord, x1, y1)
         lines, labels, drawn = VGroup(), VGroup(), []
         for i, row in enumerate(data.to_dict("records")):
             color = resolve_color(row.get("color"), fg)
             alpha = num(row.get("alpha"), 1.0)
             width = num(row.get("linewidth"), 2.0)
-            if munch:  # bends with the coord: circles / rays under coord_polar
+            if spokes is not None:  # polygon through the spokes at this radius
+                ring = transform_points(coord, *self._ring(spokes, v[i]))
+                line = multi_path_mobject([ring], color, width, alpha)
+                q = ring[int(np.argmax(ring[:, 1]))]
+            elif munch:  # bends with the coord: circles / rays under coord_polar
                 pieces, _, _ = munched_segment(coord, panel_params, x0[i], y0[i], x1[i], y1[i])
                 if not pieces:
                     continue
@@ -106,6 +113,24 @@ class _RefLine(Geom):
                 labels.add(lab)
         # one line per row, so marks are per row (each intercept is its own mark)
         return attach_marks(assemble(lines, labels), data.iloc[drawn], per="row")
+
+    def _radar_spokes(self, coord, panel_params) -> np.ndarray | None:
+        """Theta breaks (the spokes) when this line runs along theta of a
+        ``coord_radar`` (hline with ``theta="x"``, vline with ``theta="y"``)."""
+        theta = getattr(coord, "theta", None)
+        if theta is None or not getattr(coord, "is_linear", False) or panel_params is None:
+            return None
+        if (theta == "x") == self.vertical:
+            return None
+        br = np.asarray(getattr(panel_params, f"{theta}_breaks", ()), dtype=float)
+        br = np.unique(br[np.isfinite(br)])
+        return br if len(br) >= 2 else None
+
+    def _ring(self, spokes: np.ndarray, v: float) -> tuple[np.ndarray, np.ndarray]:
+        """Closed ``(x, y)`` ring through ``spokes`` at intercept ``v``."""
+        t = np.append(spokes, spokes[0])
+        c = np.full_like(t, v)
+        return (c, t) if self.vertical else (t, c)
 
     def draw_key(self, data_row, theme: Theme | None = None) -> VMobject:
         theme = theme if theme is not None else theme_default()
