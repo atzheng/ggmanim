@@ -49,7 +49,7 @@ def geom_histogram(
     group. ``bins`` (default 30, with a warning) or ``binwidth``; ``center`` /
     ``boundary`` place the bins; ``breaks`` gives the edges. Map
     ``y=after_stat("density")`` (or ``"ncount"``/``"ndensity"``) for other scales;
-    a ``weight`` aesthetic sums weights. See :class:`~ggmanim.stats.bin.StatBin`."""
+    a ``weight`` aesthetic sums weights. See `StatBin`."""
     _bin_params(
         params,
         bins=bins,
@@ -92,7 +92,7 @@ def geom_freqpoly(
 ):
     """Frequency polygon: a line through the bin counts of ``x``, one per group
     (``stat="bin"`` with ``pad=True``, so each line starts and ends at 0). Takes
-    the same binning parameters as :func:`geom_histogram`."""
+    the same binning parameters as [`geom_histogram()`][ggmanim.geoms.geom_histogram]."""
     _bin_params(
         params,
         bins=bins,

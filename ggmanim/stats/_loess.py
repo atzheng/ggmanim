@@ -95,7 +95,7 @@ def _vertices(x: np.ndarray, span: float) -> np.ndarray:
 
 @dataclass(frozen=True)
 class Loess:
-    """A fitted loess smoother (see :func:`loess`).
+    """A fitted loess smoother (see `loess()`).
 
     Attributes
     ----------

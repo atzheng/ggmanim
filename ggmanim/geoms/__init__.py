@@ -1,6 +1,6 @@
 """Geoms: turn computed layer data into manim mobjects.
 
-See :mod:`ggmanim.geoms.base` for the contract with the build pipeline and
+See `ggmanim.geoms.base` for the contract with the build pipeline and
 legend guides. One public module per geom family; the export block below is
 generated from each module's ``__all__`` by ``scripts/gen_exports.py``.
 """

@@ -5,10 +5,10 @@ A *palette* is either
 * a plain list of values (``ManimColor`` instances for colour palettes, or
   e.g. shape / linetype names), or
 * a callable ``n -> list`` that generates ``n`` values on demand (e.g.
-  :func:`hue_pal`).
+  [`hue_pal()`][ggmanim.palettes.hue_pal]).
 
-Named palettes can also be referred to by string, see :data:`PALETTES` and
-:func:`resolve_palette`.
+Named palettes can also be referred to by string, see `PALETTES` and
+[`resolve_palette()`][ggmanim.palettes.resolve_palette].
 """
 
 from __future__ import annotations
@@ -159,7 +159,7 @@ def hue_pal(
 
 
 def hsv_pal(s: float = 0.65, v: float = 0.9) -> Callable[[int], list[ManimColor]]:
-    """Simple evenly spaced HSV hues (cheap alternative to :func:`hue_pal`)."""
+    """Simple evenly spaced HSV hues (cheap alternative to [`hue_pal()`][ggmanim.palettes.hue_pal])."""
 
     def pal(n: int) -> list[ManimColor]:
         return (
@@ -184,7 +184,7 @@ PALETTES: dict[str, Palette] = {
 def resolve_palette(palette: Palette | str, n: int, *, cycle: bool = False) -> list[Any]:
     """Return exactly ``n`` values from ``palette``.
 
-    ``palette`` may be a name in :data:`PALETTES`, a list, or a callable ``n -> list``.
+    ``palette`` may be a name in `PALETTES`, a list, or a callable ``n -> list``.
     Raises ``ValueError`` if a fixed palette has fewer than ``n`` entries, unless
     ``cycle=True`` in which case entries are recycled.
     """
@@ -276,7 +276,7 @@ def _rgb_array(colours: Sequence[Any]) -> np.ndarray:
 
 
 #: ``0xRRGGBB`` -> ``ManimColor`` for the continuous palettes (colours are never
-#: changed in place, so one instance can be shared); bounded by :data:`_HEX_CACHE_MAX`
+#: changed in place, so one instance can be shared); bounded by `_HEX_CACHE_MAX`
 _HEX_CACHE: dict[int, ManimColor] = {}
 _HEX_CACHE_MAX = 65536
 
@@ -341,7 +341,7 @@ def div_gradient_pal(
     return gradient_n_pal([low, mid, high])
 
 
-#: R-style single-letter option codes for :func:`viridis_pal`.
+#: R-style single-letter option codes for [`viridis_pal()`][ggmanim.palettes.viridis_pal].
 _VIRIDIS_OPTIONS = {"A": "magma", "B": "inferno", "C": "plasma", "D": "viridis", "E": "cividis"}
 
 

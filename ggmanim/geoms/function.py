@@ -12,7 +12,7 @@ __all__ = ["GeomFunction", "geom_function"]
 
 
 class GeomFunction(GeomPath):
-    """A :class:`GeomPath` fed by ``stat_function`` (data already ordered by x).
+    """A [`GeomPath`][ggmanim.geoms.GeomPath] fed by ``stat_function`` (data already ordered by x).
 
     The layer has no data of its own before the stat, so it contributes nothing
     to pre-stat position training; after the stat its ``x``/``y`` train the scales

@@ -1,8 +1,8 @@
 """Statistical transformations (pure pandas/numpy; no manim imports).
 
 One public module per stat; the export block below is generated from each
-module's ``__all__`` by ``scripts/gen_exports.py``. :data:`STATS` (used by
-:func:`get_stat` to resolve ``stat="smooth"``) is derived from the exported
+module's ``__all__`` by ``scripts/gen_exports.py``. `STATS` (used by
+[`get_stat()`][ggmanim.stats.get_stat] to resolve ``stat="smooth"``) is derived from the exported
 ``Stat*`` classes, so a new stat module needs no edit here.
 """
 
@@ -168,7 +168,7 @@ def _stat_name(cls: type) -> str:
     return _re.sub(r"(?<=[a-z0-9])(?=[A-Z])|(?<=[A-Za-z])(?=[0-9])", "_", stem).lower()
 
 
-#: name -> Stat class, used by :func:`get_stat` to resolve ``stat="smooth"``.
+#: name -> Stat class, used by [`get_stat()`][ggmanim.stats.get_stat] to resolve ``stat="smooth"``.
 STATS: dict[str, type[Stat]] = {
     _stat_name(_obj): _obj
     for _name, _obj in sorted(globals().items())

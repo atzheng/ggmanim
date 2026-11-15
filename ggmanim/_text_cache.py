@@ -1,11 +1,11 @@
-"""Memoised text mobjects for :meth:`ggmanim.theme.Theme.make_text`.
+"""Memoised text mobjects for [`ggmanim.theme.Theme.make_text()`][ggmanim.theme.Theme.make_text].
 
 Laying out text is the most expensive part of building a plot's decoration: every
 ``manim.Text``/``Paragraph``/``Tex`` writes (or finds in manim's file cache) an SVG
 and then parses it into mobjects. Plots repeat the same strings (tick labels shared
 by facet panels, legend keys, a plot rebuilt for another scene), so
-:func:`cached_text` keeps one *prototype* per distinct request and hands out
-a copy of the prototype (:func:`fast_copy`, a deep copy several times faster than
+`cached_text()` keeps one *prototype* per distinct request and hands out
+a copy of the prototype (`fast_copy()`, a deep copy several times faster than
 ``Mobject.copy``), so callers may move, rotate or recolour what they get without
 touching the prototype.
 
@@ -13,8 +13,8 @@ The key is everything that changes the result: the engine, the text, the font si
 the colour (as ``#RRGGBBAA``), the alignment, the remaining keyword arguments and the
 parts of manim's ``config`` that text depends on (renderer, and the TeX template for
 the ``"tex"`` engine). Requests whose keyword arguments or colour cannot be hashed
-are built directly, uncached. The cache is a bounded LRU (:data:`MAXSIZE` entries);
-:func:`clear_text_cache` empties it.
+are built directly, uncached. The cache is a bounded LRU (`MAXSIZE` entries);
+`clear_text_cache()` empties it.
 """
 
 from __future__ import annotations
@@ -76,7 +76,7 @@ def _config_key(engine: str) -> tuple:
 def text_key(
     engine: str, text: str, font_size: float, color: Any, align: str, kwargs: dict[str, Any]
 ) -> tuple | None:
-    """The cache key for one :meth:`~ggmanim.theme.Theme.make_text` request, or
+    """The cache key for one [`make_text()`][ggmanim.theme.Theme.make_text] request, or
     ``None`` when the request cannot be cached (unhashable arguments)."""
     color_key = _color_key(color)
     if color_key is None:
@@ -98,7 +98,7 @@ def cached_text(key: tuple | None, build: Callable[[], Mobject]) -> Mobject:
     return fast_copy(_prototype(_Spec(key, build)))
 
 
-#: values shared (not copied) by :func:`fast_copy`: immutable, or treated as values
+#: values shared (not copied) by `fast_copy()`: immutable, or treated as values
 #: (colours, which manim never changes in place, and the parsed SVG paths a text's
 #: glyphs keep after generating their points from them)
 _ATOMIC = (
@@ -122,7 +122,7 @@ def fast_copy(mob: Mobject) -> Mobject:
     """A deep copy of ``mob`` equivalent to ``mob.copy()`` for text mobjects, without
     the generic ``copy.deepcopy`` machinery: mobjects are cloned attribute by
     attribute (each clone once, so shared references stay shared), arrays, lists,
-    tuples and dicts are copied, the values in :data:`_ATOMIC` are shared;
+    tuples and dicts are copied, the values in `_ATOMIC` are shared;
     anything else falls back to ``copy.deepcopy``."""
     memo: dict[int, Any] = {}
 

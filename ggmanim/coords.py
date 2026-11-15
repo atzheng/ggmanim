@@ -1,6 +1,6 @@
 """Coordinate systems: turn trained position scales into a manim panel.
 
-The entry point used by the build pipeline is :meth:`CoordCartesian.build`::
+The entry point used by the build pipeline is [`CoordCartesian.build()`][ggmanim.coords.CoordCartesian.build]::
 
     coord = plot.coord or CoordCartesian()
     panel = coord.build(x_scale, y_scale, theme, labels, has_legend=...)
@@ -27,18 +27,18 @@ Minor grid lines (``scale.get_minor_breaks``) are drawn when
 ``grid_minor_opacity``. A position scale's ``position`` (``"top"`` for x,
 ``"right"`` for y) moves its axis line, ticks, tick labels and title to that side.
 
-A scale's ``sec_axis`` (:func:`~ggmanim.scales.sec_axis.sec_axis` /
-:func:`~ggmanim.scales.sec_axis.dup_axis`, on continuous, log and date scales) is
+A scale's ``sec_axis`` (`sec_axis()` /
+`dup_axis()`, on continuous, log and date scales) is
 drawn on the side opposite its primary axis: ``panel.x_sec_ticks``,
 ``x_sec_tick_labels``, ``x_sec_line``, ``x_sec_title``, ``x_sec_side`` (and ``y_``;
 screen orientation, like ``x_ticks``), with its breaks mapped onto the primary axis
-by :meth:`~ggmanim.scales.sec_axis.AxisSecondary.break_info`. The theme switches
+by `break_info()`. The theme switches
 ``axis_text_x_top``/``axis_text_y_right`` and ``axis_title_x_top``/
 ``axis_title_y_right`` (``None``: inherit ``axis_text_x`` ...) control the labels
 and title drawn on the top / right sides, whether of a secondary axis or of the main
 axis moved there by ``position=``; ``axis_ticks_x_top``/``axis_ticks_y_right`` do the
 same for its ticks.
-Tick-label strings go through :func:`ggmanim.labels.render_label` (``"$...$"`` math
+Tick-label strings go through [`ggmanim.labels.render_label()`][ggmanim.labels.render_label] (``"$...$"`` math
 -> Unicode superscripts with the Text engine; LaTeX specials escaped with Tex).
 
 ``panel.transform`` reads the live axes, so it stays correct after the panel (or
@@ -110,7 +110,7 @@ class PanelParams:
     ``x_breaks``/``y_breaks`` the major tick positions within them and
     ``x_labels``/``y_labels`` the matching data-space label strings;
     ``x_minor_breaks``/``y_minor_breaks`` the minor grid positions.
-    ``flipped`` is true under :func:`coord_flip` (the params stay in aesthetic
+    ``flipped`` is true under [`coord_flip()`][ggmanim.coords.coord_flip] (the params stay in aesthetic
     orientation, so ``x_range`` is then the *vertical* axis' range).
     """
 
@@ -144,7 +144,7 @@ class CartesianPanel(VGroup):
     ``grid, axes, x_ticks, y_ticks, x_tick_labels, y_tick_labels[, x_title][, y_title]``.
 
     ``clip`` (``"on"``/``"off"``) is the coord's clipping policy, read by the geoms.
-    ``flipped`` is true for :func:`coord_flip`: ``panel_params`` stay in aesthetic
+    ``flipped`` is true for [`coord_flip()`][ggmanim.coords.coord_flip]: ``panel_params`` stay in aesthetic
     orientation (``x_range`` is the *x aesthetic's* range, drawn vertically) while
     ``axes``/``x_ticks``/``x_tick_labels``/``x_title`` are the horizontal ones.
     """
@@ -265,7 +265,7 @@ def _title(scale, labels: Mapping[str, Any] | None, aes: str):
 class GridLines(VMobject):
     """Straight lines from ``starts[i]`` to ``ends[i]`` (``(N, 3)`` scene points) as
     *one* VMobject with a subpath per line: the grid of one kind (major/minor) along
-    one axis is a single mobject instead of one :class:`~manim.Line` per break,
+    one axis is a single mobject instead of one `Line` per break,
     which is much cheaper to build, transform and render (ggm-bam.2).
 
     Each subpath has exactly the points ``Line(start, end)`` would have, so the
@@ -300,12 +300,12 @@ class GridLines(VMobject):
 
 def grid_line_count(grid: VGroup) -> int:
     """Number of lines in a grid group (``panel.grid``, ``grid_major`` or
-    ``grid_minor``) made of :class:`GridLines` (any other member counts as one)."""
+    ``grid_minor``) made of [`GridLines`][ggmanim.coords.GridLines] (any other member counts as one)."""
     return sum(getattr(m, "n_lines", 1) for m in grid.submobjects)
 
 
 #: Smallest gap between neighbouring tick labels, as a fraction of the height of
-#: one line of axis text (:func:`fit_breaks`).
+#: one line of axis text ([`fit_breaks()`][ggmanim.coords.fit_breaks]).
 TICK_LABEL_GAP = 0.25
 
 
@@ -317,9 +317,9 @@ def fit_breaks(
     ggplot2 picks breaks without looking at the panel size; ggmanim's panels can be
     small (facets), so for each axis whose scale has default breaks
     (``scale.has_default_breaks()``) the labels are measured (with
-    :meth:`Theme.make_text`, rotated and justified as they will be drawn) and placed
+    [`Theme.make_text()`][ggmanim.theme.Theme.make_text], rotated and justified as they will be drawn) and placed
     at their ticks on an axis ``width`` (x) / ``height`` (y) long. If two neighbours
-    come closer than :data:`TICK_LABEL_GAP` lines of text, the breaks are recomputed
+    come closer than `TICK_LABEL_GAP` lines of text, the breaks are recomputed
     from ``scale.with_n_breaks(n)`` for ``n = n_breaks - 1, ..., 2`` until they fit.
     When even the coarsest of those is crowded (``pretty()`` has no nicer step
     leaving two breaks in range), every k-th break is kept instead (k = 2, 3, ...;
@@ -329,8 +329,8 @@ def fit_breaks(
     User-given breaks (sequence or callable) are never changed. Discrete axes are
     left alone too: their labels are the levels, so crowding there is left to the
     theme (``axis_text_x_angle``, a smaller ``axis_text_size``); when their drawn
-    labels overlap, a :class:`UserWarning` says so (:func:`_warn_discrete_crowding`).
-    :func:`~ggmanim.coords_trans.coord_trans` axes are thinned like cartesian ones
+    labels overlap, a `UserWarning` says so (`_warn_discrete_crowding()`).
+    [`coord_trans()`][ggmanim.coords_trans.coord_trans] axes are thinned like cartesian ones
     (its scale facade forwards ``with_n_breaks``).
 
     The labels are measured even when the theme hides them, so panels sharing a
@@ -350,7 +350,7 @@ def fit_breaks(
 
 
 def _fit_axis(scale, rng, breaks, labels, minor, length: float, theme: Theme, axis: str):
-    """``(breaks, labels, minor)`` for one axis; see :func:`fit_breaks`."""
+    """``(breaks, labels, minor)`` for one axis; see [`fit_breaks()`][ggmanim.coords.fit_breaks]."""
     # looked up on the class: attribute-forwarding facades (coord_trans) opt out
     cls = type(scale)
     if not (hasattr(cls, "has_default_breaks") and hasattr(cls, "with_n_breaks")):
@@ -411,8 +411,8 @@ def _thinned_minor(scale, old, new, minor) -> tuple[float, ...]:
 
 
 def _crowded(breaks, labels, rng, length: float, theme: Theme, axis: str, far: bool) -> bool:
-    """Do two neighbouring tick labels come closer than :data:`TICK_LABEL_GAP` lines
-    of text along the axis (labels as :func:`_place_tick_label` places them)?"""
+    """Do two neighbouring tick labels come closer than `TICK_LABEL_GAP` lines
+    of text along the axis (labels as `_place_tick_label()` places them)?"""
     lo, hi = rng
     if hi <= lo or length <= 0:
         return False
@@ -439,10 +439,10 @@ def _crowded(breaks, labels, rng, length: float, theme: Theme, axis: str, far: b
 def _axis_labels(strings, at, direction, gap, theme: Theme, axis: str, scale) -> VGroup:
     """The tick labels of one primary axis (one per break, empty ones included),
     placed at ``gap`` from the ticks ``at``. A scale ``guide`` of
-    :func:`~ggmanim.guides_axis.guide_axis` staggers them into ``n_dodge`` rows
+    `guide_axis()` staggers them into ``n_dodge`` rows
     (label ``i`` in row ``i % n_dodge``, each row beyond the previous one) and, with
     ``check_overlap``, replaces labels overlapping an earlier one of their row by an
-    empty placeholder (visiting order: :func:`~ggmanim.guides_axis.axis_label_priority`)."""
+    empty placeholder (visiting order: `axis_label_priority()`)."""
     guide = getattr(scale, "guide", None) if scale is not None else None
     n_rows = max(1, int(getattr(guide, "n_dodge", 1)))
     check = bool(getattr(guide, "check_overlap", False))
@@ -541,7 +541,7 @@ class CoordCartesian:
 
     ``expand=False`` turns off the scales' expansion (for zoomed and unzoomed axes).
     ``clip="on"`` (default) clips marks to the panel: points outside are dropped,
-    paths/ribbons/bars are cut at the border (:mod:`ggmanim.geoms._clip`);
+    paths/ribbons/bars are cut at the border (`ggmanim.geoms._clip`);
     ``clip="off"`` draws them wherever they fall.
     """
 
@@ -573,7 +573,7 @@ class CoordCartesian:
 
     def setup_layout(self, layout: Any) -> Any:
         """The facet layout table as this coord uses it (ggplot2's
-        ``Coord$setup_layout``): unchanged here; :class:`CoordFlip` swaps
+        ``Coord$setup_layout``): unchanged here; [`CoordFlip`][ggmanim.coords.CoordFlip] swaps
         ``SCALE_X``/``SCALE_Y``."""
         return layout
 
@@ -582,7 +582,7 @@ class CoordCartesian:
         return _range(scale, lim, self.expand)
 
     def _panel_size(self, theme: Theme, has_legend: bool, pp: PanelParams) -> tuple[float, float]:
-        """``(width, height)`` of the panel; :class:`CoordFixed` overrides this."""
+        """``(width, height)`` of the panel; [`CoordFixed`][ggmanim.coords.CoordFixed] overrides this."""
         return theme.panel_size(has_legend)
 
     def setup_panel_params(self, x_scale, y_scale) -> PanelParams:
@@ -617,7 +617,7 @@ class CoordCartesian:
         Parameters
         ----------
         x_scale, y_scale : trained continuous position scales (or ``None``).
-        theme : :class:`Theme` (default :func:`theme_default`).
+        theme : [`Theme`][ggmanim.theme.Theme] (default [`theme_default()`][ggmanim.theme.theme_default]).
         labels : mapping with optional ``"x"``/``"y"`` titles (str or Mobject; ``None``
             suppresses). A scale's ``name`` takes precedence. Mobjects are copied.
         has_legend : reserve room for a legend in the default panel size.
@@ -740,7 +740,7 @@ _SIDE_FIELDS = {("x", "top"): "x_top", ("y", "right"): "y_right"}
 def _sec_element(theme: Theme, element: str, axis: str, side: str) -> bool:
     """Whether ``element`` (``"axis_text"``/``"axis_title"``/``"axis_ticks"``) of the
     axis (primary or secondary) on ``side`` is drawn: ``theme.axis_text_x_top`` etc. for the top / right sides,
-    inheriting :meth:`Theme.axis_element` when ``None`` (or on bottom / left)."""
+    inheriting [`Theme.axis_element()`][ggmanim.theme.Theme.axis_element] when ``None`` (or on bottom / left)."""
     suffix = _SIDE_FIELDS.get((axis, side))
     own = getattr(theme, f"{element}_{suffix}", None) if suffix else None
     return theme.axis_element(element, axis) if own is None else bool(own)
@@ -758,10 +758,10 @@ def _add_secondary_axes(
     """Draw each scale's ``sec_axis`` on the side opposite its primary axis.
 
     Sets, for the horizontal (``x_``) and vertical (``y_``) axis of the panel
-    (screen orientation, like ``x_ticks``; under :func:`coord_flip` ``x_`` is the
+    (screen orientation, like ``x_ticks``; under [`coord_flip()`][ggmanim.coords.coord_flip] ``x_`` is the
     y aesthetic's): ``x_sec_breaks``/``x_sec_labels`` (positions on the drawn
     axis, i.e. the scale's transformed space, coord-transformed under
-    :func:`~ggmanim.coords_trans.coord_trans`; and the label strings), ``x_sec_line`` (axis line or ``None``),
+    [`coord_trans()`][ggmanim.coords_trans.coord_trans]; and the label strings), ``x_sec_line`` (axis line or ``None``),
     ``x_sec_ticks``, ``x_sec_tick_labels`` (``VGroup``), ``x_sec_title``
     (``Mobject`` or ``None``) and ``x_sec_side``; plus ``panel.secondary_parts``,
     ``{side: [ticks, tick labels]}`` for the facet strip placement. Empty groups
@@ -845,7 +845,7 @@ def _add_secondary_axes(
 
 
 def _sec_break_info(sec, scale, rng) -> tuple[tuple[float, ...], tuple[str, ...]]:
-    """``sec.break_info`` over the drawn range ``rng``. A :func:`coord_trans` axis
+    """``sec.break_info`` over the drawn range ``rng``. A [`coord_trans()`][ggmanim.coords_trans.coord_trans] axis
     scale (a facade with ``input_range``) is drawn in coord-transformed space:
     the breaks are found over its input range and mapped through its transform."""
     inner = getattr(scale, "input_range", None)
@@ -946,8 +946,8 @@ def _label(theme: Theme, s: str, axis: str = "x") -> Mobject:
 
 
 def _multiline_label(theme: Theme, text: str, axis: str) -> Mobject:
-    """A multi-line tick label (e.g. from :func:`~ggmanim.labels.label_date_short`):
-    a Pango :class:`~manim.Paragraph` (via :meth:`Theme.make_text`) whose lines are
+    """A multi-line tick label (e.g. from [`label_date_short()`][ggmanim.labels.label_date_short]):
+    a Pango `Paragraph` (via [`Theme.make_text()`][ggmanim.theme.Theme.make_text]) whose lines are
     justified by the axis text ``hjust`` (x labels centred, y labels right-aligned by
     default), as in ggplot2."""
     style = theme.text_style("axis_text")
@@ -966,7 +966,7 @@ def _style_axis_lines(axes: Axes, theme: Theme) -> None:
 
 def _major_grid(theme: Theme, bottom, top, left, right) -> VGroup:
     """Major grid lines: vertical ones at the x breaks, horizontal at the y breaks
-    (one :class:`GridLines` per axis)."""
+    (one [`GridLines`][ggmanim.coords.GridLines] per axis)."""
     lines = []
     if theme.grid_major("x"):
         lines.append((bottom, top))
@@ -982,7 +982,7 @@ def _major_grid(theme: Theme, bottom, top, left, right) -> VGroup:
 
 def _minor_grid(theme: Theme, axes: Axes, pp: PanelParams) -> VGroup:
     """Minor grid lines at the scales' minor breaks (``theme.panel_grid_minor``), one
-    :class:`GridLines` per axis."""
+    [`GridLines`][ggmanim.coords.GridLines] per axis."""
     if not getattr(theme, "panel_grid_minor", True):
         return VGroup()
     (x0, x1), (y0, y1) = pp.x_range, pp.y_range
@@ -1093,7 +1093,7 @@ def _make_title(theme: Theme, content: Any) -> Mobject | None:
 @register
 def coord_cartesian(xlim=None, ylim=None, expand: bool = True, clip: str = "on") -> CoordCartesian:
     """Cartesian coordinates; ``xlim``/``ylim`` zoom without censoring data and
-    ``clip="on"`` keeps marks inside the panel (see :class:`CoordCartesian`)."""
+    ``clip="on"`` keeps marks inside the panel (see [`CoordCartesian`][ggmanim.coords.CoordCartesian])."""
     return CoordCartesian(xlim=xlim, ylim=ylim, expand=expand, clip=clip)
 
 
@@ -1115,7 +1115,7 @@ class CoordFlip(CoordCartesian):
     Geoms are unchanged: they go through ``panel.transform(x, y)``, which swaps.
     ``xlim``/``ylim`` refer to the x/y *aesthetics* (as in ggplot2).
     ``panel.panel_params`` stays in aesthetic orientation (see
-    :class:`CartesianPanel`).
+    [`CartesianPanel`][ggmanim.coords.CartesianPanel]).
     """
 
     def __repr__(self):
@@ -1223,8 +1223,8 @@ def is_linear(coord: Any) -> bool:
 
     Linear coords (cartesian, flip, fixed) map input space affinely to the scene,
     so geoms transform only the vertices; non-linear ones
-    (:func:`~ggmanim.coords_trans.coord_trans`)
-    need paths and polygons *munched* (:func:`coord_munch`) first."""
+    ([`coord_trans()`][ggmanim.coords_trans.coord_trans])
+    need paths and polygons *munched* ([`coord_munch()`][ggmanim.coords.coord_munch]) first."""
     return bool(getattr(coord, "is_linear", True))
 
 
@@ -1250,7 +1250,7 @@ def _munch_counts(
     coord: Any, xs: np.ndarray, ys: np.ndarray, segments: int = MUNCH_SEGMENTS
 ) -> np.ndarray:
     """Pieces each segment ``i -> i+1`` of the path ``(xs, ys)`` is cut into by
-    :func:`coord_munch` (``>= 1``; ``1`` for a segment with a non-finite length)."""
+    [`coord_munch()`][ggmanim.coords.coord_munch] (``>= 1``; ``1`` for a segment with a non-finite length)."""
     with np.errstate(invalid="ignore"):
         d = _munch_distance(coord, xs, ys) * segments
         return np.where(np.isfinite(d), np.clip(np.ceil(d), 1, _MUNCH_MAX), 1).astype(int)
@@ -1269,7 +1269,7 @@ def coord_munch(
     segment. ``closed=True`` also munches the closing edge (polygons); the result
     is still a ring without the first vertex repeated.
 
-    A coord with ``squish_input(x, y)`` (:class:`~ggmanim.coords_trans.TransPanel`)
+    A coord with ``squish_input(x, y)`` ([`TransPanel`][ggmanim.coords_trans.TransPanel])
     first moves values it draws at a panel edge (``0`` under ``log``) to that
     edge's input value, so the munched path does not pass beyond the edge.
 

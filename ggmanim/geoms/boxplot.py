@@ -1,19 +1,19 @@
 """geom_boxplot: box-and-whisker plots from stat_boxplot (ggplot2 semantics).
 
-Each row of the layer data (one per box, from :class:`~ggmanim.stats.boxplot.StatBoxplot`)
+Each row of the layer data (one per box, from `StatBoxplot`)
 is drawn as one mark, ``VGroup(outliers, staples, whiskers, box)`` (only the parts
 that exist and are visible):
 
 * the box from ``lower`` to ``upper`` with a median line at ``middle``
   ``fatten`` (2) times thicker than the outline, drawn with
-  :func:`~ggmanim.geoms.interval.draw_crossbar` -- or, with ``notch=True``, a
+  `draw_crossbar()` -- or, with ``notch=True``, a
   notched polygon pinched to ``notchwidth`` (0.5) of the box at the median,
   spanning ``notchlower``..``notchupper``;
 * whiskers from the hinges to ``ymin``/``ymax``; ``staplewidth`` (0 = none) adds
   staples that wide (relative to the box) at the whisker ends;
 * outlier points (``outliers`` list column) at the box's ``x``, styled by the
   ``outlier_*`` params (``color``, ``fill``, ``shape``, ``size``, ``alpha``;
-  default: the box's ``color`` and :class:`GeomPoint`'s size; as in ggplot2,
+  default: the box's ``color`` and [`GeomPoint`][ggmanim.geoms.GeomPoint]'s size; as in ggplot2,
   ``outlier.colour = NULL`` inherits the box colour, so a blank ``color=None``/``"NA"``
   hides the outliers too unless ``outlier_color`` is set), or hidden with
   ``outliers=False`` (which also keeps them out of the y scale).
@@ -319,7 +319,7 @@ def geom_boxplot(
     **params,
 ):
     """Box-and-whisker plots (ggplot2's ``geom_boxplot``); see
-    :mod:`ggmanim.geoms.boxplot`.
+    `ggmanim.geoms.boxplot`.
 
     Stat params: ``coef`` (1.5, whisker reach in IQRs), ``width``. Geom params:
     ``outliers`` (``False`` hides them), ``outlier_color``/``outlier_fill``/

@@ -1,7 +1,7 @@
 """geom_vline / geom_hline: reference lines spanning the whole panel.
 
 Under a non-linear coord (``coord_trans``, ``coord_polar``) each line is
-munched (:func:`._segments.munched_segment`) so it bends with the coord: under
+munched (`_segments.munched_segment()`) so it bends with the coord: under
 ``coord_polar`` a reference line on the radius aesthetic becomes a circle and
 one on the angle aesthetic a ray from the centre.
 """
@@ -219,5 +219,5 @@ def geom_hline(
     name: str | None = None,
     **params,
 ):
-    """Horizontal line(s) at ``yintercept``; see :func:`geom_vline`."""
+    """Horizontal line(s) at ``yintercept``; see [`geom_vline()`][ggmanim.geoms.geom_vline]."""
     return _ref_layer(GeomHline(), "yintercept", yintercept, mapping, data, position, name, params)

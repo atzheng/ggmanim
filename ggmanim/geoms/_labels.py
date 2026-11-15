@@ -1,4 +1,4 @@
-"""Shared text machinery for :mod:`.text` (``geom_text``/``geom_label``) and for
+"""Shared text machinery for `text` (``geom_text``/``geom_label``) and for
 the *direct label* option of the line-like geoms.
 
 Text size
@@ -6,30 +6,30 @@ Text size
 ggplot2 measures text ``size`` in millimetres with a default of ``3.88`` (11 pt).
 Here ``size`` keeps that scale but is relative to the theme: a label of ``size``
 is drawn at ``theme.axis_text_size * size / 3.88`` font units (see
-:func:`font_size_for`), so ``size=3.88`` matches the tick labels and the text
+`font_size_for()`), so ``size=3.88`` matches the tick labels and the text
 scales with the theme.
 
 Justification
 -------------
-:func:`place_text` puts the point ``(hjust, vjust)`` of the text's *unrotated*
+`place_text()` puts the point ``(hjust, vjust)`` of the text's *unrotated*
 bounding box (``0`` = left/bottom, ``1`` = right/top) on the anchor, then
 rotates the text by ``angle`` degrees about the anchor -- ggplot2's semantics.
 ``hjust``/``vjust`` may also be ``"left"``, ``"center"``/``"middle"``,
 ``"right"``, ``"bottom"``, ``"top"``, ``"inward"`` or ``"outward"`` (see
-:func:`resolve_just`).
+`resolve_just()`).
 
 Direct labels
 -------------
 ``geom_line``/``geom_path``/``geom_function``/``geom_smooth``/``geom_vline``/
 ``geom_hline`` accept ``label=`` (a str or Mobject for every group/line, a
 sequence in group order or a dict group id -> label). The label is drawn with
-the same machinery as ``geom_text`` (:func:`direct_label`): in the group's
+the same machinery as ``geom_text`` (`direct_label()`): in the group's
 colour at ``theme.axis_text_size``, justified against an anchor -- right of a
 line's last visible point (``hjust=0``), along the top-left of a vline
 (rotated 90 degrees) and above the right end of an hline.
 
 *Group order* is the order of the integer ``group`` ids, which
-:func:`~ggmanim.stats.add_group` numbers ``1..k`` in **sorted** order of the
+[`add_group()`][ggmanim.stats.add_group] numbers ``1..k`` in **sorted** order of the
 discrete grouping aesthetics' values (``color``/``fill``/``linetype``/... or an
 explicit ``group``; category order for a pandas ``Categorical``), not in order
 of appearance in the data. So with ``aes(color="species")`` and species
@@ -37,7 +37,7 @@ of appearance in the data. So with ``aes(color="species")`` and species
 species ``"a"``. A dict is keyed by the raw grouping value (``{"a": "A"}``; a
 tuple when several aesthetics group) or by those group ids (``{1: "A", 2: "B"}``;
 ``-1`` when there is no grouping aesthetic); the build re-keys raw values by
-group id (:func:`~ggmanim.build.draw_layers`), and a raw value wins over an equal
+group id ([`draw_layers()`][ggmanim.build.draw_layers]), and a raw value wins over an equal
 group id. Groups missing from the dict, or beyond the end of a list, get no label. For
 ``geom_vline``/``geom_hline`` a list follows the order of the intercepts as
 given (drawn rows) and a dict is keyed by that 0-based position.
@@ -140,7 +140,7 @@ def text_mobject(
 ) -> Mobject | None:
     """The mobject for one label, or ``None`` for an empty/missing label.
 
-    Strings go through :meth:`Theme.make_text` (multi-line text is justified by
+    Strings go through [`Theme.make_text()`][ggmanim.theme.Theme.make_text] (multi-line text is justified by
     ``hjust``). ``parse=True`` renders ``label`` as LaTeX math (``MathTex``) when
     ``theme.text_engine == "tex"``; with the Pango engine it warns and draws the
     plain text. ``family`` / ``fontface`` (``"plain"``, ``"bold"``, ``"italic"``,

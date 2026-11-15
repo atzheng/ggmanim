@@ -10,7 +10,7 @@ __all__ = ["GeomBin2d", "geom_bin_2d", "geom_bin2d"]
 
 
 class GeomBin2d(GeomTile):
-    """:class:`~ggmanim.geoms.rect.GeomTile` fed by ``stat_bin_2d`` (one tile per
+    """`GeomTile` fed by ``stat_bin_2d`` (one tile per
     non-empty bin, ``fill=after_stat("count")``)."""
 
     default_stat = "bin_2d"

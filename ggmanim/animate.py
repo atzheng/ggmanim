@@ -1,6 +1,6 @@
 """Animating built plots: ordered reveal, per-layer animations, mark lookup.
 
-The usual entry points are the :class:`~ggmanim.mobjects.GGPlot` methods, which
+The usual entry points are the [`GGPlot`][ggmanim.mobjects.GGPlot] methods, which
 call the functions here::
 
     plot = p.build()
@@ -11,7 +11,7 @@ call the functions here::
 
 Per-geom animations (registry)
 ------------------------------
-How a layer appears is looked up in :data:`ANIMATIONS`, a registry keyed by
+How a layer appears is looked up in `ANIMATIONS`, a registry keyed by
 ``Geom`` class *name*. The lookup walks the geom's MRO, so a subclass inherits
 its parent's entry (``GeomFunction`` -> ``GeomPath``) unless it registers its
 own. New geoms register from their own module, without editing this file::
@@ -22,9 +22,9 @@ own. New geoms register from their own module, without editing this file::
 
 A factory is ``factory(mob, ctx) -> Animation | None``: ``mob`` is the layer's
 mobject for *one* panel (``mob.marks`` / ``mob.keys`` set by
-:func:`~ggmanim.geoms.base.attach_marks`) and ``ctx`` an
-:class:`AnimationContext` (the panel, ``flipped``, ``mark_lag``, extra animation
-keyword arguments). Presets (:data:`PRESETS`): ``"fade_in"``, ``"create"``,
+`attach_marks()`) and ``ctx`` an
+[`AnimationContext`][ggmanim.animate.AnimationContext] (the panel, ``flipped``, ``mark_lag``, extra animation
+keyword arguments). Presets (`PRESETS`): ``"fade_in"``, ``"create"``,
 ``"write"``, ``"grow"`` (``GrowFromCenter`` per mark), ``"grow_from_baseline"``
 (bars stretch out of the value-axis zero line; horizontal under
 ``coord_flip``) and ``"grow_from_edge"`` (from the bottom edge, the left edge
@@ -33,7 +33,7 @@ under ``coord_flip``). ``hide`` defaults to the reveal played backwards.
 Which geom drew a layer
 -----------------------
 ``GGPlot.layer_geoms`` (``{layer key: Geom}``) tells the lookup which geom drew
-each layer; the build records it (:func:`attach_geoms` still sets it from a
+each layer; the build records it ([`attach_geoms()`][ggmanim.animate.attach_geoms] still sets it from a
 spec, overriding the recorded geoms). Layers whose
 geom is unknown get an animation inferred from their marks: text -> ``write``,
 open strokes -> ``create``, anything else -> ``fade_in``.
@@ -75,7 +75,7 @@ __all__ = [
     "reveal_layer",
 ]
 
-#: Default stage order of :func:`create_plot`.
+#: Default stage order of [`create_plot()`][ggmanim.animate.create_plot].
 DEFAULT_ORDER: tuple[str, ...] = ("panel", "axes", "layers", "legend", "titles")
 _STAGES = frozenset(DEFAULT_ORDER)
 
@@ -88,10 +88,10 @@ class AnimationContext:
 
     Attributes
     ----------
-    plot : the :class:`~ggmanim.mobjects.GGPlot`
+    plot : the [`GGPlot`][ggmanim.mobjects.GGPlot]
     layer : the layer key
     geom : the ``Geom`` that drew the layer (``None`` if unknown)
-    panel : the :class:`~ggmanim.coords.CartesianPanel` this part is drawn in
+    panel : the [`CartesianPanel`][ggmanim.coords.CartesianPanel] this part is drawn in
     flipped : ``coord_flip`` (bars grow horizontally)
     mark_lag : ``lag_ratio`` between marks
     kwargs : extra keyword arguments for the animation (``rate_func`` ...)
@@ -110,7 +110,7 @@ class AnimationContext:
 class AnimationEntry:
     """A registry entry: ``reveal``/``hide`` factories and an optional
     ``batched(mob) -> bool`` predicate (marks are batches, not data rows, so
-    :func:`mark` refuses per-row lookup)."""
+    [`mark()`][ggmanim.animate.mark] refuses per-row lookup)."""
 
     reveal: Factory
     hide: Factory | None = None
@@ -266,7 +266,7 @@ def _reverse(factory: Factory) -> Factory:
 
 # -- registry -----------------------------------------------------------------------
 
-#: ``{Geom class name: AnimationEntry}``; see :func:`register_animation`.
+#: ``{Geom class name: AnimationEntry}``; see [`register_animation()`][ggmanim.animate.register_animation].
 ANIMATIONS: dict[str, AnimationEntry] = {}
 
 
@@ -279,7 +279,7 @@ def register_animation(
 ) -> AnimationEntry:
     """Set the animation for layers drawn by ``geom`` (a ``Geom`` class or class
     name; subclasses inherit it). ``reveal``/``hide`` are preset names
-    (:data:`PRESETS`) or factories ``(mob, ctx) -> Animation``; ``hide=None``
+    (`PRESETS`) or factories ``(mob, ctx) -> Animation``; ``hide=None``
     plays ``reveal`` backwards. Returns the entry."""
     name = geom if isinstance(geom, str) else geom.__name__
     rev = _factory(reveal)
@@ -478,7 +478,7 @@ def reveal_layer(plot: Any, layer: Any, **kwargs: Any) -> Animation:
 
 def hide_layer(plot: Any, layer: Any, **kwargs: Any) -> Animation:
     """Animation that removes one layer (the registered ``hide``, by default the
-    reveal played backwards). Keyword arguments as for :func:`reveal_layer`."""
+    reveal played backwards). Keyword arguments as for [`reveal_layer()`][ggmanim.animate.reveal_layer]."""
     anim = _layer_animation(plot, layer, hide=True, **kwargs)
     if anim is None:
         raise ValueError(f"layer {layer!r} has nothing to draw")
@@ -578,7 +578,7 @@ def _top_level(plot: Any, order: Sequence[str]) -> list[Mobject]:
 
 
 class _PlotCreation(AnimationGroup):
-    """The :func:`create_plot` group. When every part of the plot was animated,
+    """The [`create_plot()`][ggmanim.animate.create_plot] group. When every part of the plot was animated,
     the scene ends up holding the ``GGPlot`` itself (not its parts), so later
     ``plot.animate`` calls and ``scene.remove(plot)`` behave as expected."""
 
@@ -611,8 +611,8 @@ def create_plot(
 
     Parameters
     ----------
-    plot : :class:`~ggmanim.mobjects.GGPlot`, or a ``ggplot`` spec (built here,
-        with :func:`attach_geoms`; the plot is then ``animation.plot``)
+    plot : [`GGPlot`][ggmanim.mobjects.GGPlot], or a ``ggplot`` spec (built here,
+        with [`attach_geoms()`][ggmanim.animate.attach_geoms]; the plot is then ``animation.plot``)
     lag_ratio : float
         Overlap of consecutive stages: ``1`` plays them one after another, ``0``
         all at once.

@@ -1,14 +1,14 @@
 """Clip point markers to the panel (scene space).
 
-:mod:`ggmanim.geoms._clip` clips in transformed (data) space, which is exact for
+`ggmanim.geoms._clip` clips in transformed (data) space, which is exact for
 marks whose geometry *is* data. A marker's geometry is in scene units around its
 centre, so it is clipped after drawing, against the panel's rectangle in the
 scene:
 
-* :func:`scene_box` -- the panel rectangle ``rect`` mapped to scene coordinates.
-* :func:`near_box` -- mask of marker centres close enough to the panel to be
+* `scene_box()` -- the panel rectangle ``rect`` mapped to scene coordinates.
+* `near_box()` -- mask of marker centres close enough to the panel to be
   (partly) visible.
-* :func:`clip_marker` -- a marker clipped to the box. Markers entirely inside are
+* `clip_marker()` -- a marker clipped to the box. Markers entirely inside are
   returned as is (the fast path, so interior points are untouched); markers
   crossing the border are rebuilt from their outlines (bezier curves sampled to
   polygons): the fill is clipped as a polygon (Sutherland-Hodgman) and the

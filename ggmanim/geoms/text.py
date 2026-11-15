@@ -3,7 +3,7 @@
 Text ``size`` follows ggplot2's millimetre scale relative to the theme:
 ``size=3.88`` (the default) is drawn at ``theme.axis_text_size`` and other sizes
 scale linearly (``font_size = theme.axis_text_size * size / 3.88``). See
-:mod:`._labels` for justification (``hjust``/``vjust``/``angle``) semantics.
+`_labels` for justification (``hjust``/``vjust``/``angle``) semantics.
 """
 
 from __future__ import annotations
@@ -59,7 +59,7 @@ class GeomText(Geom):
     ``text_engine`` is ``"tex"``, else plain text with a warning),
     ``nudge_x``/``nudge_y`` (offsets in the scale's transformed units -- data
     units on linear scales -- turned into the layer's ``position_nudge`` by
-    :func:`geom_text`/:func:`geom_label`, so nudged labels take part in the axis
+    [`geom_text()`][ggmanim.geoms.geom_text]/[`geom_label()`][ggmanim.geoms.geom_label], so nudged labels take part in the axis
     limits), ``check_overlap`` (drop a label whose bounding box
     overlaps one already drawn, greedily in data order).
     """
@@ -80,7 +80,7 @@ class GeomText(Geom):
 
     # -- drawing ------------------------------------------------------------------
     def _draw_opts(self, params: dict) -> dict:
-        """Pop the geom-specific drawing params from ``params`` (for :meth:`_mobject`)."""
+        """Pop the geom-specific drawing params from ``params`` (for `_mobject()`)."""
         return {}
 
     def _mobject(self, row: dict, theme: Theme, parse: bool, **opts) -> VMobject | None:
@@ -149,13 +149,13 @@ class GeomText(Geom):
 
 
 class GeomLabel(GeomText):
-    """Like :class:`GeomText`, each label on a (rounded) background box.
+    """Like [`GeomText`][ggmanim.geoms.GeomText], each label on a (rounded) background box.
 
     The box is ``label_padding`` scene units larger than the text on every side,
     has corner radius ``label_r`` (scene units; ``0`` = square corners), is
     filled with ``fill`` and outlined in the text colour with stroke width
     ``label_size`` (``0`` = no outline). Unset colours contrast with each other
-    (:func:`~ggmanim.theme.foreground_for_background`): with neither set the text
+    ([`foreground_for_background()`][ggmanim.theme.foreground_for_background]): with neither set the text
     is the theme foreground on a contrasting box; with only ``fill`` the text is
     black or white to suit it; with only ``color`` the box contrasts with the
     text. Justification and
@@ -283,7 +283,7 @@ def geom_text(
     ``check_overlap=True`` drops labels overlapping earlier ones;
     ``parse=True`` renders LaTeX math (needs ``theme(text_engine="tex")``).
     Counts on bars: ``geom_text(aes(label=after_stat("count")), stat="count")``.
-    See :class:`GeomText`.
+    See [`GeomText`][ggmanim.geoms.GeomText].
     """
     params.update(parse=parse, nudge_x=nudge_x, nudge_y=nudge_y, check_overlap=check_overlap)
     return _text_layer(GeomText(), mapping, data, stat, position, inherit_aes, name, params)
@@ -306,9 +306,9 @@ def geom_label(
     name: str | None = None,
     **params,
 ):
-    """Like :func:`geom_text` with a background box: ``label_padding`` and
+    """Like [`geom_text()`][ggmanim.geoms.geom_text] with a background box: ``label_padding`` and
     ``label_r`` (corner radius) in scene units, ``label_size`` the outline's
-    stroke width, ``fill`` the box colour (default white). See :class:`GeomLabel`."""
+    stroke width, ``fill`` the box colour (default white). See [`GeomLabel`][ggmanim.geoms.GeomLabel]."""
     params.update(
         parse=parse,
         nudge_x=nudge_x,

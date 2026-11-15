@@ -9,7 +9,7 @@ The summary is chosen as in ggplot2:
 * ``fun_data`` -- a function of the values returning ``y``/``ymin``/``ymax``
   (a dict, ``Series`` or one-row ``DataFrame``), or one of the names
   ``"mean_se"``, ``"mean_cl_normal"``, ``"mean_sdl"``, ``"median_hilow"``
-  (:mod:`ggmanim.stats._summary_funs`);
+  (`ggmanim.stats._summary_funs`);
 * else ``fun`` / ``fun_min`` / ``fun_max`` -- functions (or numpy names such as
   ``"mean"``, ``"median"``, ``"min"``, ``"max"``) giving ``y``, ``ymin``, ``ymax``
   (any subset);
@@ -100,7 +100,7 @@ def summary_function(
     fun_min: Any = None,
     fun_args: Mapping[str, Any] | None = None,
 ) -> Callable[[np.ndarray], dict[str, float]]:
-    """The summary used by :class:`StatSummary`: values -> ``{"y", "ymin", "ymax"}``
+    """The summary used by [`StatSummary`][ggmanim.stats.StatSummary]: values -> ``{"y", "ymin", "ymax"}``
     (the keys the chosen functions produce); see the module docstring."""
     args = dict(fun_args or {})
     if fun_data is not None:
@@ -410,7 +410,7 @@ def stat_summary_bin(
     name: str | None = None,
     **params,
 ):
-    """Like :func:`stat_summary` but over x bins (``bins``, ``binwidth`` or
+    """Like [`stat_summary()`][ggmanim.stats.stat_summary] but over x bins (``bins``, ``binwidth`` or
     ``breaks``, in transformed x units); ``x`` is the bin centre and ``width``
     the bin width (used by ``geom="crossbar"``/``"col"``/``"errorbar"``)."""
     sp = dict(

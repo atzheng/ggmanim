@@ -1,7 +1,7 @@
 """geom_count (points sized by stat_sum counts) and the layer plumbing behind the
 standalone ``stat_*`` constructors (``stat_ecdf``, ``stat_qq``, ``stat_sum`` ...).
 
-``stat_ecdf`` draws with :class:`~ggmanim.geoms.step.GeomStep`. Its padding
+``stat_ecdf`` draws with `GeomStep`. Its padding
 rows sit at ``x = +-inf``, which the path geoms draw on the panel edges (like
 ggplot2's coord squishing infinite values).
 """
@@ -21,7 +21,7 @@ __all__ = ["GeomCount", "geom_count"]
 
 
 class GeomCount(GeomPoint):
-    """:class:`GeomPoint` fed by ``stat_sum``: one point per distinct position,
+    """[`GeomPoint`][ggmanim.geoms.GeomPoint] fed by ``stat_sum``: one point per distinct position,
     ``size`` mapped to the count ``after_stat("n")`` unless given."""
 
     default_stat = "sum"
@@ -85,7 +85,7 @@ def stat_layer(
     params: Mapping[str, Any] | None = None,
 ):
     """The layer behind a standalone ``stat_<stat>(...)`` constructor: ``geom``
-    (instance, class or name) fed by ``stat`` (:func:`make_layer` adds the stat's
+    (instance, class or name) fed by ``stat`` ([`make_layer()`][ggmanim.geoms.make_layer] adds the stat's
     ``after_stat`` default aesthetics where not mapped or set)."""
     params = dict(params or {})
     if isinstance(mapping, pd.DataFrame) and (data is None or isinstance(data, Mapping)):

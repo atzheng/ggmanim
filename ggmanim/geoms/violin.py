@@ -186,7 +186,7 @@ def geom_violin(
     name: str | None = None,
     **params,
 ):
-    """Violin plots (ggplot2's ``geom_violin``); see :mod:`ggmanim.geoms.violin`.
+    """Violin plots (ggplot2's ``geom_violin``); see `ggmanim.geoms.violin`.
 
     Stat params: ``scale`` (``"area"``, ``"count"``, ``"width"``), ``trim``
     (``True``), ``bw``, ``adjust``, ``kernel``, ``bounds``, ``quantiles``. Geom

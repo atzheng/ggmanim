@@ -1,6 +1,6 @@
 """Axis guide options (ggplot2's ``guide_axis``).
 
-:func:`guide_axis` configures how a position axis draws its tick labels when
+[`guide_axis()`][ggmanim.guides.guide_axis] configures how a position axis draws its tick labels when
 they are crowded: ``check_overlap=True`` drops labels that would overlap an
 already drawn one (trying the first, last and middle labels first, then the
 middles of the halves, as ggplot2 does); ``n_dodge=n`` staggers the labels into
@@ -11,7 +11,7 @@ middles of the halves, as ggplot2 does); ``n_dodge=n`` staggers the labels into
 
 (``guides(x=guide_axis(...))`` is not supported yet: the axis is drawn from the
 scale alone.) This module is pure Python; the drawing lives in
-:mod:`ggmanim.coords`.
+[`ggmanim.coords`][ggmanim.coords].
 """
 
 from __future__ import annotations
@@ -23,7 +23,7 @@ __all__ = ["GuideAxis", "guide_axis", "axis_label_priority", "is_axis_spec", "ch
 
 
 class GuideAxis:
-    """Axis options (see :func:`guide_axis`)."""
+    """Axis options (see [`guide_axis()`][ggmanim.guides.guide_axis])."""
 
     __slots__ = ("check_overlap", "n_dodge")
 
@@ -61,7 +61,7 @@ def guide_axis(check_overlap: bool = False, n_dodge: int = 1, **kwargs: Any) -> 
 
 
 def is_axis_spec(spec: Any) -> bool:
-    """Is ``spec`` a :func:`guide_axis` object?"""
+    """Is ``spec`` a [`guide_axis()`][ggmanim.guides.guide_axis] object?"""
     return isinstance(spec, GuideAxis)
 
 
@@ -87,7 +87,7 @@ def axis_label_priority(n: int) -> list[int]:
 def check_axis_overlap(boxes: Sequence[tuple[float, float, float, float] | None]) -> list[bool]:
     """Which labels survive ``check_overlap``. ``boxes`` holds one
     ``(x0, y0, x1, y1)`` per label (``None`` for an empty label, always kept);
-    labels are visited in :func:`axis_label_priority` order and dropped when their box
+    labels are visited in `axis_label_priority()` order and dropped when their box
     intersects (touching edges do not count) one already kept."""
     keep = [True] * len(boxes)
     kept: list[tuple[float, float, float, float]] = []

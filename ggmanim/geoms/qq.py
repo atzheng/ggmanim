@@ -11,13 +11,13 @@ __all__ = ["GeomQq", "GeomQqLine", "geom_qq", "geom_qq_line"]
 
 
 class GeomQq(GeomPoint):
-    """:class:`GeomPoint` fed by ``stat_qq`` (``x`` theoretical, ``y`` sample quantiles)."""
+    """[`GeomPoint`][ggmanim.geoms.GeomPoint] fed by ``stat_qq`` (``x`` theoretical, ``y`` sample quantiles)."""
 
     default_stat = "qq"
 
 
 class GeomQqLine(GeomPath):
-    """:class:`GeomPath` fed by ``stat_qq_line``: one two-point line per group."""
+    """[`GeomPath`][ggmanim.geoms.GeomPath] fed by ``stat_qq_line``: one two-point line per group."""
 
     default_stat = "qq_line"
 

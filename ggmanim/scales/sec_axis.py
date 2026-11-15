@@ -8,15 +8,15 @@ A secondary axis is attached to a continuous position scale::
 and drawn by the coord on the side opposite the primary axis (right for a
 left y axis, top for a bottom x axis; swapped by ``position="top"/"right"``).
 
-The secondary axis has no range of its own. :meth:`AxisSecondary.break_info`
+The secondary axis has no range of its own. [`AxisSecondary.break_info()`][ggmanim.scales.AxisSecondary.break_info]
 follows ggplot2: sample the primary range (1000 points), apply ``transform`` to
 get the secondary values, compute breaks for the secondary range with the
 primary scale's transform (so a log primary gets log breaks on a
-:func:`dup_axis`), then map each break back onto the primary axis by monotone
+[`dup_axis()`][ggmanim.scales.dup_axis]), then map each break back onto the primary axis by monotone
 interpolation. ``transform`` must therefore be monotone over the primary range.
 
 Date and date-time scales (``scale_x_date(sec_axis=...)``) bind the axis with
-:meth:`AxisSecondary.bind`: ``transform`` receives the primary values as numbers
+[`AxisSecondary.bind()`][ggmanim.scales.AxisSecondary.bind]: ``transform`` receives the primary values as numbers
 (days or seconds since 1970-01-01, so ``lambda t: t + 3600`` shifts a date-time
 axis by an hour, as ``. + 3600`` does in ggplot2) and may return numbers or
 dates; ``breaks`` may be dates or ISO strings; date-aware ``labels`` formatters
@@ -76,7 +76,7 @@ def _is_number(v: Any) -> bool:
 
 
 class _RawBreaks(tuple):
-    """Secondary breaks given as dates / strings, waiting for :meth:`AxisSecondary.bind`."""
+    """Secondary breaks given as dates / strings, waiting for [`AxisSecondary.bind()`][ggmanim.scales.AxisSecondary.bind]."""
 
 
 class AxisSecondary:
@@ -87,14 +87,14 @@ class AxisSecondary:
     transform : callable ``f(primary data values) -> secondary values`` (vectorised
         over numpy arrays; scalar-only functions are applied element-wise), or
         ``None`` for the identity. Must be monotone over the primary range.
-    name : axis title; ``None`` = no title, :func:`derive` = the primary title.
+    name : axis title; ``None`` = no title, [`derive()`][ggmanim.scales.derive] = the primary title.
     breaks : ``None`` (automatic), a sequence of *secondary* data values (dates or ISO
         strings on a date scale), a callable
-        ``f((lo, hi)) -> breaks`` on the secondary range, or :func:`derive` (the
+        ``f((lo, hi)) -> breaks`` on the secondary range, or [`derive()`][ggmanim.scales.derive] (the
         primary scale's ``breaks`` setting applied to the secondary range).
     labels : ``None`` (the primary scale's label formatter if it is a callable,
         else the transform's), a sequence of strings (one per user break), a
-        callable ``f(breaks) -> list[str]``, or :func:`derive` (the primary's).
+        callable ``f(breaks) -> list[str]``, or [`derive()`][ggmanim.scales.derive] (the primary's).
     """
 
     def __init__(
@@ -108,7 +108,7 @@ class AxisSecondary:
             raise TypeError(f"sec_axis transform must be callable, got {transform!r}")
         self.transform = transform
         self.name = name
-        #: converts dates (breaks, transform results) to numbers; set by :meth:`bind`
+        #: converts dates (breaks, transform results) to numbers; set by [`bind()`][ggmanim.labels.DateFormatter.bind]
         self._convert: Callable[[Any], Any] | None = None
         if breaks is not None and not callable(breaks) and not _is_derive(breaks):
             raw = list(np.asarray(breaks, dtype=object).ravel())
@@ -273,7 +273,7 @@ def sec_axis(
 
     ``scale_y_continuous(sec_axis=sec_axis(lambda c: c * 1.8 + 32, name="°F"))``
     puts Fahrenheit ticks on the right of a Celsius axis. ``trans=`` is accepted as
-    an alias of ``transform`` (ggplot2 < 3.5). See :class:`AxisSecondary`.
+    an alias of ``transform`` (ggplot2 < 3.5). See [`AxisSecondary`][ggmanim.scales.AxisSecondary].
     """
     if trans is not None:
         if transform is not None:
@@ -291,5 +291,5 @@ def dup_axis(
     trans: Callable | None = None,
 ) -> AxisSecondary:
     """A secondary axis that mirrors the primary one (title, breaks and labels
-    :func:`derive` from the primary scale unless given)."""
+    [`derive()`][ggmanim.scales.derive] from the primary scale unless given)."""
     return sec_axis(transform, name=name, breaks=breaks, labels=labels, trans=trans)

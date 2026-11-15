@@ -3,7 +3,7 @@ stat, as in ggplot2 >= 3.4).
 
 Stacking adds up ``y`` per x position, so areas whose groups are observed at
 different x values stack incorrectly unless each group has a value at every x.
-:class:`StatAlign` builds one grid for the whole layer -- every x value of every
+[`StatAlign`][ggmanim.stats.StatAlign] builds one grid for the whole layer -- every x value of every
 group, plus the points where a group's ``y`` crosses 0 -- and linearly interpolates
 each group onto the part of the grid inside its own x range.
 

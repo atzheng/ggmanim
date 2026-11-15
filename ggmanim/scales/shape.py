@@ -1,8 +1,8 @@
 """Shape and linetype scales, and the vocabulary of shape / linetype values.
 
-No manim imports: the drawing lives in :mod:`ggmanim.geoms._markers` and
-:mod:`ggmanim.geoms._linetype`, which use :func:`parse_shape` /
-:func:`parse_linetype` from here.
+No manim imports: the drawing lives in `ggmanim.geoms._markers` and
+`ggmanim.geoms._linetype`, which use [`parse_shape()`][ggmanim.scales.parse_shape] /
+[`parse_linetype()`][ggmanim.scales.parse_linetype] from here.
 
 Shapes
 ------
@@ -51,7 +51,7 @@ SHAPE_NAMES: tuple[str, ...] = (
     _FILLABLE + tuple(f"{s}_open" for s in _FILLABLE) + tuple(f"{s}_filled" for s in _FILLABLE)
 ) + _STROKE_ONLY
 
-#: Default palette of ``scale_shape(solid=False)``: hollow variants of :data:`SHAPES`.
+#: Default palette of ``scale_shape(solid=False)``: hollow variants of [`SHAPES`][ggmanim.palettes.SHAPES].
 SHAPES_OPEN: list[str] = [s if s in _STROKE_ONLY else f"{s}_open" for s in SHAPES]
 
 _SHAPE_ALIASES = {
@@ -152,7 +152,7 @@ _LTY_CODES = ["blank", "solid", "dashed", "dotted", "dashdot", "longdash", "twod
 
 def parse_linetype(linetype: Any) -> tuple[float, ...] | None:
     """``linetype`` -> on/off pattern in line-width units (see
-    :data:`LINETYPE_PATTERNS`); ``None``/NaN (or ``"solid"``) -> ``None``.
+    `LINETYPE_PATTERNS`); ``None``/NaN (or ``"solid"``) -> ``None``.
 
     Raises ``ValueError`` listing the valid names for anything else.
     """
@@ -206,7 +206,7 @@ def _validate_values(values: Mapping[Any, Any] | Sequence[Any], parse) -> None:
 
 @register
 def scale_shape(solid: bool = True, *, aesthetics="shape", **kwargs) -> ScaleDiscrete:
-    """Discrete shape scale: palette :data:`~ggmanim.palettes.SHAPES` (filled) or,
+    """Discrete shape scale: palette [`SHAPES`][ggmanim.palettes.SHAPES] (filled) or,
     with ``solid=False``, their hollow ``_open`` variants."""
     return ScaleDiscrete(aesthetics, palette=list(SHAPES if solid else SHAPES_OPEN), **kwargs)
 
@@ -227,7 +227,7 @@ def scale_shape_identity(*, aesthetics="shape", **kwargs) -> ScaleDiscreteIdenti
 
 @register
 def scale_linetype(*, aesthetics="linetype", **kwargs) -> ScaleDiscrete:
-    """Discrete linetype scale (palette :data:`~ggmanim.palettes.LINETYPES`)."""
+    """Discrete linetype scale (palette [`LINETYPES`][ggmanim.palettes.LINETYPES])."""
     return ScaleDiscrete(aesthetics, palette=list(LINETYPES), **kwargs)
 
 

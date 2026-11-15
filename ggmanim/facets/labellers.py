@@ -4,7 +4,7 @@ A *labeller* is a callable ``labeller(values) -> list[str]`` where ``values`` is
 an ordered ``{facet variable: value}`` dict for one strip (one panel side). It
 returns one string per strip line; with ``multi_line=True`` (the default, as in
 ggplot2) each variable gets its own strip, otherwise they are joined into one.
-Every labeller here carries ``is_labeller = True`` so :func:`labeller` can tell a
+Every labeller here carries ``is_labeller = True`` so [`labeller()`][ggmanim.facets.labeller] can tell a
 labeller (takes the dict) from a per-value function (takes one value).
 
 >>> label_value({"cyl": 4, "am": 1})
@@ -75,7 +75,7 @@ def labeller(*, default: Any = None, multi_line: bool = True, **mappings: Any) -
     Each keyword names a facet variable and gives a ``dict`` (value -> label;
     unknown values are shown as is), a function of one value returning the label,
     or another labeller (e.g. ``label_both``). Variables without a rule use
-    ``default`` (a labeller, default :func:`label_value`). ``multi_line=False``
+    ``default`` (a labeller, default [`label_value()`][ggmanim.facets.label_value]). ``multi_line=False``
     joins the variables of one strip with ``", "``.
 
     >>> labeller(am={0: "auto", 1: "manual"}, cyl=label_both)({"cyl": 6, "am": 0})
@@ -93,7 +93,7 @@ def labeller(*, default: Any = None, multi_line: bool = True, **mappings: Any) -
 
 
 def as_labeller(how: Any) -> Labeller:
-    """Normalise a ``labeller=`` argument: ``None`` -> :func:`label_value`;
+    """Normalise a ``labeller=`` argument: ``None`` -> [`label_value()`][ggmanim.facets.label_value];
     ``"label_value"``/``"label_both"`` -> that labeller; a labeller is returned as
     is; a dict or one-value function applies to every variable."""
     if how is None:

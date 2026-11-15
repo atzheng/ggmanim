@@ -1,11 +1,11 @@
 """stat_density (for geom_density) and stat_ydensity (for geom_violin).
 
-Both estimate densities with :func:`ggmanim.stats._kde.compute_density`, which
+Both estimate densities with `ggmanim.stats._kde.compute_density()`, which
 reproduces R's ``density()`` (Gaussian kernel by default, ``bw="nrd0"``,
 ``adjust``, ``kernel``, reflection at finite ``bounds``) and honour a ``weight``
-aesthetic. Besides the rules of :func:`ggmanim.stats._kde.bandwidth`, ``bw``
+aesthetic. Besides the rules of `ggmanim.stats._kde.bandwidth()`, ``bw``
 accepts ggplot2's ``"ucv"``, ``"bcv"``, ``"SJ"`` (= ``"sj-ste"``) and
-``"sj-dpi"`` (:func:`bw_ucv`, :func:`bw_bcv`, :func:`bw_sj`: ports of R's
+``"sj-dpi"`` ([`bw_ucv()`][ggmanim.stats.bw_ucv], [`bw_bcv()`][ggmanim.stats.bw_bcv], [`bw_sj()`][ggmanim.stats.bw_sj]: ports of R's
 ``bw.ucv``/``bw.bcv``/``bw.SJ``, computed on the unweighted values as in R).
 
 ``stat_density`` -- per group, ``n = 512`` points over the x scale's range (or
@@ -27,7 +27,7 @@ column (``NaN`` on the other rows), which ``geom_violin(draw_quantiles=...)``
 draws.
 
 Horizontal violins (``y`` discrete) are computed on swapped columns, see
-:func:`ggmanim.stats.boxplot.resolve_flipped`.
+`ggmanim.stats.boxplot.resolve_flipped()`.
 """
 
 from __future__ import annotations
@@ -60,10 +60,10 @@ _VIOLIN_SCALES = ("area", "count", "width")
 
 
 def resolve_bw(x: Any, bw: Any) -> Any:
-    """``bw`` as accepted by :func:`ggmanim.stats._kde.bandwidth`: the rules
+    """``bw`` as accepted by `ggmanim.stats._kde.bandwidth()`: the rules
     ``"ucv"``, ``"bcv"``, ``"SJ"`` (= ``"sj-ste"``) and ``"sj-dpi"`` (any case,
     as ggplot2's ``precompute_bw``) are evaluated on ``x``; anything else is
-    returned unchanged. (:func:`~ggmanim.stats._kde.bandwidth` resolves all of
+    returned unchanged. (`bandwidth()` resolves all of
     them itself; this stays for backwards compatibility.)"""
     return precompute_bw(x, bw)
 
@@ -313,7 +313,7 @@ def stat_density(
 
     The default ``y`` (or, for a horizontal density, ``x``) is added when the
     layer's mapping is merged with the plot's, so ``ggplot(df, aes(y="v")) +
-    stat_density()`` is horizontal (see :func:`density_mapping`)."""
+    stat_density()`` is horizontal (see [`density_mapping()`][ggmanim.stats.density_mapping])."""
     from ..geoms.density import DensityLayer  # geoms import manim: keep stats free of it
 
     layer = _stat_ctor("density", geom, mapping, data, position, inherit_aes, name, params)
@@ -326,7 +326,7 @@ def density_mapping(mapping, params):
     or no orientation and ``y`` (not computed) mapped without ``x``. Nothing is
     added when that aesthetic is already mapped in ``mapping`` or set as a
     constant in ``params``. Applied to the layer mapping merged with the plot
-    mapping (:class:`ggmanim.geoms.density.DensityLayer`)."""
+    mapping (`ggmanim.geoms.density.DensityLayer`)."""
     from ..aes import Aes, standardise_aes_name
 
     if isinstance(mapping, pd.DataFrame):
@@ -355,6 +355,5 @@ def stat_ydensity(
     **params,
 ):
     """Violin densities of ``y`` per x drawn with ``geom`` (default
-    ``geom_violin``); see :mod:`ggmanim.stats.density`. Returns a layer."""
-
+    ``geom_violin``); see `ggmanim.stats.density`. Returns a layer."""
     return _stat_ctor("ydensity", geom, mapping, data, position, inherit_aes, name, params)

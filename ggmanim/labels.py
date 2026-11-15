@@ -17,11 +17,11 @@ Missing values (NaN) format as ``""`` (no label drawn); infinities as ``"Inf"`` 
 
 Math labels
 -----------
-:func:`label_math` returns LaTeX math strings wrapped in ``$...$`` (e.g.
+[`label_math()`][ggmanim.labels.label_math] returns LaTeX math strings wrapped in ``$...$`` (e.g.
 ``"$10^{3}$"``). The coord renders them according to ``theme.text_engine``: with
-``"tex"`` they go to :class:`~manim.Tex` as they are; with ``"text"`` they are
+``"tex"`` they go to `Tex` as they are; with ``"text"`` they are
 converted to plain text with Unicode superscripts (``"10³"``) by
-:func:`render_label`. Any label string of the form ``"$...$"`` gets this
+[`render_label()`][ggmanim.labels.render_label]. Any label string of the form ``"$...$"`` gets this
 treatment, so hand-written math labels work too.
 
 Pure Python/numpy; no manim imports.
@@ -225,7 +225,7 @@ def label_currency(
     return fmt
 
 
-#: Alias of :func:`label_currency` (``scales::label_dollar``).
+#: Alias of [`label_currency()`][ggmanim.labels.label_currency] (``scales::label_dollar``).
 label_dollar = label_currency
 
 
@@ -327,10 +327,10 @@ def _check_unit(unit: str) -> None:
 class DateFormatter:
     """A date formatter that a date scale can complete with its ``unit``/``tz``.
 
-    Returned by :func:`label_date` and :func:`label_date_short`; call it like any
+    Returned by [`label_date()`][ggmanim.labels.label_date] and [`label_date_short()`][ggmanim.labels.label_date_short]; call it like any
     formatter. **Date-aware protocol**: an object with ``_date_aware = True`` and a
     ``bind(unit=..., tz=...)`` method returning a formatter. Date and date-time
-    scales (:class:`~ggmanim.scales.date.ScaleDatePosition`) call ``bind`` with their
+    scales (`ScaleDatePosition`) call ``bind`` with their
     own unit (``"D"``/``"s"``) and time zone, so ``scale_x_datetime(labels=
     label_date_short())`` needs no ``unit="s"``/``tz=``. Arguments the user gave
     explicitly win over the scale's. Unbound, ``unit`` defaults to ``"D"`` and ``tz``
@@ -368,14 +368,14 @@ class DateFormatter:
 
 def bind_date_formatter(fmt: Any, unit: str, tz: Any = None) -> Any:
     """``fmt.bind(unit=unit, tz=tz)`` for a date-aware formatter (see
-    :class:`DateFormatter`); anything else is returned unchanged."""
+    [`DateFormatter`][ggmanim.labels.DateFormatter]); anything else is returned unchanged."""
     if callable(fmt) and getattr(fmt, "_date_aware", False) and hasattr(fmt, "bind"):
         return fmt.bind(unit=unit, tz=tz)
     return fmt
 
 
 def label_date(format: str = "%Y-%m-%d", unit: str | None = None, tz: Any = None) -> DateFormatter:
-    """Dates/times with :meth:`~datetime.datetime.strftime` ``format``.
+    """Dates/times with `strftime()` ``format``.
 
     Accepts ``datetime``/``date`` objects, ``numpy.datetime64`` values, or numbers
     counted in ``unit`` since 1970-01-01 (``"D"`` days, as for date scales; ``"s"``
@@ -387,7 +387,7 @@ def label_date(format: str = "%Y-%m-%d", unit: str | None = None, tz: Any = None
     as UTC, aware datetimes are converted. ``None`` formats them as they are.
 
     Used as ``labels=`` of a date/date-time scale, unset ``unit``/``tz`` are taken
-    from the scale (see :class:`DateFormatter`); elsewhere ``unit`` defaults to
+    from the scale (see [`DateFormatter`][ggmanim.labels.DateFormatter]); elsewhere ``unit`` defaults to
     ``"D"``.
     """
 
@@ -427,7 +427,7 @@ def label_date_short(
     January). A change in a coarse component (a new year) brings in all finer ones.
     ``leading`` replaces the leading zero of each component (``"05"`` -> ``"5"``
     with ``leading=""``, or ``"\\u2007"`` for a figure space); the default ``"0"``
-    keeps it. ``unit`` and ``tz`` are as for :func:`label_date` (taken from the scale
+    keeps it. ``unit`` and ``tz`` are as for [`label_date()`][ggmanim.labels.label_date] (taken from the scale
     when unset). Labels containing ``"\\n"`` are drawn over several lines.
     """
     if len(format) != 4:
@@ -493,7 +493,7 @@ def _limits(limits: Sequence[float]) -> tuple[float, float]:
 
 
 def breaks_pretty(n: int = 5) -> BreakFunction:
-    """Break function using R's :func:`~ggmanim.scales.breaks.pretty` (1-2-5 steps,
+    """Break function using R's `pretty()` (1-2-5 steps,
     covering the range) with about ``n`` intervals."""
 
     def brk(limits: Sequence[float]) -> np.ndarray:
@@ -504,7 +504,7 @@ def breaks_pretty(n: int = 5) -> BreakFunction:
 
 def breaks_extended(n: int = 5, only_loose: bool = False, **kwargs: Any) -> BreakFunction:
     """Break function using Wilkinson's extended algorithm (ggplot2's default; see
-    :func:`~ggmanim.scales.breaks.extended`) targeting ``n`` breaks."""
+    `extended()`) targeting ``n`` breaks."""
 
     def brk(limits: Sequence[float]) -> np.ndarray:
         lo, hi = _limits(limits)
@@ -585,7 +585,7 @@ def math_to_unicode(s: str) -> str:
 def render_label(s: str, engine: str) -> str:
     """Prepare a label string for ``theme.text_engine``.
 
-    ``"text"``: ``"$...$"`` math is converted with :func:`math_to_unicode`; other
+    ``"text"``: ``"$...$"`` math is converted with [`math_to_unicode()`][ggmanim.labels.math_to_unicode]; other
     strings are unchanged. ``"tex"``: math strings pass through; in other strings the
     LaTeX specials ``$ % & # _`` are escaped and newlines become ``\\\\`` line breaks.
     """

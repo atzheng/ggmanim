@@ -1,5 +1,5 @@
 """geom_density_2d / geom_density_2d_filled: contours of a 2-D kernel density
-estimate (:mod:`ggmanim.stats.density2d`)."""
+estimate (`ggmanim.stats.density2d`)."""
 
 from __future__ import annotations
 
@@ -59,7 +59,7 @@ def geom_density_2d_filled(
     **params,
 ):
     """Filled bands of the 2-D kernel density of ``aes(x, y)``, ``fill`` mapped to
-    ``after_stat("level")``; same parameters as :func:`geom_density_2d`."""
+    ``after_stat("level")``; same parameters as [`geom_density_2d()`][ggmanim.geoms.geom_density_2d]."""
     return _layer(GeomDensity2dFilled(), stat, mapping, data, position, inherit_aes, name, params)
 
 

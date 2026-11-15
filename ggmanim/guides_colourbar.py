@@ -1,14 +1,14 @@
 """Colourbar guide for continuous colour / fill scales.
 
-A :class:`Colourbar` is ``VGroup(title?, bar, ticks, labels)``: the bar is ``nbin``
-thin filled :class:`~manim.Rectangle` s (robust across renderers -- no sheen
+A [`Colourbar`][ggmanim.guides.Colourbar] is ``VGroup(title?, bar, ticks, labels)``: the bar is ``nbin``
+thin filled `Rectangle` s (robust across renderers -- no sheen
 gradients) coloured by the scale over its limits, with tick marks and labels at
 ``scale.get_breaks()``. It is vertical (low values at the bottom) for right/left
 legends and horizontal (low values on the left) for top/bottom legends; like
-:class:`~ggmanim.guides.Legend` it implements ``arrange_rows(direction)`` so
-:func:`~ggmanim.guides.place_legends` treats both uniformly.
+[`Legend`][ggmanim.guides.Legend] it implements ``arrange_rows(direction)`` so
+[`place_legends()`][ggmanim.guides.place_legends] treats both uniformly.
 
-:func:`guide_colorbar` (alias :func:`guide_colourbar`) configures it, either on
+[`guide_colorbar()`][ggmanim.guides.guide_colorbar] (alias `guide_colourbar()`) configures it, either on
 the scale (``scale_color_gradient(guide=guide_colorbar(nbin=50))``) or via
 ``guides(color=guide_colorbar(reverse=True))``.
 """
@@ -44,7 +44,7 @@ _TITLE_BUFF = 0.15
 
 
 class GuideColourbar:
-    """Colourbar options (see :func:`guide_colorbar`)."""
+    """Colourbar options (see [`guide_colorbar()`][ggmanim.guides.guide_colorbar])."""
 
     __slots__ = (
         "title",
@@ -115,7 +115,7 @@ def guide_colorbar(
     ``5`` times that, lengthened for horizontal bars so labels fit); ``nbin`` is the number of rectangles the bar is made of;
     ``reverse`` puts high values at the bottom (left); ``ticks=False`` hides the
     tick marks. ``order`` and ``direction`` work as in
-    :func:`~ggmanim.guides_legend.guide_legend` (``direction`` overrides the
+    [`guide_legend()`][ggmanim.guides_legend.guide_legend] (``direction`` overrides the
     layout chosen from the legend position).
     """
     return GuideColourbar(title, barwidth, barheight, nbin, reverse, ticks, order, direction)
@@ -282,7 +282,7 @@ def build_colourbar(
     theme: Theme,
     options: GuideColourbar | None = None,
 ) -> Colourbar:
-    """A :class:`Colourbar` for the first scale in ``aes_scales`` (all of which
+    """A [`Colourbar`][ggmanim.guides.Colourbar] for the first scale in ``aes_scales`` (all of which
     share title, breaks and labels)."""
     options = options if options is not None else GuideColourbar()
     scale = next(iter(aes_scales.values()))

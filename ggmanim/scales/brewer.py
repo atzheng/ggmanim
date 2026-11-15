@@ -1,23 +1,23 @@
 """ColorBrewer colour / fill scales: ``brewer`` (discrete), ``distiller``
 (continuous) and ``fermenter`` (binned), after ggplot2.
 
-* :func:`brewer_pal` -- ``scales::brewer_pal``: ``n -> n colours`` from the
-  ColorBrewer scheme designed for ``n`` classes (tables in :mod:`ggmanim._brewer`).
+* [`brewer_pal()`][ggmanim.scales.brewer_pal] -- ``scales::brewer_pal``: ``n -> n colours`` from the
+  ColorBrewer scheme designed for ``n`` classes (tables in `ggmanim._brewer`).
   ``palette`` is a name (``"Set1"``, case-insensitive) or a 1-based index into the
   palettes of ``type`` (``"seq"``, ``"div"`` or ``"qual"``, ggplot2's order);
   ``direction=-1`` reverses the colours. As in ``scales``, ``n < 3`` takes the
   first ``n`` colours of the 3-class scheme. More classes than the palette defines
   raise a ``ValueError`` (ggplot2 warns and returns ``NA``\\s).
-* ``scale_color_brewer`` -- a :class:`~.discrete.ScaleDiscrete` on ``brewer_pal``.
+* ``scale_color_brewer`` -- a `ScaleDiscrete` on ``brewer_pal``.
   ``cycle=True`` recycles the largest scheme instead of raising.
-* ``scale_color_distiller`` -- a :class:`~.colour.ScaleContinuousColour`
+* ``scale_color_distiller`` -- a `ScaleContinuousColour`
   interpolating the 7-class scheme (Oklab), ``direction=-1`` by default as in
   ggplot2 (so for sequential palettes the darkest colour is at the low end).
-* ``scale_color_fermenter`` -- :class:`ScaleBinnedColour`: the limits are cut at
+* ``scale_color_fermenter`` -- [`ScaleBinnedColour`][ggmanim.scales.ScaleBinnedColour]: the limits are cut at
   the scale's breaks into bins, bin ``i`` getting colour ``i`` of
   ``brewer_pal(n_bins)`` (``direction=-1`` by default). Bins are right-closed
   like ggplot2's (a value equal to a break falls in the lower bin). The guide is
-  :func:`~ggmanim.guides_coloursteps.guide_coloursteps` (one step per bin).
+  [`guide_coloursteps()`][ggmanim.guides_coloursteps.guide_coloursteps] (one step per bin).
 
 All have ``fill`` and ``colour`` variants. No manim imports beyond the palettes.
 """
@@ -147,7 +147,7 @@ class ScaleBinnedColour(ScaleContinuousColour):
     ``bin_palette`` is a discrete palette ``n_bins -> colours`` (low to high).
     Bin edges are the limits plus the breaks strictly inside them (transformed
     space); bins are right-closed, the first one closed on both sides. Other
-    arguments as for :class:`~.colour.ScaleContinuousColour`.
+    arguments as for `ScaleContinuousColour`.
     """
 
     def __init__(self, aesthetics: Any, bin_palette: Callable[[int], list[Any]], **kwargs):
@@ -220,7 +220,7 @@ def scale_color_brewer(
 def scale_fill_brewer(
     type: str = "seq", palette: str | int = 1, direction: int = 1, *, aesthetics="fill", **kwargs
 ) -> ScaleDiscrete:
-    """Discrete ColorBrewer fill scale (see :func:`scale_color_brewer`)."""
+    """Discrete ColorBrewer fill scale (see [`scale_color_brewer()`][ggmanim.scales.scale_color_brewer])."""
     return _brewer(aesthetics, type, palette, direction, kwargs)
 
 
@@ -265,7 +265,7 @@ def scale_fill_distiller(
     aesthetics="fill",
     **kwargs,
 ) -> ScaleContinuousColour:
-    """Continuous ColorBrewer fill scale (see :func:`scale_color_distiller`)."""
+    """Continuous ColorBrewer fill scale (see [`scale_color_distiller()`][ggmanim.scales.scale_color_distiller])."""
     return _distiller(aesthetics, type, palette, direction, values, kwargs)
 
 
@@ -288,7 +288,7 @@ def scale_color_fermenter(
 def scale_fill_fermenter(
     type: str = "seq", palette: str | int = 1, direction: int = -1, *, aesthetics="fill", **kwargs
 ) -> ScaleBinnedColour:
-    """Binned ColorBrewer fill scale (see :func:`scale_color_fermenter`)."""
+    """Binned ColorBrewer fill scale (see [`scale_color_fermenter()`][ggmanim.scales.scale_color_fermenter])."""
     return _fermenter(aesthetics, type, palette, direction, kwargs)
 
 

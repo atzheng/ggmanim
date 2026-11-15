@@ -1,6 +1,6 @@
 """stat_summary_2d: a summary of ``z`` in rectangular 2-D bins (for geom_tile).
 
-The bins are those of :mod:`.bin2d` (``bins``, ``binwidth``, ``breaks``,
+The bins are those of `bin2d` (``bins``, ``binwidth``, ``breaks``,
 ``boundary``, ``center``, ``closed``; one value or an ``(x, y)`` pair, the
 range the scale's). In each bin ``fun`` (default ``"mean"``; a callable or a
 numpy name such as ``"median"``, ``"sd"``, ``"length"``) summarises the finite
@@ -30,7 +30,7 @@ def summarise_z(
     z: np.ndarray, cells: np.ndarray, fun: Any = "mean", fun_args: Mapping[str, Any] | None = None
 ) -> tuple[np.ndarray, np.ndarray]:
     """``(cell ids, values)``: ``fun`` of the finite ``z`` of each distinct
-    non-negative ``cells`` id (sorted). Shared by :mod:`.summary_hex`."""
+    non-negative ``cells`` id (sorted). Shared by `summary_hex`."""
     f: Callable[..., Any] = _resolve(fun, "fun")
     args = dict(fun_args or {})
     ok = (cells >= 0) & np.isfinite(z)
@@ -42,7 +42,7 @@ def summarise_z(
 class StatSummary2d(Stat):
     """Summary of ``z`` in rectangular 2-D bins.
 
-    Parameters: the binning of :class:`~.bin2d.StatBin2d`, ``fun`` (default
+    Parameters: the binning of `StatBin2d`, ``fun`` (default
     ``"mean"``), ``fun_args`` (dict) and ``drop`` (default True: drop bins whose
     value is missing; ``False`` keeps every bin, empty ones with ``value`` NaN).
 

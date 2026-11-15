@@ -39,7 +39,7 @@ Then, part by part:
   compatible (same text / same number of pieces), else a cross-fade.
 
 The animation works on a copy of the first plot; when it finishes the scene
-holds the second :class:`~ggmanim.mobjects.GGPlot` itself (``t.plot``), so
+holds the second [`GGPlot`][ggmanim.mobjects.GGPlot] itself (``t.plot``), so
 transitions chain: ``transition(t.plot, next_spec)``.
 """
 
@@ -518,10 +518,10 @@ class _AxisSlide:
     along the axis as it rescales: its axis coordinate goes from ``p0`` (the
     value's place on the old axis) to ``p1`` (on the new one), clamped to the
     panel ``[lo, hi]``; it fades out or in, and is fully transparent whenever
-    the value is more than :data:`EDGE_FADE` beyond the edge, so parts leaving
+    the value is more than `EDGE_FADE` beyond the edge, so parts leaving
     the panel vanish there instead of piling up. ``home`` is the axis coordinate
-    the mobject is drawn at. Used through :class:`_AxisSlideOut` /
-    :class:`_AxisSlideIn` (a ``FadeOut`` / ``FadeIn``)."""
+    the mobject is drawn at. Used through `_AxisSlideOut` /
+    `_AxisSlideIn` (a ``FadeOut`` / ``FadeIn``)."""
 
     entering = False
 
@@ -741,11 +741,11 @@ def _in_scene(scene: Any, mob: Mobject) -> bool:
 
 class Transition(AnimationGroup):
     """A transition from built plot ``plot_a`` to built plot ``plot_b``; see
-    :func:`transition`.
+    [`transition()`][ggmanim.transition].
 
     Attributes
     ----------
-    plot_a, plot : the two :class:`~ggmanim.mobjects.GGPlot` (``plot`` is the
+    plot_a, plot : the two [`GGPlot`][ggmanim.mobjects.GGPlot] (``plot`` is the
         second one; the scene holds it once the animation has finished)
     working : the copy of ``plot_a`` that is animated
     layer_animations : ``{layer key: [Animation]}`` the mark animations of each
@@ -846,7 +846,7 @@ def transition(
 
     Parameters
     ----------
-    plot_a, plot_b : ``ggplot`` spec or built :class:`~ggmanim.mobjects.GGPlot`
+    plot_a, plot_b : ``ggplot`` spec or built [`GGPlot`][ggmanim.mobjects.GGPlot]
         Specs are built here; ``plot_b`` gets ``plot_a``'s panel size (and, for a
         spec ``plot_a``, its legend position) and is aligned onto it.
     key : str, optional
@@ -872,11 +872,11 @@ def transition(
         its colour (and legend entry) across the transition. Scales with user
         ``limits`` are left alone.
     **kwargs
-        Passed to the :class:`Transition` (``rate_func`` ...).
+        Passed to the [`Transition`][ggmanim.transition.Transition] (``rate_func`` ...).
 
     Returns
     -------
-    :class:`Transition`, whose ``.plot`` is the built second plot.
+    [`Transition`][ggmanim.transition.Transition], whose ``.plot`` is the built second plot.
     """
     spec_a = _with_key(plot_a, key) if _is_spec(plot_a) else None
     spec_b = _with_key(plot_b, key) if _is_spec(plot_b) else None
@@ -921,7 +921,7 @@ def transition(
 
 
 class StatesAnimation(Succession):
-    """A chain of :class:`Transition` with pauses; see :func:`animate_states`.
+    """A chain of [`Transition`][ggmanim.transition.Transition] with pauses; see [`animate_states()`][ggmanim.transition.animate_states].
 
     ``plots`` are the built plots (one per state, plus the first again when
     wrapping), ``states`` the state values, ``transitions`` the transitions. The
@@ -1160,14 +1160,14 @@ def animate_states(
     spec : ``ggplot`` spec; its data (and layers' own data with the column) is
         filtered per state
     states : column name
-    key : column matching marks between states (see :func:`transition`)
+    key : column matching marks between states (see [`transition()`][ggmanim.transition])
     levels : state values in order (default: category order, else sorted)
     wrap : transition from the last state back to the first
     limits : shared position limits, ``"union"`` of all states (default; the
         levels of discrete axes, the range of continuous and date axes), a
         mapping or ``None`` (axes rescale)
     title : format string for a per-state title, e.g. ``"Year: {state}"``
-    lag_ratio, **kwargs : passed to each :func:`transition`
+    lag_ratio, **kwargs : passed to each [`transition()`][ggmanim.transition]
     """
     from .plot import labs
 

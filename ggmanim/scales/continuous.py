@@ -5,7 +5,7 @@ Pure numpy; no manim imports.
 Spaces
 ------
 * **data space** -- raw column values (e.g. ``3 .. 2500``).
-* **transformed space** -- after the scale's :class:`Transform` (e.g. ``log10`` gives
+* **transformed space** -- after the scale's [`Transform`][ggmanim.scales.Transform] (e.g. ``log10`` gives
   ``0.48 .. 3.40``). Position scales train, compute limits/breaks and map in this
   space; the coord draws a *linear* manim ``Axes`` over it and uses the labels
   (data-space strings) for tick text. Manim's ``LogBase`` is never used.
@@ -189,7 +189,7 @@ _TRANSFORMS: dict[str, Callable[[], Transform]] = {
 
 def get_transform(trans: str | Transform | None) -> Transform:
     """Look up a transform by name (identity, log10, log2, log, sqrt, reverse) or
-    pass a :class:`Transform` instance through."""
+    pass a [`Transform`][ggmanim.scales.Transform] instance through."""
     if trans is None:
         return IdentityTransform()
     if isinstance(trans, Transform):
@@ -245,17 +245,17 @@ class ScaleContinuous(Scale):
     limits : ``None`` or ``(lo, hi)`` in data space; either end may be ``None`` to use
         the trained value. Values outside are handled by ``oob``.
     expand : ``None`` (default 5% each side), ``False``, ``(mult, add)`` or
-        ``(mult_lo, add_lo, mult_hi, add_hi)``; see :func:`.breaks.expansion`.
+        ``(mult_lo, add_lo, mult_hi, add_hi)``; see `breaks.expansion()`.
         Applied in transformed space.
     oob : ``"censor"`` (default; out-of-range -> NaN), ``"squish"``, ``"keep"`` or a
         callable ``f(transformed_values, (lo, hi)) -> values``.
-    trans : transform name or :class:`Transform`.
+    trans : transform name or [`Transform`][ggmanim.scales.Transform].
     n_breaks : desired number of automatic breaks.
     minor_breaks : ``None`` (default: one minor break between adjacent majors; for log
         transforms the ``2 .. base-1`` multiples of each power), ``False`` or ``[]``
         (none), a sequence of data-space values, or a callable
-        ``f((lo, hi)) -> data-space values`` (e.g. :func:`ggmanim.labels.breaks_width`).
-        Used for the minor grid (see :meth:`get_minor_breaks`).
+        ``f((lo, hi)) -> data-space values`` (e.g. [`ggmanim.labels.breaks_width()`][ggmanim.labels.breaks_width]).
+        Used for the minor grid (see [`get_minor_breaks()`][ggmanim.scales.ScaleContinuous.get_minor_breaks]).
     """
 
     def __init__(
@@ -388,7 +388,7 @@ class ScaleContinuous(Scale):
         return expand_range(limits, self.expand if expand is _UNSET else expand)
 
     def dimension(self, expand=_UNSET) -> tuple[float, float] | None:
-        """ggplot2-style alias for :meth:`get_expanded_limits`."""
+        """ggplot2-style alias for [`get_expanded_limits()`][ggmanim.scales.ScaleContinuous.get_expanded_limits]."""
         return self.get_expanded_limits(expand)
 
     def _data_limits(self, limits: tuple[float, float]) -> tuple[float, float]:
@@ -508,7 +508,7 @@ class ScaleContinuous(Scale):
 
 def _check_axis_guide(guide: Any) -> Any:
     """Validate a position scale's ``guide``: ``None``/``"axis"`` (plain axis) or a
-    :func:`~ggmanim.guides_axis.guide_axis`; returns the guide object or ``None``."""
+    `guide_axis()`; returns the guide object or ``None``."""
     from ..guides_axis import GuideAxis  # lazy: keeps the scales import graph small
 
     if guide is None or guide == "axis":
@@ -527,9 +527,9 @@ class ScaleContinuousPosition(ScaleContinuous):
     ``position`` puts the axis (ticks, tick labels, title) on the given side of the
     panel: ``"bottom"`` (default) or ``"top"`` for x, ``"left"`` (default) or
     ``"right"`` for y; ``None`` means the default side. ``sec_axis`` (an
-    :class:`~ggmanim.scales.sec_axis.AxisSecondary` from ``sec_axis()`` /
+    `AxisSecondary` from ``sec_axis()`` /
     ``dup_axis()``, or ``None``) adds a secondary axis on the opposite side.
-    ``guide`` is ``None``/``"axis"`` or a :func:`~ggmanim.guides_axis.guide_axis`.
+    ``guide`` is ``None``/``"axis"`` or a `guide_axis()`.
     """
 
     def __init__(
@@ -597,8 +597,8 @@ def scale_x_continuous(
     sec_axis=None,
     guide=None,
 ):
-    """Continuous x position scale. See :class:`ScaleContinuous` for arguments;
-    ``position`` is "bottom"/"top" (see :class:`ScaleContinuousPosition`)."""
+    """Continuous x position scale. See [`ScaleContinuous`][ggmanim.scales.ScaleContinuous] for arguments;
+    ``position`` is "bottom"/"top" (see [`ScaleContinuousPosition`][ggmanim.scales.ScaleContinuousPosition])."""
     return _position(
         "x",
         trans,
@@ -631,8 +631,8 @@ def scale_y_continuous(
     sec_axis=None,
     guide=None,
 ):
-    """Continuous y position scale. See :class:`ScaleContinuous` for arguments;
-    ``position`` is "left"/"right" (see :class:`ScaleContinuousPosition`)."""
+    """Continuous y position scale. See [`ScaleContinuous`][ggmanim.scales.ScaleContinuous] for arguments;
+    ``position`` is "left"/"right" (see [`ScaleContinuousPosition`][ggmanim.scales.ScaleContinuousPosition])."""
     return _position(
         "y",
         trans,
@@ -857,5 +857,5 @@ def xlim(*args) -> ScaleContinuousPosition:
 
 @register
 def ylim(*args) -> ScaleContinuousPosition:
-    """Set y limits: ``ylim(lo, hi)`` or ``ylim((lo, hi))``. See :func:`xlim`."""
+    """Set y limits: ``ylim(lo, hi)`` or ``ylim((lo, hi))``. See [`xlim()`][ggmanim.scales.xlim]."""
     return _lim("y", args)

@@ -1,6 +1,6 @@
 """stat_qq / stat_qq_line: quantile-quantile points and reference line.
 
-Theoretical quantiles default to the standard normal (:func:`qnorm`: Acklam's
+Theoretical quantiles default to the standard normal ([`qnorm()`][ggmanim.stats.qnorm]: Acklam's
 rational approximation refined by one Halley step on ``math.erfc``, accurate to
 about 1e-15). ``distribution`` may be any quantile function ``q(p, **dparams)``,
 e.g. ``scipy.stats.t.ppf`` with ``dparams={"df": 5}``.
@@ -174,7 +174,7 @@ def stat_qq(
     **params,
 ):
     """Layer of sample vs theoretical quantiles of ``aes(sample=...)`` (as
-    :func:`~ggmanim.geoms.qq.geom_qq`). Returns a layer."""
+    `geom_qq()`). Returns a layer."""
     from ..geoms.count import stat_layer  # geoms import manim: keep stats free of it
 
     params.update(distribution=distribution, dparams=dparams)
@@ -206,7 +206,7 @@ def stat_qq_line(
     **params,
 ):
     """Layer of the Q-Q reference line through the ``line_p`` quantiles (as
-    :func:`~ggmanim.geoms.qq.geom_qq_line`). Returns a layer."""
+    `geom_qq_line()`). Returns a layer."""
     from ..geoms.count import stat_layer  # geoms import manim: keep stats free of it
 
     params.update(distribution=distribution, dparams=dparams, line_p=line_p, fullrange=fullrange)

@@ -1,12 +1,12 @@
 """Continuous colour / fill scales (gradients, viridis) and extra discrete colour scales.
 
-:class:`ScaleContinuousColour` is a :class:`~.continuous.ScaleContinuous` whose
+[`ScaleContinuousColour`][ggmanim.scales.ScaleContinuousColour] is a `ScaleContinuous` whose
 output is a colour: a data value is transformed (``trans``), handled by ``oob``
 against the limits, rescaled to a position in ``[0, 1]`` and looked up in a
-*continuous palette* (``t -> colours``, see :func:`ggmanim.palettes.gradient_n_pal`;
+*continuous palette* (``t -> colours``, see [`ggmanim.palettes.gradient_n_pal()`][ggmanim.palettes.gradient_n_pal];
 gradients are interpolated in Oklab space). Missing or out-of-bounds values map
 to ``na_value`` (grey50 by default). Breaks/labels work exactly like a position
-scale's and drive the colourbar guide (:mod:`ggmanim.guides_colourbar`).
+scale's and drive the colourbar guide ([`ggmanim.guides_colourbar`][ggmanim.guides_colourbar]).
 
 Constructors (``color``/``fill``, with ``colour`` aliases)::
 
@@ -109,11 +109,11 @@ class ScaleContinuousColour(ScaleContinuous):
         ggplot2 gradient ``#132B43 -> #56B1F7``).
     na_value : colour for missing / out-of-bounds values (default grey50).
     guide : ``"colourbar"`` (default; also ``"colorbar"``), ``"legend"`` (one key
-        per break), ``"none"``, or a :func:`~ggmanim.guides_colourbar.guide_colorbar`.
+        per break), ``"none"``, or a [`guide_colorbar()`][ggmanim.guides_colourbar.guide_colorbar].
     rescaler : ``f(transformed_values, limits) -> [0, 1] positions`` (default
-        linear, :func:`rescale`).
+        linear, [`rescale()`][ggmanim.scales.rescale]).
     name, breaks, labels, limits, oob, trans, n_breaks :
-        As for :class:`~.continuous.ScaleContinuous` (``n_breaks`` defaults to 4
+        As for `ScaleContinuous` (``n_breaks`` defaults to 4
         so colourbar labels do not crowd). ``oob`` defaults to
         ``"censor"`` (out-of-range values get ``na_value``); ``"squish"`` maps them
         to the end colours.
@@ -319,7 +319,7 @@ def scale_fill_viridis_c(
     aesthetics="fill",
     **kwargs,
 ) -> ScaleContinuousColour:
-    """Continuous viridis-family fill scale (see :func:`scale_color_viridis_c`)."""
+    """Continuous viridis-family fill scale (see [`scale_color_viridis_c()`][ggmanim.scales.scale_color_viridis_c])."""
     return _viridis_c(aesthetics, option, begin, end, direction, kwargs)
 
 

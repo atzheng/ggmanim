@@ -1,6 +1,6 @@
 """geom_hex: hexagonal 2-D bin counts (``stat_bin_hex``) drawn as hexagons.
 
-Each hexagon is the pointy-topped hexagon of :func:`~ggmanim.stats.hex.hexagon_vertices`
+Each hexagon is the pointy-topped hexagon of `hexagon_vertices()`
 in transformed (data) units, put through ``coord.transform`` -- so neighbouring
 hexagons share their edges exactly (no gaps) whatever the panel's aspect ratio,
 and the tiles follow ``coord_flip``. On a panel whose x and y units have the same
@@ -33,11 +33,11 @@ class GeomHex(Geom):
     """Hexagons centred on ``(x, y)``, ``width``/``height`` (columns from the
     stat or params; default the data resolution) the bin widths.
 
-    :meth:`setup_data` adds the bounding box (``xmin``/``xmax``/``ymin``/``ymax``)
+    [`setup_data()`][ggmanim.geoms.Geom.setup_data] adds the bounding box (``xmin``/``xmax``/``ymin``/``ymax``)
     so the position scales cover whole hexagons. ``draw_panel`` returns one
     ``VMobject`` per visible row (``.marks``/``.keys`` per row), clipped to the
     panel; opaque outline-less hexagons get a hairline in their fill colour to
-    hide anti-aliasing seams (:func:`~._rect.seal_seams`).
+    hide anti-aliasing seams (`seal_seams()`).
     """
 
     required_aes = ("x", "y")

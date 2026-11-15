@@ -21,8 +21,8 @@ cumulative weight reaches the probability) and ``n`` = the summed weight.
 Orientation: horizontal boxes (``y`` discrete, ``x`` continuous, or
 ``orientation="y"``) are computed on swapped columns and come back with
 ``xmin``/``xlower``/``xmiddle``/``xupper``/``xmax`` and ``flipped_aes = True``.
-The orientation helpers here (:func:`flip_names`, :func:`resolve_flipped`) are
-shared with :mod:`ggmanim.stats.density` and the distribution geoms.
+The orientation helpers here ([`flip_names()`][ggmanim.stats.flip_names], [`resolve_flipped()`][ggmanim.stats.resolve_flipped]) are
+shared with `ggmanim.stats.density` and the distribution geoms.
 """
 
 from __future__ import annotations
@@ -262,7 +262,7 @@ def stat_boxplot(
     **params,
 ):
     """Boxplot statistics drawn with ``geom`` (default ``geom_boxplot``); see
-    :mod:`ggmanim.stats.boxplot`. Returns a layer."""
+    `ggmanim.stats.boxplot`. Returns a layer."""
     from ..geoms.count import stat_layer
 
     return stat_layer(

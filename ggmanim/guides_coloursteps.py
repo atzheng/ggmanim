@@ -1,18 +1,18 @@
 """Colour-steps guide for binned colour / fill scales (ggplot2's ``guide_coloursteps``).
 
-A :class:`Coloursteps` is a :class:`~ggmanim.guides_colourbar.Colourbar` whose
-bar is one filled :class:`~manim.Rectangle` per bin (exact step edges, no
+A [`Coloursteps`][ggmanim.guides.Coloursteps] is a [`Colourbar`][ggmanim.guides_colourbar.Colourbar] whose
+bar is one filled `Rectangle` per bin (exact step edges, no
 sampling), with labels at the bin boundaries (the scale's breaks strictly inside
 its limits; also at the limits with ``show_limits=True``). With
 ``even_steps=True`` (the default, as in ggplot2) every bin gets the same length
 regardless of its width in data; ``even_steps=False`` sizes the steps
 proportionally to the bins. No tick marks by default.
 
-It is the default guide of :class:`~ggmanim.scales.brewer.ScaleBinnedColour`
+It is the default guide of `ScaleBinnedColour`
 (``scale_*_fermenter``) and can be asked for on any continuous colour scale
 (``guides(color="coloursteps")`` / ``guide_coloursteps()``), which is then
 shown binned at its breaks, each step coloured at its bin's midpoint.
-:func:`guide_colorsteps` is an alias of :func:`guide_coloursteps`.
+`guide_colorsteps()` is an alias of [`guide_coloursteps()`][ggmanim.guides.guide_coloursteps].
 """
 
 from __future__ import annotations
@@ -42,7 +42,7 @@ COLOURSTEPS_NAMES = ("coloursteps", "colorsteps")
 
 
 class GuideColoursteps:
-    """Colour-steps options (see :func:`guide_coloursteps`)."""
+    """Colour-steps options (see [`guide_coloursteps()`][ggmanim.guides.guide_coloursteps])."""
 
     __slots__ = (
         "title",
@@ -115,7 +115,7 @@ def guide_coloursteps(
     labels the two ends of the bar with the scale limits; ``ticks=True`` adds
     tick marks at the labelled boundaries. ``title``, ``barwidth``,
     ``barheight``, ``reverse``, ``order`` and ``direction`` work as in
-    :func:`~ggmanim.guides_colourbar.guide_colorbar`.
+    [`guide_colorbar()`][ggmanim.guides_colourbar.guide_colorbar].
     """
     return GuideColoursteps(
         title, barwidth, barheight, even_steps, show_limits, reverse, ticks, order, direction
@@ -135,7 +135,7 @@ def is_coloursteps_spec(spec: Any) -> bool:
 class Coloursteps(Colourbar):
     """Colour steps: ``VGroup(title?, bar, ticks, labels)``, one bar cell per bin.
 
-    As :class:`~ggmanim.guides_colourbar.Colourbar`, plus
+    As [`Colourbar`][ggmanim.guides_colourbar.Colourbar], plus
 
     edges : bin edges (transformed space), low to high; ``len(edges) == len(rects) + 1``.
     breaks : the labelled boundaries (inner edges, plus the limits with ``show_limits``).
@@ -218,7 +218,7 @@ def build_coloursteps(
     theme: Theme,
     options: GuideColoursteps | None = None,
 ) -> Coloursteps:
-    """A :class:`Coloursteps` for the first scale in ``aes_scales``; ``breaks``
+    """A [`Coloursteps`][ggmanim.guides.Coloursteps] for the first scale in ``aes_scales``; ``breaks``
     (transformed) and ``labels`` are the scale's, the inner ones become the bin
     boundaries."""
     options = options if options is not None else GuideColoursteps()
