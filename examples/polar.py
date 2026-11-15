@@ -18,6 +18,7 @@ from ggmanim import (
     coord_radar,
     geom_bar,
     geom_col,
+    geom_hline,
     geom_point,
     geom_polygon,
     ggplot,
@@ -93,7 +94,11 @@ def make_rose():
 def make_radar():
     return (
         ggplot(RADAR, aes("skill", "score", color="player", group="player"))
-        .add(geom_polygon(aes(fill="player"), alpha=0.2, linewidth=3), geom_point(size=0.08))
+        .add(
+            geom_polygon(aes(fill="player"), alpha=0.2, linewidth=3),
+            geom_point(size=0.08),
+            geom_hline(yintercept=5, linetype="dashed", linewidth=1.5, alpha=0.6),
+        )
         .add(coord_radar(), ylim(0, 10), labs(title="radar: coord_radar()", x=None, y=None))
     )
 
