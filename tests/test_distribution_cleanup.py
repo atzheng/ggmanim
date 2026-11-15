@@ -31,7 +31,7 @@ def test_bw_rules_registered_in_kde():
 
 def test_oriented_position_flag_removed_from_bin():
     assert not hasattr(StatBin, "oriented_position")
-    assert StatCount is not None
+    assert not hasattr(StatCount, "oriented_position")
 
 
 def _bars():
