@@ -1020,7 +1020,9 @@ def build_plot(plot, *, theme: Theme | None = None):
     layers = resolve_layers(plot)
     layout = assign_panels(layers, plot)
     if not _facet(plot).is_null:
-        return _build_faceted(plot, layers, layout, theme)
+        out = _build_faceted(plot, layers, layout, theme)
+        out.spec = plot  # lets GGPlot.update_data work on any build
+        return out
     pos_scales = setup_position_scales(plot, layers)
     compute_stats(layers, pos_scales)
     np_scales = map_non_position(plot, layers)
@@ -1032,7 +1034,7 @@ def build_plot(plot, *, theme: Theme | None = None):
     legends = make_legends(plot, layers, np_scales, theme, labels)
     panel = build_panel(plot, pos_scales, theme, labels, has_legend=bool(legends))
     drawn = draw_layers(layers, panel, theme)
-    return assemble(
+    out = assemble(
         panel,
         drawn,
         legends,
@@ -1042,6 +1044,8 @@ def build_plot(plot, *, theme: Theme | None = None):
         layer_data={ld.key: ld.data for ld in layers},
         layer_geoms={ld.key: ld.layer.geom for ld in layers},
     )
+    out.spec = plot  # lets GGPlot.update_data work on any build
+    return out
 
 
 def _build_faceted(plot, layers: list[LayerData], layout: pd.DataFrame, theme: Theme):

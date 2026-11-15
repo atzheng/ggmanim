@@ -122,6 +122,7 @@ def test_update_data_requires_identity_stat(df):
 
 def test_update_data_needs_spec(df):
     plot = _spec(df).build()
+    plot.spec = None  # build() records the spec; simulate a plot without one
     with pytest.raises(BuildError, match="build_live"):
         plot.update_data(df)
     plot.update_data(df.assign(y=[4.0, 3.0, 2.0]), spec=_spec(df))
