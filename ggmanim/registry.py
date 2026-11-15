@@ -2,8 +2,8 @@
 
 Every public component constructor (``geom_*``, ``stat_*``, ``scale_*``,
 ``coord_*``, ``theme*``, ``labs``, ``xlab``, ``ylab``, ``xlim``, ``ylim``, ...)
-is registered once with :func:`register`. :class:`ggmanim.plot.ggplot` looks
-names up in :data:`COMPONENTS` *at call time* to provide chaining sugar, so
+is registered once with [`register()`][ggmanim.registry.register]. [`ggmanim.plot.ggplot`][ggmanim.plot.ggplot] looks
+names up in `COMPONENTS` *at call time* to provide chaining sugar, so
 components defined in modules imported after ``plot.py`` still get a method::
 
     ggplot(df).geom_point(alpha=0.5)  ==  ggplot(df).add(geom_point(alpha=0.5))

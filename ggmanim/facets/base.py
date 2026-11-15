@@ -1,9 +1,9 @@
-"""The :class:`Facet` contract: how a facet splits a plot into panels.
+"""The [`Facet`][ggmanim.facets.Facet] contract: how a facet splits a plot into panels.
 
 A facet is a plot component (``plot + facet_wrap("class")``). The build pipeline
-(:mod:`ggmanim.build`) asks it four things; ``facet_wrap`` / ``facet_grid`` only
-need to implement :meth:`Facet.compute_layout` and :meth:`Facet.vars` (plus
-:meth:`Facet.strips` for their strip labels) -- everything else has a generic
+([`ggmanim.build`][ggmanim.build]) asks it four things; ``facet_wrap`` / ``facet_grid`` only
+need to implement [`Facet.compute_layout()`][ggmanim.facets.Facet.compute_layout] and [`Facet.vars()`][ggmanim.facets.Facet.vars] (plus
+[`Facet.strips()`][ggmanim.facets.Facet.strips] for their strip labels) -- everything else has a generic
 implementation here, mirroring ggplot2's ``Facet`` ggproto.
 
 Pipeline
@@ -19,14 +19,14 @@ Pipeline
    ``SCALE_X`` which x scale the panel uses (int id); panels with equal ids
                share one trained scale object
    ``SCALE_Y`` the same for y
-   *vars*      one column per facet variable (:meth:`vars`): the panel's value
+   *vars*      one column per facet variable ([`vars()`][ggmanim.facets.Facet.vars]): the panel's value
    ==========  ===============================================================
 
    ``data`` holds the *raw* user data frames (``None`` entries removed): the plot
    data and every layer's own data, each first passed through
-   :meth:`Facet.facet_data` (which may add computed facet columns, e.g.
+   [`Facet.facet_data()`][ggmanim.facets.Facet.facet_data] (which may add computed facet columns, e.g.
    ``facet_wrap({"big": fn})``). A facet variable missing from every frame is
-   an error (raise :class:`ValueError`). Use :meth:`scale_ids` to fill
+   an error (raise `ValueError`). Use [`scale_ids()`][ggmanim.facets.Facet.scale_ids] to fill
    ``SCALE_X``/``SCALE_Y`` from the ``scales=`` argument.
 
 2. **Rows -> panels.** ``data = facet.map_data(data, layout)`` per layer: ``data``
@@ -46,24 +46,24 @@ Pipeline
    that panel's rows only (pre-stat, then again after positions) and runs stats
    and positions per panel with that panel's scales, so free scales train
    independently. Non-position scales (colour, size ...) are always shared.
-   :meth:`finish_data` is a last per-layer hook after the position scales are
+   [`finish_data()`][ggmanim.facets.Facet.finish_data] is a last per-layer hook after the position scales are
    trained (default: identity).
 
-4. **Panels.** The pipeline builds one :class:`~ggmanim.coords.CartesianPanel`
+4. **Panels.** The pipeline builds one [`CartesianPanel`][ggmanim.coords.CartesianPanel]
    per layout row with ``coord.build`` and that panel's scales, sized so the
-   whole grid fits :meth:`Theme.panel_size <ggmanim.theme.Theme.panel_size>`,
-   with tick marks/labels only where :meth:`draw_axes` says, and axis titles
-   suppressed (drawn once for the grid). :meth:`draw_panels` then adds the
-   :meth:`strips` and places every panel in its cell, returning a
-   :class:`PanelGrid`. Override :meth:`panel_weights` for unequal column widths /
+   whole grid fits `Theme.panel_size <ggmanim.theme.Theme.panel_size>()`,
+   with tick marks/labels only where [`draw_axes()`][ggmanim.facets.Facet.draw_axes] says, and axis titles
+   suppressed (drawn once for the grid). [`draw_panels()`][ggmanim.facets.Facet.draw_panels] then adds the
+   [`strips()`][ggmanim.facets.Facet.strips] and places every panel in its cell, returning a
+   [`PanelGrid`][ggmanim.facets.PanelGrid]. Override [`panel_weights()`][ggmanim.facets.Facet.panel_weights] for unequal column widths /
    row heights (``facet_grid(space="free")``).
 
 Result
 ------
 ``GGPlot.panels[(row, col)]`` is each panel; ``GGPlot.panel`` / ``axes`` the
-first; ``GGPlot.layers[name]`` a :class:`PanelLayers` (one ``VGroup`` per panel,
+first; ``GGPlot.layers[name]`` a [`PanelLayers`][ggmanim.facets.PanelLayers] (one ``VGroup`` per panel,
 ``.panel(row, col)``, ``.marks`` flattened in panel order); ``GGPlot.strips`` a
-``VGroup`` of every strip. With :class:`~ggmanim.facets.null.FacetNull` (no
+``VGroup`` of every strip. With `FacetNull` (no
 facet) the built plot is exactly the single-panel plot.
 
 Writing a facet
@@ -123,11 +123,11 @@ class Facet:
     ----------
     scales : ``"fixed"`` (all panels share x and y), ``"free_x"``, ``"free_y"`` or
         ``"free"`` (each panel trains its own x and/or y scale).
-    labeller : strip labeller (:mod:`ggmanim.facets.labellers`); ``None`` =
-        :func:`~ggmanim.facets.labellers.label_value`.
+    labeller : strip labeller (`ggmanim.facets.labellers`); ``None`` =
+        `label_value()`.
     """
 
-    #: ``True`` only for :class:`~ggmanim.facets.null.FacetNull`: the pipeline then
+    #: ``True`` only for `FacetNull`: the pipeline then
     #: builds the classic single panel (no strips, axis titles on the panel).
     is_null: ClassVar[bool] = False
 
@@ -158,7 +158,7 @@ class Facet:
 
     def facet_data(self, data: pd.DataFrame) -> pd.DataFrame:
         """Hook run by the build on the plot data and on every layer's raw data
-        before :meth:`compute_layout`: return ``data`` plus any computed facet
+        before [`compute_layout()`][ggmanim.facets.Facet.compute_layout]: return ``data`` plus any computed facet
         columns (never modify it in place). Default: ``data`` unchanged."""
         return data
 
@@ -167,10 +167,10 @@ class Facet:
         raise NotImplementedError(f"{type(self).__name__}.compute_layout")
 
     def combinations(self, data: Sequence[pd.DataFrame], vars: Sequence[str] | None = None):
-        """Observed combinations of ``vars`` (default :meth:`vars`) over every
+        """Observed combinations of ``vars`` (default [`vars()`][ggmanim.facets.Facet.vars]) over every
         frame that has *all* of them, as a DataFrame sorted by each variable's
         levels (categorical order, else sorted values; missing values last).
-        Raises :class:`ValueError` if a variable is in no frame."""
+        Raises `ValueError` if a variable is in no frame."""
         vars = list(self.vars() if vars is None else vars)
         if not vars:
             return pd.DataFrame(index=range(1))
@@ -256,7 +256,7 @@ class Facet:
     def strips(self, layout: pd.DataFrame) -> StripSpecs:
         """``{PANEL: [(side, labels), ...]}``: the strips of each panel. ``side`` is
         ``"top"``, ``"bottom"``, ``"left"`` or ``"right"``; ``labels`` lists one
-        string per stacked strip, outermost first (:meth:`strip_labels` makes it
+        string per stacked strip, outermost first ([`strip_labels()`][ggmanim.facets.Facet.strip_labels] makes it
         with the labeller). Default: no strips."""
         return {}
 
@@ -275,7 +275,7 @@ class Facet:
     ) -> dict[int, tuple[bool, bool]]:
         """``{PANEL: (horizontal axis drawn, vertical axis drawn)}``; ``h_col`` is
         the layout column of the horizontal scale (``"SCALE_Y"`` under
-        ``coord_flip``). Default: :func:`ggmanim.facets._layout.axis_visibility`
+        ``coord_flip``). Default: `ggmanim.facets._layout.axis_visibility()`
         (outer panels, or every panel whose neighbour uses another scale)."""
         return _layout.axis_visibility(layout, h_col, v_col, h_side, v_side)
 
@@ -299,7 +299,7 @@ class Facet:
         """Add the strips to the built ``panels`` (``{PANEL: CartesianPanel}``) and
         place them in a grid of ``widths`` x ``heights`` plotting areas.
 
-        ``axes`` (:meth:`draw_axes`) and ``sides`` (horizontal, vertical axis side)
+        ``axes`` ([`draw_axes()`][ggmanim.facets.Facet.draw_axes]) and ``sides`` (horizontal, vertical axis side)
         decide where strips sharing a side with an axis go: next to the panel
         with the axis moved out (``theme.strip_placement="inside"``) or beyond the
         axis (``"outside"``)."""
@@ -395,7 +395,7 @@ def add_strips(
     visible: tuple[bool, bool] = (True, True),
     sides: tuple[str, str] = ("bottom", "left"),
 ) -> VGroup:
-    """Strips for one panel (``entries`` from :meth:`Facet.strips`) against its
+    """Strips for one panel (``entries`` from [`Facet.strips()`][ggmanim.facets.Facet.strips]) against its
     plotting area. Where a strip shares a side with a drawn axis,
     ``theme.strip_placement`` decides: ``"inside"`` (default) shifts the panel's
     tick marks/labels on that side outward past the strips; ``"outside"`` puts

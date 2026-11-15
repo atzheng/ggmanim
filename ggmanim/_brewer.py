@@ -20,7 +20,7 @@ University (https://colorbrewer2.org), used under the Apache License, Version 2.
 
 ColorBrewer defines a *separate* scheme for every number of classes ``n`` (from 3 up
 to the palette's maximum) -- they are not truncations of the largest scheme -- so
-:data:`BREWER` stores every per-``n`` list, exactly as RColorBrewer 1.1-3's
+`BREWER` stores every per-``n`` list, exactly as RColorBrewer 1.1-3's
 ``brewer.pal(n, name)`` returns them (upper-case hex). Palette order within each
 type matches ``scales:::brewer`` so numeric palette indices agree with ggplot2.
 

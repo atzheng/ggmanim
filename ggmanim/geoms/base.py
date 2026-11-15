@@ -2,7 +2,7 @@
 
 A *geom* turns a layer's computed data into manim mobjects. Geoms are stateless:
 everything layer-specific (constant aesthetics, geom/stat parameters) lives in
-:attr:`ggmanim.layer.Layer.params` and is passed to the methods below.
+`ggmanim.layer.Layer.params` and is passed to the methods below.
 
 Contract with the build pipeline (``ggm-s11.8``)
 -----------------------------------------------
@@ -40,20 +40,20 @@ the stroke/fill even when the aesthetic is mapped or has a default, like ggplot2
 Legend guides (``ggm-s11.7``) call ``geom.draw_key(row, theme)`` with a dict of
 aesthetic values (e.g. ``{"color": ManimColor(...)}``); missing aesthetics fall back
 to the geom defaults. The key is centred on the origin and about
-:data:`KEY_SIZE` scene units across.
+`KEY_SIZE` scene units across.
 
 Aesthetic -> manim translation (Phase 1)
 ----------------------------------------
 ``color`` -> stroke colour (``Dot``: fill colour), ``fill`` -> ``fill_color``,
 ``alpha`` -> ``fill_opacity``/``stroke_opacity``, ``size`` -> point radius (scene
 units), ``linewidth`` -> ``stroke_width`` (manim units), ``shape`` -> point marker
-(:mod:`ggmanim.geoms._markers`), ``linetype`` -> dash pattern
-(:mod:`ggmanim.geoms._linetype`). Legend keys reflect ``shape``/``linetype``; line
-keys shrink the dash pattern so at least two repeats fit in :data:`KEY_SIZE`.
+(`ggmanim.geoms._markers`), ``linetype`` -> dash pattern
+(`ggmanim.geoms._linetype`). Legend keys reflect ``shape``/``linetype``; line
+keys shrink the dash pattern so at least two repeats fit in `KEY_SIZE`.
 
 Marks (for animation)
 ---------------------
-Every geom's ``draw_panel`` returns a ``VGroup`` and calls :func:`attach_marks`
+Every geom's ``draw_panel`` returns a ``VGroup`` and calls [`attach_marks()`][ggmanim.geoms.attach_marks]
 on it before returning, so animations can address individual marks:
 ``mob.marks`` is the list of mark mobjects (one per drawn data row for
 ``per="row"`` geoms such as points and bars, one per group for ``per="group"``
@@ -64,10 +64,10 @@ of the layer data (``per="row"``) or the group id (``per="group"``).
 
 Position adjustments
 --------------------
-:attr:`Geom.default_position` (``"identity"``) is used when a layer is built
+`Geom.default_position` (``"identity"``) is used when a layer is built
 with ``position=None``; the layer resolves it through
-:func:`ggmanim.positions.get_position`. The pipeline runs the position after
-``setup_data`` (see :mod:`ggmanim.build`).
+[`ggmanim.positions.get_position()`][ggmanim.positions.get_position]. The pipeline runs the position after
+``setup_data`` (see [`ggmanim.build`][ggmanim.build]).
 """
 
 from __future__ import annotations
@@ -104,7 +104,7 @@ KEY_SIZE = 0.3
 
 # region: aesthetics
 #: Aesthetic names a geom may receive as constant params (besides its defaults).
-#: ``key`` identifies marks for animation (see :func:`attach_marks`); it is never
+#: ``key`` identifies marks for animation (see [`attach_marks()`][ggmanim.geoms.attach_marks]); it is never
 #: scaled and does not define groups.
 _KNOWN_AES = frozenset(
     {"x", "y", "color", "fill", "alpha", "size", "linewidth", "linetype", "shape", "group"}
@@ -121,7 +121,7 @@ _COMMON_PARAMS = frozenset({"na_rm", "show_legend"})
 def resolve_color(value: Any, fallback: Any = None) -> ManimColor | None:
     """``value`` as a ``ManimColor``; ``None``/NaN -> ``fallback`` (also coerced).
 
-    A blank colour (``"NA"``/``"none"``/``"transparent"``, see :func:`is_blank`)
+    A blank colour (``"NA"``/``"none"``/``"transparent"``, see `is_blank()`)
     gives ``None`` whatever the ``fallback``: draw nothing."""
     if is_blank(value):
         return None
@@ -143,7 +143,7 @@ def _scalar(v: Any) -> Any:
 
 class Geom:
     """Base geom. Subclasses set the class attributes and implement
-    :meth:`draw_panel` (or :meth:`draw_group`) and :meth:`draw_key`.
+    [`draw_panel()`][ggmanim.geoms.Geom.draw_panel] (or `draw_group()`) and [`draw_key()`][ggmanim.geoms.Geom.draw_key].
 
     Attributes
     ----------
@@ -160,7 +160,7 @@ class Geom:
         Position used when the constructor is given ``position=None``.
     x_aes, y_aes : tuple
         Columns that, when present, train the x / y position scale (see
-        :meth:`position_aes_for_training`).
+        [`position_aes_for_training()`][ggmanim.geoms.Geom.position_aes_for_training]).
     """
 
     required_aes: tuple[str, ...] = ()
@@ -171,7 +171,7 @@ class Geom:
     x_aes: tuple[str, ...] = X_AESTHETICS
     y_aes: tuple[str, ...] = Y_AESTHETICS
     #: Position columns whose non-finite values (missing or oob-censored) remove
-    #: the row before drawing; ``None`` = the positional :attr:`required_aes`.
+    #: the row before drawing; ``None`` = the positional `required_aes`.
     na_aes: tuple[str, ...] | None = None
 
     def __repr__(self) -> str:
@@ -186,8 +186,8 @@ class Geom:
         """The constant aesthetics in ``params`` (names standardised).
 
         ``color``/``fill`` set to ``None`` or ``"NA"`` (ggplot2's ``fill = NA``)
-        become :data:`NA_COLOR`, which blanks the stroke / fill even when the
-        aesthetic is mapped or has a default (see :func:`is_blank`)."""
+        become `NA_COLOR`, which blanks the stroke / fill even when the
+        aesthetic is mapped or has a default (see `is_blank()`)."""
         out = {}
         aes = self.aesthetics()
         for k, v in params.items():
@@ -202,7 +202,7 @@ class Geom:
     def position_aes_for_training(self, data: pd.DataFrame | None) -> dict[str, list]:
         """``{"x": [cols], "y": [cols]}``: the columns of ``data`` (those present)
         that train the x and y position scales. Call before the stat (raw layer
-        data) and again after :meth:`setup_data`."""
+        data) and again after [`setup_data()`][ggmanim.geoms.Geom.setup_data]."""
         cols = set(data.columns) if data is not None else set()
         return {
             "x": [c for c in self.x_aes if c in cols],
@@ -223,7 +223,7 @@ class Geom:
             )
 
     def use_defaults(self, data: pd.DataFrame, params: Mapping[str, Any]) -> pd.DataFrame:
-        """``data`` with every :attr:`default_aes` column filled in (where absent)
+        """``data`` with every `default_aes` column filled in (where absent)
         and constant aesthetics from ``params`` overriding mapped values."""
         out = data.copy()
         for k, v in self.default_aes.items():
@@ -240,10 +240,10 @@ class Geom:
     def handle_na(
         self, data: pd.DataFrame, params: Mapping[str, Any] | None = None, label: str | None = None
     ) -> pd.DataFrame:
-        """Drop rows with non-finite :attr:`na_aes` positions (missing values or
+        """Drop rows with non-finite `na_aes` positions (missing values or
         values censored by a scale's ``oob``), warning once with the count -- like
         ggplot2's "Removed n rows" -- unless ``params["na_rm"]`` is true. The build
-        pipeline calls this once per layer before :meth:`draw_panel`."""
+        pipeline calls this once per layer before [`draw_panel()`][ggmanim.geoms.Geom.draw_panel]."""
         cols = self.na_aes
         if cols is None:
             pos = set(X_AESTHETICS) | set(Y_AESTHETICS)
@@ -266,11 +266,11 @@ class Geom:
     def draw_panel(
         self, data: pd.DataFrame, panel_params, coord, theme: Theme | None = None, **params
     ) -> VMobject:
-        """Draw the whole layer for one panel; default: :meth:`draw_group` per
+        """Draw the whole layer for one panel; default: `draw_group()` per
         group, in ``group`` order, collected in a ``VGroup`` with one mark per
-        group (:func:`attach_marks`).
+        group ([`attach_marks()`][ggmanim.geoms.attach_marks]).
 
-        ``coord`` is the built :class:`~ggmanim.coords.CartesianPanel` (anything with
+        ``coord`` is the built [`CartesianPanel`][ggmanim.coords.CartesianPanel] (anything with
         ``transform(x, y) -> (N, 3)`` taking transformed-space values).
         """
         theme = theme if theme is not None else theme_default()
@@ -287,11 +287,11 @@ class Geom:
         raise NotImplementedError
 
     def draw_key(self, data_row: Mapping[str, Any], theme: Theme | None = None) -> VMobject:
-        """A small legend glyph (about :data:`KEY_SIZE` across, centred at origin)."""
+        """A small legend glyph (about `KEY_SIZE` across, centred at origin)."""
         raise NotImplementedError
 
     def key_aes(self, data_row: Mapping[str, Any] | None) -> dict[str, Any]:
-        """``data_row`` (standardised names) over :attr:`default_aes`."""
+        """``data_row`` (standardised names) over `default_aes`."""
         out = dict(self.default_aes)
         for k, v in (data_row or {}).items():
             v = _scalar(v)
@@ -346,7 +346,7 @@ def path_mobject(points: np.ndarray, color: Any, linewidth: float, alpha: float)
 
 def clipped_path_points(coord, panel_params, x, y) -> list[np.ndarray]:
     """The open path through transformed-space ``(x, y)`` as scene points, clipped
-    to the panel (see :mod:`._clip`): a list of ``(n, 3)`` pieces, ``[]`` if nothing
+    to the panel (see `_clip`): a list of ``(n, 3)`` pieces, ``[]`` if nothing
     is visible. Unclipped (``clip="off"`` or entirely inside) it is one piece with
     every vertex."""
     rect = panel_rect(coord, panel_params)
@@ -359,8 +359,8 @@ def clipped_path_points(coord, panel_params, x, y) -> list[np.ndarray]:
 def multi_path_mobject(
     pieces: Sequence[np.ndarray], color: Any, linewidth: float, alpha: float
 ) -> VMobject:
-    """Like :func:`path_mobject`, for a path broken into several pieces (one
-    ``VMobject`` with one subpath per piece). One piece == :func:`path_mobject`."""
+    """Like `path_mobject()`, for a path broken into several pieces (one
+    ``VMobject`` with one subpath per piece). One piece == `path_mobject()`."""
     if len(pieces) <= 1:
         return path_mobject(pieces[0] if pieces else np.zeros((0, 3)), color, linewidth, alpha)
     m = path_mobject(pieces[0], color, linewidth, alpha)
@@ -427,7 +427,7 @@ def make_label(theme: Theme, label: Any, color: Any) -> Mobject | None:
 
 
 def num_array(values: Any, default: float) -> np.ndarray:
-    """Vectorised :func:`num`: ``values`` as a float array, ``None``/NaN/non-finite/
+    """Vectorised `num()`: ``values`` as a float array, ``None``/NaN/non-finite/
     non-numeric entries replaced by ``default``."""
     vals = values.to_numpy() if isinstance(values, pd.Series) else values
     try:
@@ -475,7 +475,7 @@ _BLANK_NAMES = frozenset({"na", "none", "transparent"})
 
 def is_blank(value: Any) -> bool:
     """True for a blank colour: ``"NA"``, ``"none"`` or ``"transparent"`` (any
-    case). Geoms draw no fill / stroke for it (:func:`resolve_color` -> ``None``)."""
+    case). Geoms draw no fill / stroke for it ([`resolve_color()`][ggmanim.geoms.resolve_color] -> ``None``)."""
     return isinstance(value, str) and value.strip().lower() in _BLANK_NAMES
 
 
@@ -500,7 +500,7 @@ def paint_stroke(mob: VMobject, color: Any, width: float, opacity: float) -> VMo
 def munch_path(coord, x, y, closed: bool = False) -> tuple[np.ndarray, np.ndarray]:
     """The path ``(x, y)`` (coord input space) ready for drawing under ``coord``:
     unchanged for linear coords, else interpolated so that straight segments bend
-    with the coord (:func:`ggmanim.coords.coord_munch`). Geoms call it on paths and
+    with the coord ([`ggmanim.coords.coord_munch()`][ggmanim.coords.coord_munch]). Geoms call it on paths and
     polygon rings (``closed=True``) *before* clipping and ``coord.transform``."""
     from ..coords import coord_munch
 
@@ -512,7 +512,7 @@ def munch_rect_corners(coord, cx, cy) -> np.ndarray:
     ``cx``/``cy`` (``(n, 4)``, in drawing order). Linear coords: the 4 transformed
     corners (``m = 4``). Non-linear coords: each rect becomes a polygon whose edges
     are cut into the same number ``k`` of pieces (``m = 4k``, enough for the
-    longest edge; see :func:`munch_path`), so all rings share one shape."""
+    longest edge; see `munch_path()`), so all rings share one shape."""
     from ..coords import MUNCH_SEGMENTS, _munch_distance, is_linear
 
     cx = np.asarray(cx, dtype=float).reshape(-1, 4)
@@ -559,12 +559,14 @@ def attach_marks(
         One mark per data row, or one mark per ``group`` (in sorted group order).
     marks : sequence of Mobject, optional
         The marks, in data-row / group order. Default: ``group.marks`` if already
-        set (e.g. by :func:`assemble`, which separates marks from labels), else
+        set (e.g. by [`assemble()`][ggmanim.build.assemble], which separates marks from labels), else
         ``group.submobjects``.
     batched : bool
         True when a mark draws several data rows at once (e.g. ``geom_raster``'s
         one mobject per colour), so marks cannot be looked up per data row.
 
+    Notes
+    -----
     Sets ``group.marks`` (a list) and ``group.keys`` (a list, same length): the
     ``key`` aesthetic's value for each row / the first value in each group when
     ``key`` is a column of ``data``, else the row's index label (``per="row"``)
@@ -640,7 +642,7 @@ def make_layer(
     name: str | None = None,
     params: Mapping[str, Any] | None = None,
 ) -> Layer:
-    """Build the :class:`~ggmanim.layer.Layer` for ``geom``.
+    """Build the [`Layer`][ggmanim.layer.Layer] for ``geom``.
 
     * ``mapping``/``data`` may be given in either order (a DataFrame passed as
       ``mapping`` is treated as data).
@@ -649,10 +651,10 @@ def make_layer(
       instantiated with the params it accepts; ``Layer.params`` keeps *all* params
       (constant aesthetics, geom params and stat params).
     * ``position`` (name, class or instance; ``None`` -> ``geom.default_position``)
-      is resolved by :func:`ggmanim.positions.get_position` (stack, fill, dodge,
+      is resolved by [`ggmanim.positions.get_position()`][ggmanim.positions.get_position] (stack, fill, dodge,
       dodge2 and jitterdodge flip horizontal, ``flipped_aes``, data themselves).
     * The stat's ``after_stat`` ``default_aes`` (e.g. ``y=after_stat("count")``)
-      are added to the mapping as :class:`StatDefault` for aesthetics neither
+      are added to the mapping as `StatDefault` for aesthetics neither
       mapped nor set; they give way to the plot mapping at build time.
     * Unknown params trigger a warning (ggplot2's "Ignoring unknown parameters").
     """
@@ -696,7 +698,7 @@ def make_layer(
 # region: stat defaults
 class StatDefault(AfterStat):
     """An ``after_stat`` default aesthetic of a layer's stat (e.g. ``stat_count``'s
-    ``y=after_stat("count")``), added to the layer mapping by :func:`make_layer`.
+    ``y=after_stat("count")``), added to the layer mapping by [`make_layer()`][ggmanim.geoms.make_layer].
     Equal to the plain ``after_stat`` it stands for, but it yields to the same
     aesthetic in the plot mapping (ggplot2 applies a stat's defaults only to
     aesthetics the layer's computed mapping lacks)."""
@@ -706,7 +708,7 @@ class StatDefault(AfterStat):
 
 def _with_stat_defaults(stat: Any, mapping: Aes | None, params: Mapping[str, Any]) -> Aes | None:
     """``mapping`` plus ``stat.default_aes``'s ``after_stat`` entries (as
-    :class:`StatDefault`) for aesthetics neither in ``mapping`` (an explicit
+    `StatDefault`) for aesthetics neither in ``mapping`` (an explicit
     ``None`` counts) nor set as constants in ``params``. A user's own
     ``after_stat("count")`` in ``mapping`` keeps precedence over the plot mapping."""
     defaults = {
@@ -730,7 +732,7 @@ def _has_stat_defaults(mapping: Aes | None) -> bool:
 
 
 class _StatDefaultLayer(Layer):
-    """A :class:`~ggmanim.layer.Layer` whose :class:`StatDefault` aesthetics give
+    """A [`Layer`][ggmanim.layer.Layer] whose `StatDefault` aesthetics give
     way to the plot mapping: ``ggplot(df, aes(y="cut")) + geom_bar()`` counts per
     ``y`` (``x=after_stat("count")``) rather than overriding the inherited ``y``."""
 

@@ -14,11 +14,11 @@ One position aesthetic becomes the angle (``theta``), the other the radius::
   ``[inner_radius, 1] * 0.4`` of the (square) panel's side: a donut comes from
   ``inner_radius > 0`` or from radius limits that start below the data
   (``xlim(0.5, 2.5)`` with bars at ``x=2``).
-* :meth:`CoordPolar.build` returns a :class:`PolarPanel` (``is_linear`` false):
-  geoms munch rects, paths and polygons (:func:`~ggmanim.coords.coord_munch`), so
+* [`CoordPolar.build()`][ggmanim.coords_polar.CoordPolar.build] returns a [`PolarPanel`][ggmanim.coords_polar.PolarPanel] (``is_linear`` false):
+  geoms munch rects, paths and polygons ([`coord_munch()`][ggmanim.coords.coord_munch]), so
   bars become wedges and lines become arcs/spirals.
-  :meth:`PolarPanel.munch_distance` measures segments along the arc.
-* :func:`coord_radar` is the same mapping with ``is_linear`` true: vertices are
+  [`PolarPanel.munch_distance()`][ggmanim.coords_polar.PolarPanel.munch_distance] measures segments along the arc.
+* [`coord_radar()`][ggmanim.coords_polar.coord_radar] is the same mapping with ``is_linear`` true: vertices are
   placed in polar position but joined by straight lines (radar / spider charts
   with ``geom_polygon(fill=None)``).
 
@@ -67,9 +67,9 @@ _TWO_PI = 2 * np.pi
 
 
 class PolarPanel(CartesianPanel):
-    """A :class:`CartesianPanel` for :func:`coord_polar`.
+    """A [`CartesianPanel`][ggmanim.coords.CartesianPanel] for [`coord_polar()`][ggmanim.coords_polar.coord_polar].
 
-    ``axes`` is a square :class:`~ggmanim.coords.PanelAxes` over ``[0, 1]^2``
+    ``axes`` is a square [`PanelAxes`][ggmanim.coords.PanelAxes] over ``[0, 1]^2``
     (its lines hidden) that fixes the panel's position and size; the centre of
     the circle is ``(0.5, 0.5)``. ``transform(x, y)`` maps aesthetic-space
     ``(x, y)`` to the scene through the polar mapping; ``panel_params`` stay in
@@ -257,7 +257,7 @@ class CoordPolar:
     ) -> PanelParams:
         """``pp`` with automatic radius breaks thinned until their labels fit
         the radius axis (``(R_MAX - inner) * side`` long; see
-        :func:`~ggmanim.coords.fit_breaks`): small panels otherwise stack the
+        [`fit_breaks()`][ggmanim.coords.fit_breaks]): small panels otherwise stack the
         labels on top of each other."""
         if r_scale is None:
             return pp
@@ -287,7 +287,7 @@ class CoordPolar:
         *,
         has_legend: bool = False,
     ) -> PolarPanel:
-        """Build the :class:`PolarPanel`: a square panel (side ``min`` of the
+        """Build the [`PolarPanel`][ggmanim.coords_polar.PolarPanel]: a square panel (side ``min`` of the
         theme's panel size) with circular grid, theta labels and radius axis."""
         theme = theme if theme is not None else theme_default()
         pp = self.setup_panel_params(x_scale, y_scale)
@@ -475,7 +475,7 @@ def coord_polar(
     """Polar coordinates: ``theta`` (``"x"``/``"y"``) is the angle, the other
     aesthetic the radius. ``geom_bar(width=1) + coord_polar(theta="y")`` is a pie,
     ``geom_col(width=1) + coord_polar()`` a coxcomb; ``inner_radius`` (fraction of
-    the outer radius) makes a donut. See :class:`CoordPolar`."""
+    the outer radius) makes a donut. See [`CoordPolar`][ggmanim.coords_polar.CoordPolar]."""
     return CoordPolar(
         theta=theta, start=start, direction=direction, clip=clip, inner_radius=inner_radius
     )
@@ -489,7 +489,7 @@ def coord_radar(
     clip: str = "off",
     inner_radius: float = 0.0,
 ) -> CoordPolar:
-    """:func:`coord_polar` with straight edges: vertices are placed in polar
+    """[`coord_polar()`][ggmanim.coords_polar.coord_polar] with straight edges: vertices are placed in polar
     position but never munched, so ``geom_polygon(fill=None)`` draws a radar
     (spider) chart with straight spokes-to-spoke lines."""
     return _CoordRadar(

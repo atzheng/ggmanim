@@ -1,12 +1,12 @@
 """geom_ribbon and geom_area: filled bands between ``ymin`` and ``ymax``.
 
-* :func:`geom_ribbon` -- the band between ``aes(ymin=, ymax=)`` along ``x``.
-* :func:`geom_area` -- a ribbon from 0 to ``y`` (``setup_data`` sets ``ymin = 0``,
+* [`geom_ribbon()`][ggmanim.geoms.geom_ribbon] -- the band between ``aes(ymin=, ymax=)`` along ``x``.
+* [`geom_area()`][ggmanim.geoms.geom_area] -- a ribbon from 0 to ``y`` (``setup_data`` sets ``ymin = 0``,
   ``ymax = y``), aligned by ``stat_align`` and stacked by default
   (``position="stack"``).
 
 Each group is sorted by ``x`` and drawn as one filled ``VMobject`` (clipped to the
-panel with :func:`~._clip.clip_polygon`); a row with a missing ``x``/``ymin``/
+panel with `clip_polygon()`); a row with a missing ``x``/``ymin``/
 ``ymax`` breaks the band into separate pieces (subpaths of the same mobject), as
 in ggplot2. ``outline_type`` picks which edges get the ``color`` outline.
 
@@ -204,9 +204,9 @@ class GeomRibbon(Geom):
 
 
 class GeomArea(GeomRibbon):
-    """Areas from 0 to ``y``: :meth:`setup_data` (transformed space) adds
+    """Areas from 0 to ``y``: [`setup_data()`][ggmanim.geoms.Geom.setup_data] (transformed space) adds
     ``ymin = 0`` and ``ymax = y``, which the default ``position="stack"``
-    stacks. Drawn like :class:`GeomRibbon` with ``outline_type="upper"``.
+    stacks. Drawn like [`GeomRibbon`][ggmanim.geoms.GeomRibbon] with ``outline_type="upper"``.
     The default stat is ``stat_align``. Horizontal areas (``orientation="y"``
     or a true ``flipped_aes`` column) get ``xmin = 0``, ``xmax = x`` instead."""
 
@@ -279,7 +279,7 @@ def geom_area(
     The default ``stat="align"`` interpolates the groups onto a shared x grid so
     they stack correctly even when observed at different x values;
     ``stat="identity"`` draws the data as is. ``position="identity"`` overlaps the
-    areas instead of stacking them. ``outline_type`` as for :func:`geom_ribbon`
+    areas instead of stacking them. ``outline_type`` as for [`geom_ribbon()`][ggmanim.geoms.geom_ribbon]
     (default ``"upper"``). ``orientation="y"`` draws horizontal areas: ``x`` per
     ``y``, aligned on a shared y grid and stacked along x."""
     params["outline_type"] = _check_outline_type(outline_type)

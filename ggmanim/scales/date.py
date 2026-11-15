@@ -1,8 +1,8 @@
 """Date and date-time position scales (``scale_x_date``, ``scale_x_datetime`` ...).
 
-A date scale is a :class:`~ggmanim.scales.continuous.ScaleContinuousPosition` whose
+A date scale is a `ScaleContinuousPosition` whose
 transformed space is a plain number: **days** since 1970-01-01 for date scales,
-**seconds** since 1970-01-01 for date-time scales. :meth:`ScaleDatePosition.transform`
+**seconds** since 1970-01-01 for date-time scales. [`ScaleDatePosition.transform()`][ggmanim.scales.ScaleDatePosition.transform]
 accepts ``datetime64`` columns/arrays, ``datetime.date``/``datetime.datetime``
 objects, pandas ``Timestamp``\\ s, ISO strings (``"2020-03-01"``) and numbers
 (already days/seconds since the epoch), so data, ``limits=``, ``breaks=`` and
@@ -10,7 +10,7 @@ objects, pandas ``Timestamp``\\ s, ISO strings (``"2020-03-01"``) and numbers
 
 Breaks
 ------
-* automatic (default): :func:`date_breaks_auto` picks a calendar unit and step from
+* automatic (default): [`date_breaks_auto()`][ggmanim.scales.date_breaks_auto] picks a calendar unit and step from
   the span -- seconds, minutes, hours, days, weeks, months (1/2/3/6) or years
   (1/2/5/10 ...) -- aligned to the calendar (months to January, weeks to Monday);
 * ``date_breaks="1 month"`` / ``"2 weeks"`` / ``"6 hours"`` ... (``"N unit"``,
@@ -19,9 +19,9 @@ Breaks
 
 Labels
 ------
-``date_labels="%b %Y"`` (strftime) or ``labels=`` (e.g. :func:`ggmanim.labels.label_date`).
-Date-aware formatters (:func:`~ggmanim.labels.label_date`,
-:func:`~ggmanim.labels.label_date_short`, see :class:`~ggmanim.labels.DateFormatter`)
+``date_labels="%b %Y"`` (strftime) or ``labels=`` (e.g. [`ggmanim.labels.label_date()`][ggmanim.labels.label_date]).
+Date-aware formatters ([`label_date()`][ggmanim.labels.label_date],
+[`label_date_short()`][ggmanim.labels.label_date_short], see [`DateFormatter`][ggmanim.labels.DateFormatter])
 get the scale's unit and time zone filled in, unless given explicitly.
 By default the format follows the breaks' resolution: ``"%Y"`` for January-1st
 breaks, ``"%b"``/``"%b %Y"`` for month starts, ``"%b %d"``/``"%Y-%m-%d"`` for days,
@@ -31,15 +31,15 @@ Time zones
 ----------
 The transformed space is always UTC: timezone-aware values are converted to UTC,
 naive ones are taken to be UTC already. Date-time scales take ``timezone=`` (an IANA
-name such as ``"America/New_York"``, via the stdlib :mod:`zoneinfo`): breaks are
+name such as ``"America/New_York"``, via the stdlib `zoneinfo`): breaks are
 then placed on that zone's calendar (local midnights, month starts ...) and labels
 show local time. Without it, the zone of tz-aware data is used when all such
 columns share one (as ggplot2 does), else UTC.
 
 Secondary axes
 --------------
-``sec_axis=`` takes :func:`~ggmanim.scales.sec_axis.sec_axis` /
-:func:`~ggmanim.scales.sec_axis.dup_axis` as on continuous scales. The transform
+``sec_axis=`` takes `sec_axis()` /
+`dup_axis()` as on continuous scales. The transform
 works on days (date scales) or seconds (date-times) since the epoch, so
 ``sec_axis(lambda t: t + 9 * 3600)`` is a second clock nine hours ahead; it may
 also return dates. Secondary ``breaks`` may be dates; breaks and labels are
@@ -333,7 +333,7 @@ def date_breaks_width(
     width: str, unit: str = "D", tz: Any = None
 ) -> Callable[[Sequence[float]], np.ndarray]:
     """Break function (for ``breaks=``/``minor_breaks=`` of a date scale) placing a
-    break every ``width`` (see :func:`parse_date_width`); limits and breaks are in
+    break every ``width`` (see [`parse_date_width()`][ggmanim.scales.parse_date_width]); limits and breaks are in
     ``unit``\\ s since the epoch. ``tz`` (date-times only) aligns the breaks to
     that zone's calendar."""
     parsed = parse_date_width(width)
@@ -399,9 +399,9 @@ def date_format_auto(x: Any, unit: str = "D") -> str:
 
 class DateTransform(Transform):
     """Identity transform on days (``unit="D"``) or seconds (``unit="s"``) since the
-    epoch, with calendar breaks (:func:`date_breaks_auto`) and date labels
-    (:func:`date_format_auto`). The date -> number conversion happens in
-    :meth:`ScaleDatePosition.transform`. ``tz`` (date-times only) places the breaks
+    epoch, with calendar breaks ([`date_breaks_auto()`][ggmanim.scales.date_breaks_auto]) and date labels
+    ([`date_format_auto()`][ggmanim.scales.date_format_auto]). The date -> number conversion happens in
+    [`ScaleDatePosition.transform()`][ggmanim.scales.ScaleDatePosition.transform]. ``tz`` (date-times only) places the breaks
     on that zone's calendar and labels them in local time."""
 
     def __init__(self, unit: str = "D", tz: Any = None) -> None:
@@ -433,7 +433,7 @@ class ScaleDatePosition(ScaleContinuousPosition):
     """Date (``unit="D"``, days since 1970-01-01) or date-time (``unit="s"``,
     seconds) x/y position scale. See the module docstring.
 
-    Extra parameters over :class:`ScaleContinuousPosition`: ``date_breaks`` and
+    Extra parameters over [`ScaleContinuousPosition`][ggmanim.scales.ScaleContinuousPosition]: ``date_breaks`` and
     ``date_minor_breaks`` (width strings such as ``"1 month"``), ``date_labels`` (a
     strftime format). ``limits``, ``breaks`` and ``minor_breaks`` sequences may hold
     dates, ``datetime64`` values or ISO strings. ``trans`` is fixed. ``timezone``
@@ -519,7 +519,7 @@ class ScaleDatePosition(ScaleContinuousPosition):
 
     def set_timezone(self, tz: Any) -> None:
         """Use time zone ``tz`` for breaks and labels (date-time scales only; call on a
-        :meth:`clone`, as the build does with the zone of tz-aware data). Rebuilds the
+        [`clone()`][ggmanim.scales.Scale.clone], as the build does with the zone of tz-aware data). Rebuilds the
         ``date_breaks``/``date_labels``/``date_minor_breaks`` helpers and re-binds date-aware
         ``labels`` formatters to ``tz``; other user ``breaks``/``labels`` functions
         are left alone."""
@@ -566,7 +566,7 @@ def scale_x_date(
     """x scale for dates (days since 1970-01-01). ``date_breaks="1 month"``,
     ``date_labels="%b %Y"``, ``date_minor_breaks="1 week"``; ``limits`` may be dates or
     ISO strings; ``sec_axis=dup_axis(...)`` / ``sec_axis(...)`` adds a secondary axis.
-    See :class:`ScaleDatePosition`."""
+    See [`ScaleDatePosition`][ggmanim.scales.ScaleDatePosition]."""
     return _date_scale(
         "x", "D", name=name, breaks=breaks, date_breaks=date_breaks, labels=labels,
         date_labels=date_labels, minor_breaks=minor_breaks,
@@ -591,7 +591,7 @@ def scale_y_date(
     position=None,
     sec_axis=None,
 ):
-    """y scale for dates. See :func:`scale_x_date`."""
+    """y scale for dates. See [`scale_x_date()`][ggmanim.scales.scale_x_date]."""
     return _date_scale(
         "y", "D", name=name, breaks=breaks, date_breaks=date_breaks, labels=labels,
         date_labels=date_labels, minor_breaks=minor_breaks,
@@ -619,7 +619,7 @@ def scale_x_datetime(
 ):
     """x scale for date-times (seconds since 1970-01-01 UTC). ``date_breaks="6 hours"``,
     ``date_labels="%H:%M"``; ``timezone="Europe/Paris"`` puts breaks and labels in that
-    zone (default: the zone of tz-aware data, else UTC); see :func:`scale_x_date`."""
+    zone (default: the zone of tz-aware data, else UTC); see [`scale_x_date()`][ggmanim.scales.scale_x_date]."""
     return _date_scale(
         "x", "s", name=name, breaks=breaks, date_breaks=date_breaks, labels=labels,
         date_labels=date_labels, minor_breaks=minor_breaks,
@@ -645,7 +645,7 @@ def scale_y_datetime(
     timezone=None,
     sec_axis=None,
 ):
-    """y scale for date-times. See :func:`scale_x_datetime`."""
+    """y scale for date-times. See [`scale_x_datetime()`][ggmanim.scales.scale_x_datetime]."""
     return _date_scale(
         "y", "s", name=name, breaks=breaks, date_breaks=date_breaks, labels=labels,
         date_labels=date_labels, minor_breaks=minor_breaks,

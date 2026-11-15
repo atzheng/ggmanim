@@ -1,6 +1,6 @@
 """Position adjustments (identity, stack, dodge, jitter ...).
 
-See :mod:`ggmanim.positions.base` for the contract with the build pipeline and
+See `ggmanim.positions.base` for the contract with the build pipeline and
 the registry used by ``geom_*(position="...")``. The export block below is
 generated from each module's ``__all__`` by ``scripts/gen_exports.py``.
 """

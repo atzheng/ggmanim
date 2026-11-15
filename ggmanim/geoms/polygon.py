@@ -30,7 +30,7 @@ class GeomPolygon(Geom):
     first is usually the outline and the others holes. All rings are subpaths of
     the one mobject and are filled with the *even-odd* rule, as in ggplot2. Manim
     has no fill-rule setting (it always uses nonzero winding), so the rings are
-    re-oriented by nesting depth (:func:`~._rect.orient_rings`), which gives the
+    re-oriented by nesting depth (`orient_rings()`), which gives the
     same result for rings that do not cross each other.
 
     Each ring is clipped to the panel separately (Sutherland-Hodgman), so with an

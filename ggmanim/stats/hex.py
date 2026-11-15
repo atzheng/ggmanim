@@ -9,7 +9,7 @@ rounded out to multiples of the widths (``xlo``, ``ylo``), hexagon centres lie o
 
 In units of ``(wx, wy)`` this is a regular hexagonal lattice of pointy-topped
 hexagons that are ``1`` wide (flat side to flat side), so the hexagons drawn by
-:func:`hexagon_vertices` tessellate the plane. Each observation goes to the
+[`hexagon_vertices()`][ggmanim.stats.hexagon_vertices] tessellate the plane. Each observation goes to the
 nearest centre in those units (vectorised: the nearer of the two lattice
 candidates).
 """
@@ -39,7 +39,7 @@ def _bounds(lo: float, hi: float, w: float) -> tuple[float, float]:
 
 def _hex_cells(x, y, binwidth, xlim, ylim) -> tuple[np.ndarray, np.ndarray]:
     """Lattice coordinates ``(ci, cj)`` of the hexagon holding each point (shared
-    by :func:`hexbin` and ``summary_hex``); centre ``(xlo + ci * wx, ylo + cj * sqrt(3) * wy)``."""
+    by [`hexbin()`][ggmanim.stats.hexbin] and ``summary_hex``); centre ``(xlo + ci * wx, ylo + cj * sqrt(3) * wy)``."""
     wx, wy = (float(v) for v in binwidth)
     if not (wx > 0 and wy > 0):
         raise ValueError(f"binwidth must be positive, got {binwidth!r}")

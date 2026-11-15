@@ -18,7 +18,7 @@ class StatSum(Stat):
     Output columns: ``x``, ``y``, ``n`` (count / summed weight) and ``prop``
     (``n`` over the group's total), in order of first appearance. Other columns
     constant within the group are carried over. Map ``size=after_stat("n")`` (as
-    :func:`~ggmanim.geoms.count.geom_count` does) or ``after_stat("prop")``.
+    `geom_count()` does) or ``after_stat("prop")``.
     """
 
     required_aes = ("x", "y")
@@ -52,7 +52,7 @@ def stat_sum(
     **params,
 ):
     """Layer of points sized by the number of observations at each position
-    (same as :func:`~ggmanim.geoms.count.geom_count`). Returns a layer."""
+    (same as `geom_count()`). Returns a layer."""
     from ..geoms.count import stat_layer  # geoms import manim: keep stats free of it
 
     return stat_layer(

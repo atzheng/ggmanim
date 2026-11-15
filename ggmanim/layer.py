@@ -29,10 +29,10 @@ class Layer:
     ``inherit_aes`` is true. ``name`` is the key of the layer in the built
     mobject (``plot.layers[name]``).
 
-    ``position`` is resolved through :func:`~ggmanim.positions.get_position` on
+    ``position`` is resolved through [`get_position()`][ggmanim.positions.get_position] on
     construction (a name, class or instance; ``None`` -> the geom's
     ``default_position``, else ``"identity"``), so it is always a
-    :class:`~ggmanim.positions.Position`.
+    [`Position`][ggmanim.positions.Position].
     """
 
     geom: Any = None

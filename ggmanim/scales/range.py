@@ -3,15 +3,15 @@
 A *range* scale maps data values into a numeric output interval ``range=(lo, hi)``
 (ggplot2's ``scale_size`` / ``scale_alpha`` / ``scale_linewidth`` family):
 
-* :class:`ScaleContinuousRange` -- a :class:`~.continuous.ScaleContinuous` whose
-  :meth:`~ScaleContinuousRange.map` rescales *transformed* values from the scale
+* [`ScaleContinuousRange`][ggmanim.scales.ScaleContinuousRange] -- a `ScaleContinuous` whose
+  `map()` rescales *transformed* values from the scale
   limits to ``[0, 1]`` and then into ``range``, either linearly (``palette="linear"``,
   ``scales::rescale_pal``) or area-proportionally (``palette="area"``,
   ``scales::area_pal``: ``lo + (hi - lo) * sqrt(r)``).
   ``scale_size_area`` instead rescales by the largest absolute limit
   (``scales::abs_area``) so that 0 maps to size 0.
-* :class:`ScaleContinuousIdentity` -- data are already output values (no legend).
-* :func:`discrete_range_scale` -- a :class:`~.discrete.ScaleDiscrete` mapping the
+* [`ScaleContinuousIdentity`][ggmanim.scales.ScaleContinuousIdentity] -- data are already output values (no legend).
+* [`discrete_range_scale()`][ggmanim.scales.discrete_range_scale] -- a `ScaleDiscrete` mapping the
   levels of an (ideally ordered) factor to evenly spaced values in ``range``.
 
 Output units: ``size`` is the point radius in scene units, ``alpha`` an opacity in
@@ -75,13 +75,15 @@ class ScaleContinuousRange(ScaleContinuous):
     palette : ``"linear"`` (default) or ``"area"`` (``lo + (hi - lo) * sqrt(r)``).
     rescale : ``"range"`` (default: ``r = (t - min) / (max - min)`` over the limits)
         or ``"max"`` (``r = |t| / max |limits|``; with ``palette="area"`` and
-        ``range=(0, max_size)`` this is :func:`scale_size_area`).
+        ``range=(0, max_size)`` this is [`scale_size_area()`][ggmanim.scales.scale_size_area]).
     na_value : output for missing / out-of-bounds values (default NaN: the geom
         falls back to its default).
     guide : ``"legend"`` (default) or ``"none"``.
 
+    Notes
+    -----
     The remaining arguments (``name``, ``breaks``, ``labels``, ``limits``, ``oob``,
-    ``trans``, ``n_breaks``) are as for :class:`~.continuous.ScaleContinuous`
+    ``trans``, ``n_breaks``) are as for `ScaleContinuous`
     (``n_breaks`` defaults to 4, giving legends of about 3-5 keys); ``expand``
     is always ``False``.
     """
@@ -218,7 +220,7 @@ def _is_ordered(values: Any) -> bool:
 
 def default_range_scale(aesthetic: str, values: Any):
     """Default untrained scale for ``size`` / ``alpha`` / ``linewidth`` mapped to
-    ``values``: a :class:`ScaleContinuousRange` for numeric data, else a discrete
+    ``values``: a [`ScaleContinuousRange`][ggmanim.scales.ScaleContinuousRange] for numeric data, else a discrete
     range scale (with a warning unless ``values`` is an ordered Categorical, as
     ggplot2 does)."""
     from .discrete import is_discrete

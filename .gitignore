@@ -18,3 +18,4 @@ ggmanim.egg-info/
 media/
 docs/gallery/
 site/
+.docs-venv/

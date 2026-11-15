@@ -29,16 +29,16 @@ __all__ = ["GeomPoint", "geom_point"]
 class GeomPoint(Geom):
     """Points: ``draw_panel`` returns a ``VGroup`` with one marker per (finite) row,
     in data order (``.marks``/``.keys``: one per drawn row, see
-    :func:`~ggmanim.geoms.base.attach_marks`).
+    `attach_marks()`).
 
     ``size`` is the dot radius in scene units (other shapes have the same area);
     ``color=None`` is the theme foreground; ``fill`` (if set) colours solid
     markers instead of ``color``. ``shape`` (``None`` = circle) selects the
-    marker, see :mod:`ggmanim.geoms._markers` and
-    :func:`ggmanim.scales.shape.parse_shape`.
+    marker, see `ggmanim.geoms._markers` and
+    `ggmanim.scales.shape.parse_shape()`.
 
     ``fast`` (``None``: above ``theme.fast_threshold`` rows) draws batched marks
-    instead, one ``VMobject`` per style (:mod:`ggmanim.geoms._batch`; no
+    instead, one ``VMobject`` per style (`ggmanim.geoms._batch`; no
     per-mark ``.keys``).
     """
 
@@ -135,7 +135,13 @@ def geom_point(
     """Scatter plot: one dot per row. Constant aesthetics (``color=RED``,
     ``size=0.08``, ``alpha=0.5``) go in ``params``. ``fast=True`` draws batched
     marks (default ``None``: when the panel has more than
-    ``theme.fast_threshold`` rows), see :mod:`ggmanim.geoms._batch`."""
+    ``theme.fast_threshold`` rows), see `ggmanim.geoms._batch`.
+
+    Examples
+    --------
+    >>> ggplot(df, aes("wt", "mpg")) + geom_point(size=0.08)  # doctest: +SKIP
+    >>> ggplot(df, aes("wt", "mpg", color="cyl")) + geom_point()  # doctest: +SKIP
+    """
     return make_layer(
         GeomPoint(),
         mapping,

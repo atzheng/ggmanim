@@ -1,10 +1,10 @@
 """geom_rect, geom_tile, geom_raster: axis-aligned rectangles.
 
-* :func:`geom_rect` -- rectangles given by ``xmin``/``xmax``/``ymin``/``ymax``.
-* :func:`geom_tile` -- rectangles centred on ``(x, y)`` with ``width``/``height``
+* [`geom_rect()`][ggmanim.geoms.geom_rect] -- rectangles given by ``xmin``/``xmax``/``ymin``/``ymax``.
+* [`geom_tile()`][ggmanim.geoms.geom_tile] -- rectangles centred on ``(x, y)`` with ``width``/``height``
   (default: the data resolution, 1 on a discrete axis); the heatmap primitive
   (``aes(fill=value)`` uses the continuous fill gradient).
-* :func:`geom_raster` -- a fast tile variant for regular grids: one ``VMobject``
+* [`geom_raster()`][ggmanim.geoms.geom_raster] -- a fast tile variant for regular grids: one ``VMobject``
   per distinct fill colour, every tile of that colour a subpath.
 
 All three go through ``coord.transform`` (so they work under scale transforms and
@@ -40,7 +40,7 @@ class GeomRect(Geom):
     ``color`` (outline) defaults to ``None`` = no outline; ``alpha`` applies to the
     fill only (as in ggplot2). ``fast`` (``None``: above ``theme.fast_threshold``
     rows) draws batched marks, one ``VMobject`` per style
-    (:mod:`ggmanim.geoms._batch`; no per-mark ``.keys``).
+    (`ggmanim.geoms._batch`; no per-mark ``.keys``).
     """
 
     required_aes: tuple[str, ...] = _RECT_COLS
@@ -97,13 +97,13 @@ def _extent(data: pd.DataFrame, params, name: str, pos: np.ndarray, discrete: bo
 class GeomTile(GeomRect):
     """Tiles centred on ``(x, y)``.
 
-    :meth:`setup_data` (transformed space) adds ``xmin = x - width/2``,
+    [`setup_data()`][ggmanim.geoms.Geom.setup_data] (transformed space) adds ``xmin = x - width/2``,
     ``xmax = x + width/2``, ``ymin = y - height/2``, ``ymax = y + height/2``.
     ``width``/``height`` (params or mapped columns, transformed units) default to
     ``resolution(x)``/``resolution(y)``, or 1 on a discrete axis. Drawn like
-    :class:`GeomRect` (one mark per drawn row); opaque tiles without an outline
+    [`GeomRect`][ggmanim.geoms.GeomRect] (one mark per drawn row); opaque tiles without an outline
     get a hairline stroke in their fill colour so no anti-aliasing seams show
-    between neighbours (:func:`~._rect.seal_seams`).
+    between neighbours (`seal_seams()`).
     """
 
     required_aes = ("x", "y")
@@ -155,7 +155,7 @@ class GeomRaster(GeomTile):
     ``draw_panel`` returns a ``VGroup`` with **one** ``VMobject`` per distinct
     ``(fill, alpha)``, each tile of that colour a closed subpath, in order of first
     appearance; ``.marks`` are those mobjects, ``.keys`` their fill colours (hex
-    strings) and ``.batched`` is ``True``. Otherwise it falls back to :class:`GeomTile` drawing (one mark per
+    strings) and ``.batched`` is ``True``. Otherwise it falls back to [`GeomTile`][ggmanim.geoms.GeomTile] drawing (one mark per
     row). Tile sizes are always the resolutions (no ``width``/``height``); there
     is no outline (``color``/``linetype`` are not raster aesthetics).
     """
@@ -286,7 +286,7 @@ def geom_raster(
     name: str | None = None,
     **params,
 ):
-    """Like :func:`geom_tile` for a regular grid, drawn as one mobject per fill
+    """Like [`geom_tile()`][ggmanim.geoms.geom_tile] for a regular grid, drawn as one mobject per fill
     colour (much faster for large heatmaps). ``hjust``/``vjust`` (default 0.5)
     place each cell relative to its ``(x, y)``."""
     return make_layer(

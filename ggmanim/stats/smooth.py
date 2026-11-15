@@ -4,7 +4,7 @@ Methods (``method=``):
 
 * ``"lm"`` -- polynomial least squares, ``y ~ poly(x, degree)`` (``degree=1``).
 * ``"loess"`` -- local polynomial regression as R's ``loess`` (``span=0.75``,
-  ``degree=2``; see :mod:`ggmanim.stats._loess`), bands from t quantiles with the
+  ``degree=2``; see `ggmanim.stats._loess`), bands from t quantiles with the
   loess "lookup" degrees of freedom, like ggplot2.
 * ``"auto"`` -- ggplot2's rule: ``"loess"`` when the largest group has fewer than
   1000 rows, else ``"lm"`` (where ggplot2 switches to a GAM), with ggplot2's
@@ -242,7 +242,7 @@ def stat_smooth(
 ) -> StatSmooth:
     """Smoothed conditional mean: ``method`` is ``"lm"`` (polynomial of ``degree``,
     default 1), ``"loess"`` (``span``; ``degree`` default 2), ``"auto"`` or a
-    callable (see :mod:`ggmanim.stats.smooth`).
+    callable (see `ggmanim.stats.smooth`).
 
     ``fullrange=True`` evaluates over the x scale's limits
     (``scales["x"].get_limits()``) instead of the group's data range.

@@ -1,4 +1,4 @@
-"""Time-zone helpers for date-time scales and labels (stdlib :mod:`zoneinfo` only).
+"""Time-zone helpers for date-time scales and labels (stdlib `zoneinfo` only).
 
 Date-time scales keep their transformed space in **UTC** seconds since the epoch;
 a ``timezone`` only changes where breaks fall and how they are labelled. These
@@ -23,7 +23,7 @@ _EPOCH = _dt.datetime(1970, 1, 1)
 
 def resolve_tz(tz: Any) -> _dt.tzinfo | None:
     """``None`` -> ``None``; an IANA name (``"Europe/London"``, ``"UTC"``) -> a
-    :class:`~zoneinfo.ZoneInfo`; a :class:`datetime.tzinfo` passes through."""
+    `ZoneInfo`; a `datetime.tzinfo` passes through."""
     if tz is None or isinstance(tz, _dt.tzinfo):
         return tz
     if isinstance(tz, str):

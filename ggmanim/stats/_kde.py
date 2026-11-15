@@ -1,17 +1,17 @@
 """Kernel density estimation matching R's ``stats::density`` (numpy only).
 
-:func:`density` reproduces ``density.default`` (R >= 4.4, ``old.coords = FALSE``):
+`density()` reproduces ``density.default`` (R >= 4.4, ``old.coords = FALSE``):
 the observations are linearly binned onto a grid of ``2 * n`` cells spanning
 ``[from - 4 bw, to + 4 bw]`` (R's ``BinDist``), convolved with the kernel by FFT,
 then linearly interpolated onto ``n`` points from ``from`` to ``to``. This is the
 estimate ggplot2's ``stat_density`` / ``stat_ydensity`` draw, so the curves agree
 with R to rounding (``tests/fixtures/kde_r.R``).
 
-:func:`compute_density` is ggplot2's ``compute_density``: normalised weights,
+`compute_density()` is ggplot2's ``compute_density``: normalised weights,
 ``bounds`` handled by reflection, and the computed variables ``density``,
 ``scaled``, ``ndensity``, ``count``, ``wdensity`` and ``n``.
 
-Bandwidths (:func:`bandwidth`): ``"nrd0"`` (default, Silverman's rule of thumb,
+Bandwidths (`bandwidth()`): ``"nrd0"`` (default, Silverman's rule of thumb,
 alias ``"silverman"``), ``"nrd"`` (Scott's variation, alias ``"scott"``), a
 positive number, or a callable ``f(x) -> bw``.
 """
@@ -284,7 +284,7 @@ def bw_ucv(x: Any, nb: int = 1000) -> float:
 
 
 def bw_bcv(x: Any, nb: int = 1000) -> float:
-    """R's ``bw.bcv``: biased cross-validation bandwidth (see :func:`bw_ucv`)."""
+    """R's ``bw.bcv``: biased cross-validation bandwidth (see [`bw_ucv()`][ggmanim.stats.bw_ucv])."""
     return _cv_bandwidth(x, nb, _bcv, "bw_bcv")
 
 
@@ -336,8 +336,8 @@ _BW_RULES: dict[str, Callable[[np.ndarray], float]] = {
 }
 
 #: ggplot2's ``precompute_bw`` rules beyond nrd0/nrd. Not accepted by
-#: :func:`bandwidth` itself (as before); the stats resolve them with
-#: :func:`precompute_bw` first.
+#: `bandwidth()` itself (as before); the stats resolve them with
+#: `precompute_bw()` first.
 _PRECOMPUTE_BW_RULES: dict[str, Callable[[np.ndarray], float]] = {
     "ucv": bw_ucv,
     "bcv": bw_bcv,

@@ -1,11 +1,11 @@
 """geom_contour / geom_contour_filled: contour lines and filled bands of
-``aes(x, y, z)`` (stats :class:`~ggmanim.stats.contour.StatContour` and
-:class:`~ggmanim.stats.contour.StatContourFilled`).
+``aes(x, y, z)`` (stats `StatContour` and
+`StatContourFilled`).
 
 Filled bands are polygons whose rings (``subgroup``) come from the stat already
 oriented for the *nonzero* fill rule (outer boundaries counter-clockwise, holes
-clockwise), so :class:`GeomContourFilled` draws them as given instead of
-re-orienting them by nesting like :class:`~ggmanim.geoms.polygon.GeomPolygon`
+clockwise), so [`GeomContourFilled`][ggmanim.geoms.GeomContourFilled] draws them as given instead of
+re-orienting them by nesting like `GeomPolygon`
 (contour rings may share border edges, which defeats point-in-polygon nesting).
 """
 
@@ -36,7 +36,7 @@ __all__ = [
 
 
 class GeomContour(GeomPath):
-    """Contour lines: a :class:`~ggmanim.geoms.line.GeomPath` (one path per
+    """Contour lines: a `GeomPath` (one path per
     contour piece) fed by ``stat_contour``. Colour defaults to ``#3366FF``."""
 
     default_stat = "contour"
@@ -52,7 +52,7 @@ def draw_oriented_polygons(
     """One filled mobject per group whose ``subgroup`` rings keep their
     orientation (nonzero fill). Rings are clipped to the panel one by one; opaque
     bands without an outline get a fill-coloured hairline so no anti-aliasing
-    seams show between neighbouring bands (:func:`~._rect.seal_seams`)."""
+    seams show between neighbouring bands (`seal_seams()`)."""
     geom.check_required_aes(data)
     data = geom.use_defaults(data, params)
     rect = panel_rect(coord, panel_params)

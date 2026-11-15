@@ -7,12 +7,12 @@ clipping there is exact. ``rect`` is always ``(xmin, xmax, ymin, ymax)``, the
 panel's ``x_range``/``y_range`` in aesthetic orientation (``coord_flip`` swaps the
 axes only when drawing, so geoms never need to know about it).
 
-* :func:`inside` -- mask of points inside the rectangle (points are dropped).
-* :func:`clip_segments` -- Liang-Barsky, vectorised over segments.
-* :func:`clip_polyline` -- an open path -> the list of its visible pieces.
-* :func:`clip_polygon` -- Sutherland-Hodgman against the (convex) rectangle.
-* :func:`clip_rects` -- axis-aligned rectangles clamped to the panel.
-* :func:`panel_rect` -- the clipping rectangle for a built panel, or ``None``
+* `inside()` -- mask of points inside the rectangle (points are dropped).
+* `clip_segments()` -- Liang-Barsky, vectorised over segments.
+* `clip_polyline()` -- an open path -> the list of its visible pieces.
+* `clip_polygon()` -- Sutherland-Hodgman against the (convex) rectangle.
+* `clip_rects()` -- axis-aligned rectangles clamped to the panel.
+* `panel_rect()` -- the clipping rectangle for a built panel, or ``None``
   when clipping is off.
 
 All functions treat the rectangle as closed and allow a tiny relative

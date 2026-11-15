@@ -2,11 +2,11 @@
 
 A ``ggplot`` is an immutable description of a plot: data, default mapping,
 layers, scales, coord, facet, theme and labels. Components are combined with
-:meth:`ggplot.add`, which returns a *new* plot (the DataFrame is shared by
+[`ggplot.add()`][ggmanim.plot.ggplot.add], which returns a *new* plot (the DataFrame is shared by
 reference). Every component implements ``add_to(plot) -> plot`` and uses the
 ``_with_*`` helpers below.
 
-Chaining sugar is generated from :data:`ggmanim.registry.COMPONENTS` at call
+Chaining sugar is generated from `ggmanim.registry.COMPONENTS` at call
 time: ``p.geom_point(alpha=.5)`` is ``p.add(geom_point(alpha=.5))``.
 """
 
@@ -37,7 +37,14 @@ _FIELDS = (
 
 
 class ggplot:
-    """Immutable plot spec. Build with ``.add(...)`` or generated chaining methods."""
+    """Immutable plot spec. Build with ``.add(...)`` or generated chaining methods.
+
+    Examples
+    --------
+    >>> from ggmanim import aes, geom_point, ggplot
+    >>> p = ggplot(df, aes("wt", "mpg")).geom_point(color="cyl")  # doctest: +SKIP
+    >>> p = ggplot(df, aes("wt", "mpg")) + geom_point()  # doctest: +SKIP
+    """
 
     __slots__ = _FIELDS
 
@@ -216,8 +223,8 @@ class ggplot:
 
     # -- building ------------------------------------------------------------
     def build(self, **kwargs):
-        """Build the plot into a :class:`~ggmanim.mobjects.GGPlot` (pure: the spec
-        is never mutated). See :func:`ggmanim.build.build_plot`."""
+        """Build the plot into a [`GGPlot`][ggmanim.mobjects.GGPlot] (pure: the spec
+        is never mutated). See [`ggmanim.build.build_plot()`][ggmanim.build.build_plot]."""
         from .build import build_plot
 
         return build_plot(self, **kwargs)

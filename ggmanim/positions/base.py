@@ -1,4 +1,4 @@
-"""Position base class, :class:`PositionIdentity` and the position registry.
+"""Position base class, [`PositionIdentity`][ggmanim.positions.PositionIdentity] and the position registry.
 
 A *position adjustment* moves the rows of a layer after the stat and after
 ``geom.setup_data`` (ggplot2 order), e.g. stacking or dodging bars. Positions are
@@ -6,8 +6,8 @@ pure pandas/numpy and never import manim.
 
 Pipeline contract (``build.apply_positions``)
 ---------------------------------------------
-For every layer, with ``pos = layer.position`` (always a :class:`Position`, see
-:func:`get_position`)::
+For every layer, with ``pos = layer.position`` (always a [`Position`][ggmanim.positions.Position], see
+[`get_position()`][ggmanim.positions.get_position])::
 
     params = pos.setup_params(data)
     data = pos.setup_data(data, params)
@@ -21,19 +21,19 @@ build's position scales, trained pre-stat; read them, never train them). After
 every layer's position, the pipeline resets and retrains the position scales on
 the adjusted data, so a position may move rows anywhere.
 
-:meth:`Position.compute_layer` splits by ``PANEL`` and calls
-:meth:`Position.compute_panel` once per panel; most positions override only
+[`Position.compute_layer()`][ggmanim.positions.Position.compute_layer] splits by ``PANEL`` and calls
+[`Position.compute_panel()`][ggmanim.positions.Position.compute_panel] once per panel; most positions override only
 ``compute_panel`` (and ``setup_params`` to resolve e.g. a default width). Return a
 new DataFrame; never modify ``data`` in place.
 
 Adding a position
 -----------------
-Create ``ggmanim/positions/<name>.py`` with a :class:`Position` subclass that sets
+Create ``ggmanim/positions/<name>.py`` with a [`Position`][ggmanim.positions.Position] subclass that sets
 the class attribute ``name`` (``"stack"``) and a ``position_<name>(**params)``
 constructor, both listed in the module's ``__all__``; then run
 ``python scripts/gen_exports.py``. Subclasses with a ``name`` register themselves in
-:data:`POSITIONS` on class creation, so ``geom_col(position="stack")`` resolves
-through :func:`get_position` without editing any other file.
+`POSITIONS` on class creation, so ``geom_col(position="stack")`` resolves
+through [`get_position()`][ggmanim.positions.get_position] without editing any other file.
 """
 
 from __future__ import annotations
@@ -52,7 +52,7 @@ __all__ = [
     "position_identity",
 ]
 
-#: name -> Position subclass. Filled by :meth:`Position.__init_subclass__`.
+#: name -> Position subclass. Filled by `Position.__init_subclass__()`.
 POSITIONS: dict[str, type[Position]] = {}
 
 
@@ -63,9 +63,9 @@ class Position:
     ----------
     name : str
         Registry key (``"identity"``, ``"stack"`` ...). A subclass that defines
-        ``name`` in its class body is registered in :data:`POSITIONS`.
+        ``name`` in its class body is registered in `POSITIONS`.
     required_aes : tuple
-        Columns that must be present in the data (checked by :meth:`compute_layer`).
+        Columns that must be present in the data (checked by [`compute_layer()`][ggmanim.stats.Stat.compute_layer]).
     params : dict
         Constructor arguments (``position_dodge(width=0.5)`` -> ``{"width": 0.5}``).
     """
@@ -97,11 +97,11 @@ class Position:
     # -- pipeline hooks -------------------------------------------------------
     def setup_params(self, data: pd.DataFrame) -> dict[str, Any]:
         """Parameters for this layer (may look at ``data``). Default: a copy of
-        :attr:`params`."""
+        `params`."""
         return dict(self.params)
 
     def setup_data(self, data: pd.DataFrame, params: dict[str, Any]) -> pd.DataFrame:
-        """Check :attr:`required_aes` and prepare the data. Default: unchanged."""
+        """Check `required_aes` and prepare the data. Default: unchanged."""
         missing = [a for a in self.required_aes if a not in data.columns]
         if missing and len(data):
             raise ValueError(
@@ -113,7 +113,7 @@ class Position:
     def compute_layer(
         self, data: pd.DataFrame, params: dict[str, Any], scales: dict[str, Any] | None = None
     ) -> pd.DataFrame:
-        """Split by ``PANEL`` (if present) and call :meth:`compute_panel` per panel."""
+        """Split by ``PANEL`` (if present) and call [`compute_panel()`][ggmanim.stats.Stat.compute_panel] per panel."""
         if len(data) == 0:
             return data
         if "PANEL" not in data.columns:
@@ -161,7 +161,7 @@ def parse_position(spec: str) -> tuple[str, tuple[Any, ...], dict[str, Any]]:
     ``("dodge", (), {"width": 0.8})``; ``"position_nudge(0, y=-0.1)"`` ->
     ``("position_nudge", (0,), {"y": -0.1})``. Arguments must be Python literals
     (numbers, strings, booleans, ``None``, tuples/lists/dicts of those): they are
-    read with :func:`ast.literal_eval`, never evaluated. Raises ``ValueError``
+    read with `ast.literal_eval()`, never evaluated. Raises ``ValueError``
     for anything else.
     """
     try:
@@ -188,14 +188,14 @@ def parse_position(spec: str) -> tuple[str, tuple[Any, ...], dict[str, Any]]:
 
 
 def get_position(position: Any = None, **params: Any) -> Position:
-    """Resolve ``position`` to a :class:`Position` instance.
+    """Resolve ``position`` to a [`Position`][ggmanim.positions.Position] instance.
 
-    Accepts ``None`` (identity), a :class:`Position` instance (returned as is;
-    ``params`` must then be empty), a :class:`Position` subclass (instantiated with
+    Accepts ``None`` (identity), a [`Position`][ggmanim.positions.Position] instance (returned as is;
+    ``params`` must then be empty), a [`Position`][ggmanim.positions.Position] subclass (instantiated with
     ``params``), or a name such as ``"stack"`` / ``"position_stack"`` looked up in
-    :data:`POSITIONS`. A name may carry literal arguments, ``"dodge(width=0.8)"``
+    `POSITIONS`. A name may carry literal arguments, ``"dodge(width=0.8)"``
     or ``"position_jitter(0.1, seed=1)"`` (parsed safely, see
-    :func:`parse_position`); a keyword given both there and in ``params`` is a
+    [`parse_position()`][ggmanim.positions.parse_position]); a keyword given both there and in ``params`` is a
     ``TypeError``. Raises ``ValueError`` for an unknown name or an unparsable
     string and ``TypeError`` for anything else.
     """

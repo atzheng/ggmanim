@@ -1,4 +1,4 @@
-"""geom_step: stairstep lines (a :class:`~ggmanim.geoms.line.GeomPath` through
+"""geom_step: stairstep lines (a `GeomPath` through
 the step-expanded data)."""
 
 from __future__ import annotations
@@ -54,10 +54,10 @@ def stairstep(data: pd.DataFrame, direction: str = "hv") -> pd.DataFrame:
 
 
 class GeomStep(GeomPath):
-    """Stairsteps: each group is sorted by ``x``, expanded by :func:`stairstep`
+    """Stairsteps: each group is sorted by ``x``, expanded by [`stairstep()`][ggmanim.geoms.stairstep]
     (``direction="hv"``, ``"vh"`` or ``"mid"``) and drawn as a path, so marks,
     labels, clipping, dashing and per-segment colours work as for
-    :class:`GeomPath` (one mark per group); ``+-inf`` positions are drawn on
+    [`GeomPath`][ggmanim.geoms.GeomPath] (one mark per group); ``+-inf`` positions are drawn on
     the panel edges."""
 
     extra_params: tuple[str, ...] = ("label", "direction")
@@ -97,7 +97,7 @@ def geom_step(
 
     ``direction``: ``"hv"`` (horizontal then vertical, the default), ``"vh"``
     or ``"mid"`` (steps half-way between x values). ``label=`` as for
-    :func:`~ggmanim.geoms.line.geom_line`.
+    `geom_line()`.
     """
     if direction not in _DIRECTIONS:
         raise ValueError(f"direction must be one of {_DIRECTIONS}, got {direction!r}")

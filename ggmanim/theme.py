@@ -1,27 +1,27 @@
 """Themes: the non-data appearance of a plot.
 
-A :class:`Theme` is an immutable (frozen) dataclass. Complete themes set
+A [`Theme`][ggmanim.theme.Theme] is an immutable (frozen) dataclass. Complete themes set
 ``complete=True`` and *replace* the plot's theme when added:
 
-* :func:`theme_manim` (= :func:`theme_default`): tuned for manim's black scene
+* [`theme_manim()`][ggmanim.theme.theme_manim] (= [`theme_default()`][ggmanim.theme.theme_default]): tuned for manim's black scene
   background; foreground derived from ``config.background_color``.
-* ggplot2 looks on a white plot background: :func:`theme_gray` (alias
-  :func:`theme_grey`), :func:`theme_bw`, :func:`theme_linedraw`,
-  :func:`theme_light`, :func:`theme_dark`.
+* ggplot2 looks on a white plot background: [`theme_gray()`][ggmanim.theme.theme_gray] (alias
+  [`theme_grey()`][ggmanim.theme.theme_grey]), [`theme_bw()`][ggmanim.theme.theme_bw], [`theme_linedraw()`][ggmanim.theme.theme_linedraw],
+  [`theme_light()`][ggmanim.theme.theme_light], [`theme_dark()`][ggmanim.theme.theme_dark].
 * Background-agnostic (drawn on the scene background, foreground from config):
-  :func:`theme_minimal`, :func:`theme_classic`, :func:`theme_void`.
+  [`theme_minimal()`][ggmanim.theme.theme_minimal], [`theme_classic()`][ggmanim.theme.theme_classic], [`theme_void()`][ggmanim.theme.theme_void].
 
 To drop the white "paper" of a ggplot look, add ``theme(plot_background=None,
 foreground=None, axis_text_color=None, axis_title_color=None, title_color=None)``.
 
-:func:`theme` builds a *partial* theme whose explicitly given fields are merged onto the
-current theme (``old.merge(new)``, see :meth:`ggmanim.plot.ggplot._with_theme`).
+[`theme()`][ggmanim.theme] builds a *partial* theme whose explicitly given fields are merged onto the
+current theme (``old.merge(new)``, see `ggmanim.plot.ggplot._with_theme()`).
 A partial theme added to a plot without a theme is the default theme with the
 overrides applied.
 
 Nothing here reads manim's global ``config`` at import time: the foreground
 colour (when ``foreground`` is ``None``) and the default panel size are resolved
-when a plot is built, via :meth:`Theme.get_foreground` and :meth:`Theme.panel_size`.
+when a plot is built, via [`Theme.get_foreground()`][ggmanim.theme.Theme.get_foreground] and [`Theme.panel_size()`][ggmanim.theme.Theme.panel_size].
 """
 
 from __future__ import annotations
@@ -132,8 +132,8 @@ class Theme:
     """Appearance settings for a plot.
 
     Text
-        ``text_engine``: ``"text"`` (Pango :class:`~manim.Text`; no LaTeX needed) or
-        ``"tex"`` (:class:`~manim.Tex`). ``font``: Pango font family (``None`` = manim
+        ``text_engine``: ``"text"`` (Pango `Text`; no LaTeX needed) or
+        ``"tex"`` (`Tex`). ``font``: Pango font family (``None`` = manim
         default). ``axis_text_size`` (tick labels), ``axis_title_size``,
         ``legend_text_size``, ``legend_title_size``, ``title_size``.
         Per-element font families ``axis_text_font``, ``axis_title_font`` and
@@ -156,7 +156,7 @@ class Theme:
         ``axis_title_y``, ``axis_ticks_x``/``axis_ticks_y`` and ``axis_line_x``/
         ``axis_line_y``: ``None`` inherits the global switch (``tick_labels``,
         ``axis_title``, ``ticks``, ``axis_line``); ``False`` blanks that element on
-        one axis only, ``True`` forces it on (see :meth:`axis_element`).
+        one axis only, ``True`` forces it on (see [`axis_element()`][ggmanim.theme.Theme.axis_element]).
         ``axis_text_x_top``/``axis_text_y_right`` and ``axis_title_x_top``/
         ``axis_title_y_right`` do the same for the text of a secondary axis
         (``sec_axis``) on the top / right side, or of the main axis moved there by a
@@ -169,7 +169,7 @@ class Theme:
         pinned next to its tick (``hjust`` 0 = left, 1 = right; ``vjust`` 0 = bottom,
         1 = top), as in ggplot2. ``None`` chooses them from the angle so the label
         hangs off the axis without crossing it (e.g. ``axis_text_x_angle=45``
-        right-aligns each label's end at its tick); see :meth:`axis_text_just`.
+        right-aligns each label's end at its tick); see [`axis_text_just()`][ggmanim.theme.Theme.axis_text_just].
     Panel
         ``panel_background``: fill colour behind the grid (``None`` = none),
         ``panel_background_opacity``. ``panel_border``: draw a rectangle round the
@@ -196,7 +196,7 @@ class Theme:
         ``legend_position``: ``"right"`` (default), ``"left"``, ``"top"``,
         ``"bottom"`` or ``"none"``. ``panel_width``/``panel_height``: panel size in
         scene units; ``None`` fits manim's frame leaving ``legend_room`` for a legend
-        (see :meth:`panel_size`).
+        (see [`panel_size()`][ggmanim.theme.Theme.panel_size]).
     Legend
         ``legend_position`` may also be an ``(x, y)`` tuple: the legend goes
         *inside* the panel at those normalised panel coordinates (``(0, 0)``
@@ -243,7 +243,7 @@ class Theme:
         ``font``) style the labels and titles.
 
     ``complete`` marks a complete theme (replaces the plot's theme when added);
-    ``overrides`` lists the fields a partial :func:`theme` sets explicitly.
+    ``overrides`` lists the fields a partial [`theme()`][ggmanim.theme] sets explicitly.
     """
 
     # region: text
@@ -406,7 +406,7 @@ class Theme:
         ``geom_rect``/``geom_tile``, ``geom_col``/``geom_bar`` and
         ``geom_segment`` layers with ``fast=None`` (the default) draw batched
         marks: one ``VMobject`` per distinct style instead of one per row (see
-        :mod:`ggmanim.geoms._batch`). ``None`` turns the automatic switch off;
+        `ggmanim.geoms._batch`). ``None`` turns the automatic switch off;
         ``0`` batches every such layer.
     """
     )
@@ -501,7 +501,7 @@ class Theme:
 
     def color_of(self, name: str) -> ManimColor:
         """A colour field resolved through its fallbacks (``axis_ticks_color`` ->
-        ``axis_line_color``), finally :meth:`get_foreground`."""
+        ``axis_line_color``), finally [`get_foreground()`][ggmanim.theme.Theme.get_foreground]."""
         value = getattr(self, name)
         if value is None and name == "axis_ticks_color":
             value = self.axis_line_color
@@ -511,9 +511,9 @@ class Theme:
         """``{"font_size", "color"[, "font"][, "align"]}`` for a text element:
         ``"axis_text"``, ``"axis_title"``, ``"title"``, ``"subtitle"``,
         ``"caption"``, ``"legend_text"`` or ``"legend_title"``. Axis titles and the
-        legend elements carry the multi-line ``align`` for :meth:`make_text`
-        (axis titles centred; legends from :meth:`legend_text_hjust_value` /
-        :meth:`legend_title_hjust_value`)."""
+        legend elements carry the multi-line ``align`` for [`make_text()`][ggmanim.theme.Theme.make_text]
+        (axis titles centred; legends from [`legend_text_hjust_value()`][ggmanim.theme.Theme.legend_text_hjust_value] /
+        [`legend_title_hjust_value()`][ggmanim.theme.Theme.legend_title_hjust_value])."""
         size, color, font = _TEXT_ELEMENTS[element]
         style: dict[str, Any] = {"font_size": getattr(self, size), "color": self.color_of(color)}
         family = getattr(self, font)
@@ -645,17 +645,17 @@ class Theme:
     ) -> Mobject:
         """Make a text mobject honouring ``text_engine``.
 
-        A ready-made :class:`~manim.Mobject` is returned *unchanged* (the same object;
+        A ready-made `Mobject` is returned *unchanged* (the same object;
         callers that move or rotate it must ``.copy()`` it first). Anything else is
         converted with ``str``. ``font_size`` defaults to ``axis_text_size``; ``color``
-        to :meth:`get_foreground`. A ``font`` keyword is dropped for ``"tex"``.
+        to [`get_foreground()`][ggmanim.theme.Theme.get_foreground]. A ``font`` keyword is dropped for ``"tex"``.
 
         Multi-line text (containing ``"\\n"``) becomes a Pango
-        :class:`~manim.Paragraph` whose lines are justified by ``align`` (``"left"``,
-        ``"center"`` or ``"right"``; see :func:`hjust_align`) with the ``"text"``
+        `Paragraph` whose lines are justified by ``align`` (``"left"``,
+        ``"center"`` or ``"right"``; see [`hjust_align()`][ggmanim.theme.hjust_align]) with the ``"text"``
         engine; with ``"tex"`` the newlines become ``\\\\`` line breaks.
 
-        Text is memoised (:mod:`ggmanim._text_cache`): repeating a request returns a
+        Text is memoised (`ggmanim._text_cache`): repeating a request returns a
         fresh copy of the mobject built the first time.
         """
         if isinstance(content, Mobject):
@@ -751,7 +751,7 @@ def _margin4(margin: Any) -> tuple[float, float, float, float]:
 
 @register
 def theme_default() -> Theme:
-    """Default complete theme (same as :func:`theme_manim`): axis lines, outward
+    """Default complete theme (same as [`theme_manim()`][ggmanim.theme.theme_manim]): axis lines, outward
     ticks, faint major grid, colours following the scene background."""
     return Theme(complete=True)
 
@@ -790,7 +790,7 @@ def theme_gray() -> Theme:
 
 @register
 def theme_grey() -> Theme:
-    """Alias of :func:`theme_gray`."""
+    """Alias of [`theme_gray()`][ggmanim.theme.theme_gray]."""
     return theme_gray()
 
 
@@ -876,7 +876,7 @@ def theme_void() -> Theme:
 
 
 def theme(**elements) -> Theme:
-    """Partial theme: override individual :class:`Theme` fields, e.g.
+    """Partial theme: override individual [`Theme`][ggmanim.theme.Theme] fields, e.g.
     ``theme(text_engine="tex", legend_position="bottom")``.
 
     Added to a plot it is merged onto the current theme (or the default theme).

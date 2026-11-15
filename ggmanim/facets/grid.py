@@ -9,8 +9,8 @@ Layout
 ------
 The grid has one row per observed combination of the ``rows`` variables and one
 column per observed combination of the ``cols`` variables (each sorted by the
-variables' levels, see :meth:`Facet.combinations
-<ggmanim.facets.base.Facet.combinations>`); *every* row x column cell is a panel,
+variables' levels, see `Facet.combinations
+<ggmanim.facets.base.Facet.combinations>()`); *every* row x column cell is a panel,
 even when no data falls in it. ``drop=False`` uses every level of each variable
 (categorical categories) instead of the observed ones.
 
@@ -69,7 +69,7 @@ def parse_formula(formula: str) -> tuple[list[str], list[str]]:
 
 class FacetGrid(Facet):
     """Panels in a grid: rows by ``rows``, columns by ``cols``. See the module
-    docstring and :func:`facet_grid`."""
+    docstring and [`facet_grid()`][ggmanim.facets.facet_grid]."""
 
     def __init__(
         self,
@@ -142,7 +142,7 @@ class FacetGrid(Facet):
         return [s for s in sets if s]
 
     def add_margins(self, df: pd.DataFrame) -> pd.DataFrame:
-        """``df`` plus one copy per :meth:`margin_sets` entry with those facet
+        """``df`` plus one copy per [`margin_sets()`][ggmanim.facets.FacetGrid.margin_sets] entry with those facet
         variables set to ``"(all)"`` (copies that change nothing are skipped)."""
         sets = self.margin_sets()
         if not sets or not len(df):
@@ -294,7 +294,7 @@ def facet_grid(
         free scales).
     margins : ``True`` adds ``"(all)"`` panels over every facet variable; a list
         of variable names adds them for those only.
-    labeller : strip labeller (:mod:`ggmanim.facets.labellers`).
+    labeller : strip labeller (`ggmanim.facets.labellers`).
     switch : ``"x"`` moves the column strips below the grid, ``"y"`` the row
         strips to its left, ``"both"`` both.
     drop : ``False`` keeps unobserved levels (categorical categories).

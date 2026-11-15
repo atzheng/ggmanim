@@ -11,7 +11,7 @@ The layout follows ggplot2's ``FacetWrap``:
   ``nrow``/``ncol`` in the default rule swap, as in ggplot2). ``as_table=False``
   flips the rows, so the first panel is bottom-left.
 * **Scales.** ``SCALE_X``/``SCALE_Y`` are the panel id for a free scale, else 1.
-* **Axes.** The base rule (:func:`ggmanim.facets._layout.axis_visibility`): with
+* **Axes.** The base rule (`ggmanim.facets._layout.axis_visibility()`): with
   fixed scales x tick labels go on the bottom panel of each column (so a panel
   above a gap in an incomplete last row carries them), y on the leftmost panel of
   each row; free scales draw them on every panel.
@@ -24,7 +24,7 @@ Computed facets
 ``facets`` may be a dict ``{name: fn}`` (or a bare callable, named after the
 function) where ``fn(df)`` returns the facet values for a data frame, like
 ``vars(big = cyl > 4)`` in ggplot2. The columns are computed at build time
-(:meth:`FacetWrap.facet_data`) on the plot data and on every layer's data, so
+([`FacetWrap.facet_data()`][ggmanim.facets.FacetWrap.facet_data]) on the plot data and on every layer's data, so
 layers added after the facet are split too; layers whose data lack the columns
 ``fn`` needs repeat in every panel. The user's data frames are not modified, and
 computed columns are not available to aesthetics.
@@ -107,7 +107,7 @@ def _column(name: str) -> Callable:
 
 
 class FacetWrap(Facet):
-    """``facet_wrap``: see the module docstring and :func:`facet_wrap`."""
+    """``facet_wrap``: see the module docstring and [`facet_wrap()`][ggmanim.facets.facet_wrap]."""
 
     def __init__(
         self,

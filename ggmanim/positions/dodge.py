@@ -52,7 +52,7 @@ def _is_flipped(data: pd.DataFrame) -> bool:
 def _orientation_params(data: pd.DataFrame, orientation: str | None) -> tuple[bool, bool]:
     """``(flipped, explicit)``: a ``flipped_aes`` column wins, else
     ``orientation`` (``"y"`` = horizontal) is the default. ``explicit`` is false
-    when neither says anything, so :func:`_guess_flipped` may decide later."""
+    when neither says anything, so `_guess_flipped()` may decide later."""
     if orientation not in (None, "x", "y"):
         raise ValueError(f"orientation must be 'x' or 'y', got {orientation!r}")
     flag = _flipped_flag(data)
@@ -377,7 +377,7 @@ def position_dodge2(
 
     ``padding`` is the fraction of each slot left empty between neighbours
     (``0.1``). The default for boxplots. ``orientation`` as in
-    :func:`position_dodge`.
+    [`position_dodge()`][ggmanim.positions.position_dodge].
     """
     return PositionDodge2(
         width=width,

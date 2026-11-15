@@ -2,17 +2,17 @@
 
 Pure numpy; no manim imports.
 
-* :func:`pretty` -- port of R's ``pretty()`` (``R_pretty`` in ``src/appl/pretty.c``):
+* [`pretty()`][ggmanim.scales.pretty] -- port of R's ``pretty()`` (``R_pretty`` in ``src/appl/pretty.c``):
   1-2-5 "nice" steps, snapping outward to cover the range.
-* :func:`log_breaks` -- port of ``scales::log_breaks()``: integer powers of the base,
+* [`log_breaks()`][ggmanim.scales.log_breaks] -- port of ``scales::log_breaks()``: integer powers of the base,
   with 1/2/5-style sub-breaks when the range covers too few decades.
-* :func:`extended` -- Wilkinson's extended labelling algorithm (Talbot, Lin & Hanrahan
+* [`extended()`][ggmanim.scales.extended] -- Wilkinson's extended labelling algorithm (Talbot, Lin & Hanrahan
   2010), ported from R's ``labeling::extended`` (ggplot2's default via
   ``scales::extended_breaks``).
-* :func:`width_breaks` -- ``scales::fullseq``-style breaks every ``width``.
-* :func:`regular_minor_breaks` / :func:`log_minor_breaks` -- minor breaks between majors.
-* :func:`format_numbers` -- default tick-label formatter.
-* :func:`expansion` / :func:`expand_range` -- ggplot2-style limit expansion.
+* [`width_breaks()`][ggmanim.scales.width_breaks] -- ``scales::fullseq``-style breaks every ``width``.
+* [`regular_minor_breaks()`][ggmanim.scales.regular_minor_breaks] / [`log_minor_breaks()`][ggmanim.scales.log_minor_breaks] -- minor breaks between majors.
+* [`format_numbers()`][ggmanim.scales.format_numbers] -- default tick-label formatter.
+* [`expansion()`][ggmanim.scales.expansion] / [`expand_range()`][ggmanim.scales.expand_range] -- ggplot2-style limit expansion.
 """
 
 from __future__ import annotations
@@ -127,7 +127,7 @@ def log_breaks(lo: float, hi: float, n: int = 5, base: float = 10) -> np.ndarray
 
     Uses integer powers of ``base``; if fewer than ``n - 2`` of them fall inside
     ``[lo, hi]`` it adds sub-breaks (1,5 then 1,2,5 then 1..9 times each power), and
-    finally falls back to :func:`pretty` on the raw range. ``lo``/``hi`` must be > 0.
+    finally falls back to [`pretty()`][ggmanim.scales.pretty] on the raw range. ``lo``/``hi`` must be > 0.
     The result may extend beyond ``[lo, hi]``; callers censor to the limits.
     """
     lo, hi = sorted((float(lo), float(hi)))
@@ -216,7 +216,7 @@ def extended(
     Searches step sizes ``j * q * 10^z`` (``q`` from the "nice" list ``Q``, in order
     of preference) and label counts ``k`` near ``m``, maximising a weighted sum of
     simplicity, coverage, density and legibility (weights ``w``). Unlike
-    :func:`pretty`, the labels need not cover the data range (unless
+    [`pretty()`][ggmanim.scales.pretty], the labels need not cover the data range (unless
     ``only_loose``); e.g. ``extended(1, 10)`` gives ``0, 2.5, 5, 7.5, 10``.
 
     >>> extended(0, 100).tolist()
@@ -456,7 +456,7 @@ def _normalise_expand(expand) -> tuple[float, float, float, float]:
 
 
 def expand_range(limits, expand=None, zero_width: float = 1.0) -> tuple[float, float]:
-    """Expand ``limits`` (``(lo, hi)``) by an expansion vector (see :func:`expansion`).
+    """Expand ``limits`` (``(lo, hi)``) by an expansion vector (see [`expansion()`][ggmanim.scales.expansion]).
 
     ``expand`` may be ``None``/``True`` (default 5%), ``False`` (none), ``(mult, add)``
     or ``(mult_lo, add_lo, mult_hi, add_hi)``. A zero-width range is widened to

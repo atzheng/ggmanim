@@ -33,7 +33,7 @@ _GEOM_CLASSES: dict[type, type] = {}
 
 
 def _annotation_geom_class(cls: type[Geom]) -> type[Geom]:
-    """A subclass of ``cls`` (cached) whose :meth:`setup_data` first renames the
+    """A subclass of ``cls`` (cached) whose [`setup_data()`][ggmanim.geoms.Geom.setup_data] first renames the
     ``_annotate_<aes>`` columns back to ``<aes>`` (raw, unscaled values)."""
     if cls in _GEOM_CLASSES:
         return _GEOM_CLASSES[cls]
@@ -63,7 +63,7 @@ def annotate(geom: str, x=None, y=None, *, name: str | None = None, **params) ->
     are passed to the geom like constant aesthetics.
 
     The geom constructor is looked up as ``"geom_" + geom`` in
-    :data:`ggmanim.registry.COMPONENTS`.
+    `ggmanim.registry.COMPONENTS`.
 
     >>> annotate("text", x=2, y=5, label="peak", color="red")  # doctest: +SKIP
     >>> annotate("rect", xmin=1, xmax=3, ymin=0, ymax=4, alpha=0.2)  # doctest: +SKIP

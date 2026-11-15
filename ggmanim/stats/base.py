@@ -6,11 +6,11 @@ pandas/numpy and never import manim.
 
 Pipeline contract
 -----------------
-* The build pipeline first calls :func:`add_group` on the layer data so every row
+* The build pipeline first calls [`add_group()`][ggmanim.stats.add_group] on the layer data so every row
   carries an integer ``group`` column.
 * It then calls ``stat.compute_layer(df, scales, **stat.params)``, which splits by
-  ``PANEL`` (if present) and calls :meth:`Stat.compute_panel` for each panel.
-* ``compute_panel`` splits by ``group``, calls :meth:`Stat.compute_group` for each
+  ``PANEL`` (if present) and calls [`Stat.compute_panel()`][ggmanim.stats.Stat.compute_panel] for each panel.
+* ``compute_panel`` splits by ``group``, calls `Stat.compute_group()` for each
   group and concatenates the results. Columns that are constant within a group
   (``group``, ``PANEL``, ``color``, ``fill``, ...) are carried over onto the
   group's output rows if ``compute_group`` did not produce them itself.
@@ -70,8 +70,8 @@ def add_group(df: pd.DataFrame) -> pd.DataFrame:
       integer-valued columns are kept as is, anything else is re-coded ``1..k``
       in sorted order.
     * Otherwise groups are the interaction of the discrete aesthetics in
-      :data:`GROUPING_AES` that are present, numbered ``1..k`` in sorted order.
-    * With no grouping aesthetic every row gets :data:`NO_GROUP` (``-1``).
+      `GROUPING_AES` that are present, numbered ``1..k`` in sorted order.
+    * With no grouping aesthetic every row gets `NO_GROUP` (``-1``).
     """
     out = df.copy()
     if out.empty:
@@ -117,7 +117,7 @@ def scale_limits(scales: Mapping[str, Any] | None, aes: str):
 
 
 class Stat:
-    """Base stat: subclasses override :meth:`compute_group` (or ``compute_panel``).
+    """Base stat: subclasses override `compute_group()` (or ``compute_panel``).
 
     Attributes
     ----------
@@ -128,7 +128,7 @@ class Stat:
         variables; interpreted by the layer/geom, not by the stat).
     params : dict
         Parameters given to the constructor; the layer passes them to
-        :meth:`compute_layer` / :meth:`compute_panel`.
+        [`compute_layer()`][ggmanim.stats.Stat.compute_layer] / [`compute_panel()`][ggmanim.stats.Stat.compute_panel].
     """
 
     required_aes: tuple = ()
@@ -177,7 +177,7 @@ class Stat:
 
     # -- computation ---------------------------------------------------------
     def setup_layer(self, df: pd.DataFrame, params: Mapping[str, Any]) -> None:
-        """Hook run once per layer by the build, before :meth:`compute_layer` (which
+        """Hook run once per layer by the build, before [`compute_layer()`][ggmanim.stats.Stat.compute_layer] (which
         runs once per panel under facets): validate parameters, warn, ... The default
         does nothing. ``df`` is the whole layer data, ``params`` the stat's params."""
 
@@ -191,7 +191,7 @@ class Stat:
         return self.compute_layer(df, scales, **self.params)
 
     def compute_layer(self, df: pd.DataFrame, scales=None, **params) -> pd.DataFrame:
-        """Split by ``PANEL`` (if present) and call :meth:`compute_panel`.
+        """Split by ``PANEL`` (if present) and call [`compute_panel()`][ggmanim.stats.Stat.compute_panel].
 
         Unknown params (e.g. geom params passed through by the layer) are ignored.
         """
@@ -247,7 +247,7 @@ def _concat(pieces, template: pd.DataFrame) -> pd.DataFrame:
 
 
 def get_stat(stat, **params) -> Stat:
-    """Resolve ``stat`` to a :class:`Stat` instance.
+    """Resolve ``stat`` to a [`Stat`][ggmanim.stats.Stat] instance.
 
     Accepts a ``Stat`` instance (returned as is), a ``Stat`` subclass, or a name
     such as ``"smooth"`` / ``"stat_smooth"`` / ``"identity"``.

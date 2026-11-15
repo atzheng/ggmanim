@@ -2,12 +2,12 @@
 
 A discrete position scale maps the levels of a categorical variable to the
 integer positions ``1..n`` on a continuous axis, so after
-:meth:`ScaleDiscretePosition.transform` every position column is a float column
+[`ScaleDiscretePosition.transform()`][ggmanim.scales.ScaleDiscretePosition.transform] every position column is a float column
 and all geoms, coords and stats work unchanged.
 
 It exposes the same position-scale API as
-:class:`~ggmanim.scales.continuous.ScaleContinuousPosition` (see the table at the
-top of :mod:`ggmanim.scales.continuous`), with these discrete semantics:
+`ScaleContinuousPosition` (see the table at the
+top of `ggmanim.scales.continuous`), with these discrete semantics:
 
 ``train(values)``            discrete values -> add levels; numeric values (e.g.
                              ``x = 1.5`` between two levels) -> continuous range.
@@ -24,12 +24,12 @@ top of :mod:`ggmanim.scales.continuous`), with these discrete semantics:
                              numeric ``limits`` (default: the expanded range).
 ``get_labels(limits=None)``  one label per ``get_breaks(limits)``.
 
-Like ggplot2's ``ScaleDiscretePosition``, :meth:`reset` forgets only the
+Like ggplot2's ``ScaleDiscretePosition``, [`reset()`][ggmanim.scales.Scale.reset] forgets only the
 continuous range (the build retrains positions after the stat and geom
 ``setup_data``, when the columns are already numeric); the levels survive.
-:meth:`clone` clears both.
+[`clone()`][ggmanim.scales.Scale.clone] clears both.
 
-No manim imports here (the level helpers come from :mod:`.discrete`).
+No manim imports here (the level helpers come from `discrete`).
 """
 
 from __future__ import annotations
@@ -82,7 +82,7 @@ class ScaleDiscretePosition(Scale):
 
     Parameters
     ----------
-    aesthetics : str or sequence of str (e.g. :data:`.continuous.X_AESTHETICS`).
+    aesthetics : str or sequence of str (e.g. `continuous.X_AESTHETICS`).
     name : axis title (``None`` = default from labs / mapping).
     limits : list of levels: fixes, reorders and subsets the levels. Data values
         not in ``limits`` are removed (mapped to NaN) with a warning.
@@ -93,7 +93,7 @@ class ScaleDiscretePosition(Scale):
     expand : ``None`` (``add=0.6`` each side), ``False``, ``(mult, add)`` or
         ``(mult_lo, add_lo, mult_hi, add_hi)``.
     drop : drop unused categories of a pandas Categorical when training.
-    guide : ``None``/``"axis"`` or a :func:`~ggmanim.guides_axis.guide_axis` (drop
+    guide : ``None``/``"axis"`` or a `guide_axis()` (drop
         overlapping tick labels, stagger them into rows).
 
     Level order: a pandas Categorical's categories in category order (several
@@ -223,7 +223,7 @@ class ScaleDiscretePosition(Scale):
         return out
 
     def map(self, values: Any) -> np.ndarray:
-        """Same as :meth:`transform` (discrete position scales have no ``oob``)."""
+        """Same as [`transform()`][ggmanim.coords.CartesianPanel.transform] (discrete position scales have no ``oob``)."""
         return self.transform(values)
 
     def map_transformed(self, values: Any) -> np.ndarray:
@@ -254,7 +254,7 @@ class ScaleDiscretePosition(Scale):
         return (lo, hi)
 
     def dimension(self, expand=_UNSET) -> tuple[float, float] | None:
-        """ggplot2-style alias for :meth:`get_expanded_limits`."""
+        """ggplot2-style alias for [`get_expanded_limits()`][ggmanim.scales.ScaleContinuous.get_expanded_limits]."""
         return self.get_expanded_limits(expand)
 
     def continuous_limits(self) -> tuple[float, float] | None:
@@ -306,7 +306,7 @@ class ScaleDiscretePosition(Scale):
         return self._breaks_and_labels(limits)[0]
 
     def get_labels(self, limits=None) -> list[str]:
-        """Labels for :meth:`get_breaks` (``limits`` as there)."""
+        """Labels for [`get_breaks()`][ggmanim.scales.Scale.get_breaks] (``limits`` as there)."""
         return self._breaks_and_labels(limits)[1]
 
     def __repr__(self) -> str:
@@ -328,7 +328,7 @@ def scale_x_discrete(
     aesthetics=None,
     guide=None,
 ) -> ScaleDiscretePosition:
-    """Discrete x position scale. See :class:`ScaleDiscretePosition` for arguments;
+    """Discrete x position scale. See [`ScaleDiscretePosition`][ggmanim.scales.ScaleDiscretePosition] for arguments;
     ``aesthetics`` defaults to every x-like aesthetic."""
     return ScaleDiscretePosition(
         X_AESTHETICS if aesthetics is None else aesthetics,
@@ -353,7 +353,7 @@ def scale_y_discrete(
     aesthetics=None,
     guide=None,
 ) -> ScaleDiscretePosition:
-    """Discrete y position scale. See :class:`ScaleDiscretePosition` for arguments;
+    """Discrete y position scale. See [`ScaleDiscretePosition`][ggmanim.scales.ScaleDiscretePosition] for arguments;
     ``aesthetics`` defaults to every y-like aesthetic."""
     return ScaleDiscretePosition(
         Y_AESTHETICS if aesthetics is None else aesthetics,

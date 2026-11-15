@@ -14,7 +14,7 @@ The field is ``z[j, i]`` at ``(x[i], y[j])`` on a rectilinear grid (``x`` and
   at most one crossing, entered by one cell and left by the neighbour), which is
   exact -- no floating-point endpoint hashing is needed.
 
-:func:`isolines` returns open or closed polylines at one level. :func:`isoband`
+`isolines()` returns open or closed polylines at one level. `isoband()`
 returns the closed, oriented rings of the band ``lo <= z < hi``: the boundary of
 ``{z >= lo}`` plus the reversed boundary of ``{z >= hi}`` (the field is padded
 with a degenerate rim below every level, so all rings close along the grid

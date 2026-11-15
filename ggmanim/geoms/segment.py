@@ -1,5 +1,5 @@
 """geom_segment / geom_curve: straight or curved lines from ``(x, y)`` to
-``(xend, yend)``, optionally with arrowheads (:func:`arrow`)."""
+``(xend, yend)``, optionally with arrowheads ([`arrow()`][ggmanim.geoms.arrow])."""
 
 from __future__ import annotations
 
@@ -43,7 +43,7 @@ _CURVE_SAMPLES = 64
 
 @dataclass(frozen=True)
 class ArrowSpec:
-    """Arrowhead spec (see :func:`arrow`)."""
+    """Arrowhead spec (see [`arrow()`][ggmanim.geoms.arrow])."""
 
     angle: float = 30.0
     length: float = 0.15
@@ -122,7 +122,7 @@ class GeomSegment(Geom):
     panel in transformed space; an end cut off by the panel gets no head.
 
     ``fast`` (``None``: above ``theme.fast_threshold`` rows) draws batched marks
-    without arrowheads, one ``VMobject`` per style (:mod:`ggmanim.geoms._batch`;
+    without arrowheads, one ``VMobject`` per style (`ggmanim.geoms._batch`;
     no per-mark ``.keys``); with ``arrow=`` every row is drawn individually."""
 
     required_aes = ("x", "y", "xend", "yend")
@@ -337,7 +337,7 @@ def curve_points(
     """The polyline (``(m, 3)``) ggplot2/grid draw for ``geom_curve`` from
     ``start`` to ``end`` (scene points): a straight segment for ``curvature == 0``
     or ``angle`` outside ``[1, 179]`` degrees (grid's rule), else the X-spline
-    through :func:`curve_control_points`."""
+    through `curve_control_points()`."""
     a, b = np.asarray(start, dtype=float), np.asarray(end, dtype=float)
     straight = np.vstack([a, b])
     if curvature == 0 or (angle is not None and not 1 <= angle <= 179) or int(ncp) < 1:
@@ -385,7 +385,7 @@ def bend_along(pts: np.ndarray, path: np.ndarray) -> np.ndarray:
 
 class GeomCurve(GeomSegment):
     """Curved segments from ``(x, y)`` to ``(xend, yend)`` shaped like ggplot2's
-    (grid's ``curveGrob``, see :func:`curve_points`): computed in scene space
+    (grid's ``curveGrob``, see `curve_points()`): computed in scene space
     after the coord transform, so the shape does not depend on the aspect ratio of
     the axes. ``curvature`` (default ``0.5``): ``1`` is about a half circle,
     positive values bend to the right of the direction of travel, negative to the
@@ -395,8 +395,8 @@ class GeomCurve(GeomSegment):
     mark is a polyline, clipped to the panel in scene space.
 
     Under a non-linear coord the curve is bent along the munched image of the
-    straight segment (:func:`bend_along`; ggplot2 instead warns and keeps the
-    scene-space curve), so ``curvature=0`` matches :func:`geom_segment`."""
+    straight segment (`bend_along()`; ggplot2 instead warns and keeps the
+    scene-space curve), so ``curvature=0`` matches [`geom_segment()`][ggmanim.geoms.geom_segment]."""
 
     extra_params: tuple[str, ...] = ("arrow", "lineend", "curvature", "angle", "ncp")
 
@@ -489,7 +489,7 @@ def geom_segment(
     ``arrow=arrow(...)`` adds arrowheads (sizes in scene units). ``lineend`` is
     accepted for ggplot2 compatibility (manim strokes have round ends).
     ``fast=True`` draws batched marks (default ``None``: when the panel has more
-    than ``theme.fast_threshold`` rows), see :mod:`ggmanim.geoms._batch`.
+    than ``theme.fast_threshold`` rows), see `ggmanim.geoms._batch`.
     """
     return _layer(GeomSegment(), mapping, data, stat, position, inherit_aes, name, params, arrow)
 
@@ -514,7 +514,7 @@ def geom_curve(
     negative values bend left, ``0`` is straight), ``angle`` (degrees in
     ``[0, 180]``; ``90`` is symmetric, smaller skews the curve towards the start)
     and ``ncp`` (number of control points). ``arrow=`` as for
-    :func:`geom_segment`. See :class:`GeomCurve`."""
+    [`geom_segment()`][ggmanim.geoms.geom_segment]. See [`GeomCurve`][ggmanim.geoms.GeomCurve]."""
     if angle is not None and not 0 <= float(angle) <= 180:
         raise ValueError(f"geom_curve: angle must be in [0, 180] degrees, got {angle!r}")
     if int(ncp) < 1:

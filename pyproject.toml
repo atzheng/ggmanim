@@ -32,8 +32,23 @@ target-version = "py310"
 extend-exclude = [".beads", ".claude", "*.md"]
 
 [tool.ruff.lint]
-select = ["E", "F", "W", "I", "B", "UP"]
-ignore = ["E501", "E741", "B905"]
+select = ["E", "F", "W", "I", "B", "UP", "D"]
+ignore = [
+    "E501", "E741", "B905",
+    # pydocstyle: the docstring style is already consistent (numpy sections); these
+    # rules would only force mass churn or demand docstrings on every dunder/helper.
+    "D100", "D101", "D102", "D103", "D104", "D105", "D107",  # missing docstrings
+    "D205", "D209", "D400", "D401", "D403", "D404", "D301",  # summary-line / closing-quote layout
+]
+
+[tool.ruff.lint.pydocstyle]
+convention = "numpy"
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["D"]
+"examples/**" = ["D"]
+"scripts/**" = ["D"]
+"ggmanim/**/_*.py" = ["D"]
 
 [tool.mypy]
 python_version = "3.10"

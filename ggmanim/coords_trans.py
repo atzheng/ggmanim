@@ -6,13 +6,13 @@ The transform is applied by the coord at drawing time, not by the scales::
 
 * Stats and position scales work on untransformed data (an ``lm`` smooth is a
   straight line in data space), limits and breaks come from the scales.
-* :meth:`CoordTrans.build` returns a :class:`TransPanel`. Its manim axes run over
+* [`CoordTrans.build()`][ggmanim.coords_trans.CoordTrans.build] returns a [`TransPanel`][ggmanim.coords_trans.TransPanel]. Its manim axes run over
   the transformed, expanded ranges, so ticks and grid lines sit at the
   transformed break positions. Its ``transform(x, y)`` and ``panel_params`` are
   in the coord's *input* space, so geoms clip as usual and pass untransformed
   values to ``transform``.
 * ``TransPanel.is_linear`` is false: geoms munch paths, polygons and rects
-  (:func:`ggmanim.coords.coord_munch` via ``geoms.base.munch_path``) so straight
+  ([`ggmanim.coords.coord_munch()`][ggmanim.coords.coord_munch] via ``geoms.base.munch_path``) so straight
   segments bend with the transform.
 """
 
@@ -34,7 +34,7 @@ __all__ = ["TransPanel", "TransPanelParams", "CoordTrans", "coord_trans"]
 
 
 class TransPanel(CartesianPanel):
-    """A :class:`CartesianPanel` for :func:`coord_trans`.
+    """A [`CartesianPanel`][ggmanim.coords.CartesianPanel] for [`coord_trans()`][ggmanim.coords_trans.coord_trans].
 
     The manim axes run over the *coord-transformed* space (``trans_x(x)``,
     ``trans_y(y)``), but everything geoms see is in the coord's *input* space (the
@@ -63,9 +63,9 @@ class TransPanel(CartesianPanel):
         return _c2p(self.axes, _squished(self.trans_x, x, rx), _squished(self.trans_y, y, ry))
 
     def squish_input(self, x: Any, y: Any) -> tuple[np.ndarray, np.ndarray]:
-        """``(x, y)`` with each value drawn at a panel edge by :meth:`transform`
+        """``(x, y)`` with each value drawn at a panel edge by [`transform()`][ggmanim.coords.CartesianPanel.transform]
         (infinite image) replaced by the input-space value of that edge.
-        :func:`~ggmanim.coords.coord_munch` calls it first (ggplot2 does the same
+        [`coord_munch()`][ggmanim.coords.coord_munch] calls it first (ggplot2 does the same
         with ``+-Inf``), so a path from ``0`` on a log axis is interpolated from
         the panel edge instead of through ever smaller values below it."""
         x, y = np.broadcast_arrays(np.asarray(x, dtype=float), np.asarray(y, dtype=float))
@@ -84,7 +84,7 @@ class TransPanel(CartesianPanel):
 
 @dataclass(frozen=True)
 class TransPanelParams(PanelParams):
-    """:class:`PanelParams` of a :class:`TransPanel`: the inherited fields are in
+    """[`PanelParams`][ggmanim.coords.PanelParams] of a [`TransPanel`][ggmanim.coords_trans.TransPanel]: the inherited fields are in
     the coord's input space (what geoms clip against); ``trans_x_range`` /
     ``trans_y_range`` are the drawn, transformed-space axis ranges (what
     ``facet_grid(space="free")`` sizes panels by)."""
@@ -94,7 +94,7 @@ class TransPanelParams(PanelParams):
 
 
 def _edge_input(trans: Any, v: np.ndarray, rng: tuple[float, float]) -> np.ndarray:
-    """``v`` with the values :func:`_squished` puts at an end of ``rng`` replaced
+    """``v`` with the values `_squished()` puts at an end of ``rng`` replaced
     by that end's input-space value."""
     with np.errstate(all="ignore"):
         raw = np.asarray(trans.transform(v), dtype=float)
@@ -155,9 +155,9 @@ def _inverse_range(trans: Any, rng: tuple[float, float]) -> tuple[float, float]:
 
 class _TransScale:
     """A position-scale facade in coord-transformed space, so that
-    :meth:`CoordCartesian.build` draws the axes, grid and ticks of a
-    :class:`CoordTrans` panel unchanged: breaks/labels come from the real scale
-    (input space, over :attr:`input_range`) and are mapped through ``trans``.
+    [`CoordCartesian.build()`][ggmanim.coords.CoordCartesian.build] draws the axes, grid and ticks of a
+    [`CoordTrans`][ggmanim.coords_trans.CoordTrans] panel unchanged: breaks/labels come from the real scale
+    (input space, over `input_range`) and are mapped through ``trans``.
     Other attributes (``name``, ``position`` ...) pass through to the scale."""
 
     def __init__(self, scale: Any, trans: Any, trans_range: tuple[float, float]):
@@ -228,20 +228,20 @@ class CoordTrans(CoordCartesian):
     ``geom_smooth(method="lm")`` fits a straight line in data space, drawn
     curved), breaks and labels are the scale's own (data-space ``pretty`` breaks
     for a continuous scale) placed at their transformed positions, and the
-    straight edges of paths, polygons and rects are munched (:func:`~ggmanim.coords.coord_munch`)
+    straight edges of paths, polygons and rects are munched ([`coord_munch()`][ggmanim.coords.coord_munch])
     so they bend with the transform.
 
     ``x``/``y`` are transform names (``"identity"``, ``"log10"``, ``"log2"``,
     ``"log"``, ``"sqrt"``, ``"reverse"``) or
-    :class:`~ggmanim.scales.continuous.Transform` instances. ``xlim``/``ylim``
-    zoom in data space (as in :func:`coord_cartesian`); ``expand`` pads the
+    `Transform` instances. ``xlim``/``ylim``
+    zoom in data space (as in [`coord_cartesian()`][ggmanim.coords.coord_cartesian]); ``expand`` pads the
     *transformed* range. A value at the open end of a transform's domain
     (``log`` of 0) or an infinite one is drawn at the panel edge, as in ggplot2,
     so bars from 0 reach the bottom of a log axis also with ``clip="off"``;
     other out-of-domain values (``log`` of a negative) map to NaN and are not
     drawn.
 
-    :meth:`build` returns a :class:`TransPanel` (``is_linear`` false).
+    [`build()`][ggmanim.build] returns a [`TransPanel`][ggmanim.coords_trans.TransPanel] (``is_linear`` false).
     """
 
     is_linear = False
@@ -347,7 +347,7 @@ class CoordTrans(CoordCartesian):
         *,
         has_legend: bool = False,
     ) -> TransPanel:
-        """Build a :class:`TransPanel`: a cartesian panel over the transformed ranges
+        """Build a [`TransPanel`][ggmanim.coords_trans.TransPanel]: a cartesian panel over the transformed ranges
         (grid lines and ticks at the transformed breaks) whose ``transform`` and
         ``panel_params`` work in input space."""
         fx, fy = self._facades(x_scale, y_scale)
@@ -365,9 +365,9 @@ class CoordTrans(CoordCartesian):
 
 def _thinned_like(pp: PanelParams, drawn: PanelParams, fx: Any, fy: Any) -> PanelParams:
     """Input-space ``pp`` with the breaks the panel draws: ``drawn`` holds the
-    transformed-space breaks after :func:`~ggmanim.coords.fit_breaks` thinned them.
+    transformed-space breaks after [`fit_breaks()`][ggmanim.coords.fit_breaks] thinned them.
     Where an axis was thinned, its breaks are mapped back through the transform's
-    inverse (see :func:`_back`)."""
+    inverse (see `_back()`)."""
     out: dict[str, Any] = {}
     for ax, f in (("x", fx), ("y", fy)):
         t_breaks = getattr(drawn, f"{ax}_breaks")
@@ -404,6 +404,6 @@ def coord_trans(
     clip: str = "on",
 ) -> CoordTrans:
     """Transformed coordinates: ``coord_trans(x="log10", y="sqrt")`` transforms the
-    axes at drawing time, after the stats (see :class:`CoordTrans`); straight lines
+    axes at drawing time, after the stats (see [`CoordTrans`][ggmanim.coords_trans.CoordTrans]); straight lines
     become curves."""
     return CoordTrans(x=x, y=y, xlim=xlim, ylim=ylim, expand=expand, clip=clip)

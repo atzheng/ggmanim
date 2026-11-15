@@ -1,22 +1,22 @@
 """Guides: legends for discrete non-position scales (and continuous ones that ask
 for a binned legend, e.g. size / alpha / linewidth); colourbars for continuous
-colour scales live in :mod:`.guides_colourbar`.
+colour scales live in [`guides_colourbar`][ggmanim.guides_colourbar].
 
-:func:`build_legends` turns the trained non-position scales of a plot into
-:class:`Legend` mobjects (title + one row per break: key glyph + label). Key
+[`build_legends()`][ggmanim.guides.build_legends] turns the trained non-position scales of a plot into
+[`Legend`][ggmanim.guides.Legend] mobjects (title + one row per break: key glyph + label). Key
 glyphs come from the geoms that map the legend's aesthetic(s)
-(:meth:`ggmanim.geoms.base.Geom.draw_key`); if several layers map it, their
+(`ggmanim.geoms.base.Geom.draw_key()`); if several layers map it, their
 glyphs are overlaid in one key, as in ggplot2. Legends of different aesthetics
 with the same title, breaks and labels (e.g. ``color`` and ``fill`` both mapped
 to one column) are merged into one legend whose keys carry all of them.
-Options per legend come from :func:`~ggmanim.guides_legend.guide_legend`
+Options per legend come from [`guide_legend()`][ggmanim.guides_legend.guide_legend]
 (title, ``nrow``/``ncol``/``byrow`` key grid, ``reverse``, ``override_aes``,
 ``order``, ``direction``); guides are returned sorted by ``order``.
 
-:func:`place_legends` lays the legends out (``theme.legend_direction``,
+[`place_legends()`][ggmanim.guides.place_legends] lays the legends out (``theme.legend_direction``,
 ``legend_box``, ``legend_spacing``) and positions them next to the panel, or
 inside it for an ``(x, y)`` ``theme.legend_position``, honouring
-``legend_justification``. :func:`guides` is the component that sets guides per
+``legend_justification``. [`guides()`][ggmanim.guides] is the component that sets guides per
 aesthetic: ``p.add(guides(color="none", shape=guide_legend(ncol=2)))``.
 """
 
@@ -89,9 +89,9 @@ __all__ = [
     "guide_axis",
 ]
 
-#: Valid guide specs for :func:`guides`.
+#: Valid guide specs for [`guides()`][ggmanim.guides].
 GUIDE_TYPES = ("legend", "none", "colourbar", "colorbar", "coloursteps", "colorsteps")
-#: Guide objects accepted alongside :data:`GUIDE_TYPES`.
+#: Guide objects accepted alongside `GUIDE_TYPES`.
 GUIDE_CLASSES = (GuideLegend, GuideColourbar, GuideColoursteps)
 
 #: Horizontal gap between a key and its label, and between title and rows.
@@ -126,7 +126,7 @@ class Legend(VGroup):
     breaks : list
         The scale breaks (levels) shown.
     options : GuideLegend
-        The :func:`~ggmanim.guides_legend.guide_legend` options.
+        The [`guide_legend()`][ggmanim.guides_legend.guide_legend] options.
     direction : ``"vertical"`` or ``"horizontal"`` (current layout).
     nrow, ncol : int
         The key grid of the current layout.
@@ -164,11 +164,11 @@ class Legend(VGroup):
         """Lay out the keys in a grid (``guide_legend(nrow=, ncol=, byrow=)``;
         default one column for ``"vertical"``, one row for ``"horizontal"``), the
         title beside them (``theme.legend_title_position``, see
-        :func:`~ggmanim.guides_legend.place_legend_title`), and the optional
+        [`place_legend_title()`][ggmanim.guides_legend.place_legend_title]), and the optional
         background / border behind.
 
         ``nrow`` wraps a legend whose guide fixes neither ``nrow`` nor ``ncol``
-        onto that many rows, filled row by row (used by :func:`place_legends`
+        onto that many rows, filled row by row (used by [`place_legends()`][ggmanim.guides.place_legends]
         for horizontal legends wider than the space available); it is ignored
         when the guide fixes the grid."""
         self.direction = "horizontal" if direction == "horizontal" else "vertical"
@@ -265,7 +265,7 @@ def _guide_off(aes: str, scale, guides_spec: Mapping[str, Any]) -> bool:
 
 
 def _binned_legend(aes: str, scale, guides_spec: Mapping[str, Any]) -> bool:
-    """A continuous scale whose guide is ``"legend"`` or a :func:`guide_legend`
+    """A continuous scale whose guide is ``"legend"`` or a [`guide_legend()`][ggmanim.guides.guide_legend]
     (the default of the size / alpha / linewidth range scales, or
     ``guides(aes="legend")``): keys at its breaks."""
     spec = guides_spec.get(aes, getattr(scale, "guide", None))
@@ -322,11 +322,11 @@ def build_legends(
     labels: Mapping[str, Any] | None = None,
     guides: Mapping[str, Any] | None = None,
 ) -> list[Legend]:
-    """Build one guide per (merged) non-position scale: a :class:`Legend` for
+    """Build one guide per (merged) non-position scale: a [`Legend`][ggmanim.guides.Legend] for
     discrete scales (and continuous ones whose guide is ``"legend"`` or a
-    :func:`guide_legend`: one key per break), a
-    :class:`~ggmanim.guides_colourbar.Colourbar` for continuous scales whose
-    guide is ``"colourbar"`` or a :func:`guide_colorbar`.
+    [`guide_legend()`][ggmanim.guides.guide_legend]: one key per break), a
+    [`Colourbar`][ggmanim.guides_colourbar.Colourbar] for continuous scales whose
+    guide is ``"colourbar"`` or a [`guide_colorbar()`][ggmanim.guides.guide_colorbar].
 
     Parameters
     ----------
@@ -349,7 +349,7 @@ def build_legends(
         ``labs()`` labels (aesthetic -> str/Mobject/None).
     guides:
         ``guides()`` spec (aesthetic -> ``"legend"``/``"colourbar"``/``"none"``,
-        a :func:`guide_legend` or a :func:`guide_colorbar`); overrides
+        a [`guide_legend()`][ggmanim.guides.guide_legend] or a [`guide_colorbar()`][ggmanim.guides.guide_colorbar]); overrides
         ``scale.guide``.
 
     Legends whose kind, title, breaks and labels match are merged (ggplot2's
@@ -641,7 +641,7 @@ def _stack_legends(group: VGroup, box: str, spacing: float, theme: Theme) -> Non
 
 class Guides:
     """Component holding ``aesthetic -> guide`` (``"legend"`` / ``"colourbar"`` /
-    ``"none"`` / :func:`guide_legend` / :func:`guide_colorbar`)."""
+    ``"none"`` / [`guide_legend()`][ggmanim.guides.guide_legend] / [`guide_colorbar()`][ggmanim.guides.guide_colorbar])."""
 
     __slots__ = ("guides",)
 

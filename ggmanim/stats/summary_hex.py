@@ -1,6 +1,6 @@
 """stat_summary_hex: a summary of ``z`` in hexagonal bins (for geom_hex).
 
-The hexagons are those of :mod:`.hex` (``bins`` or ``binwidth``, one value or
+The hexagons are those of `hex` (``bins`` or ``binwidth``, one value or
 an ``(x, y)`` pair; bin widths from the scale ranges, lattice origin from the
 data range). In each non-empty hexagon ``fun`` (default ``"mean"``; a callable
 or a numpy name) summarises the finite ``z`` values, called as
@@ -30,7 +30,7 @@ _SQRT3 = math.sqrt(3.0)
 
 def hex_cells(x, y, binwidth: tuple[float, float], xlim, ylim) -> tuple[np.ndarray, np.ndarray]:
     """Lattice coordinates ``(ci, cj)`` of the hexagon holding each point, on the
-    lattice of :func:`~.hex.hexbin` (centre ``(xlo + ci * wx, ylo + cj * sqrt(3) * wy)``)."""
+    lattice of `hexbin()` (centre ``(xlo + ci * wx, ylo + cj * sqrt(3) * wy)``)."""
     return _hex_cells(x, y, binwidth, xlim, ylim)
 
 

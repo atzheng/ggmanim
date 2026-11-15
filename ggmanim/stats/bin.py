@@ -13,9 +13,9 @@ transformed by the x scale.
 
 Orientation: with only ``y`` mapped (or ``orientation="y"``) ``y`` is binned
 instead (``ymin``/``ymax`` edges, ``flipped_aes = True``; the counts come from
-the default ``x=after_stat("count")``); see :mod:`ggmanim.stats.count`.
+the default ``x=after_stat("count")``); see `ggmanim.stats.count`.
 
-The ``bins = 30`` warning comes from the once-per-layer :meth:`Stat.setup_layer`
+The ``bins = 30`` warning comes from the once-per-layer [`Stat.setup_layer()`][ggmanim.stats.Stat.setup_layer]
 hook, so it is given once per build even when the stat runs per facet panel.
 """
 
@@ -174,7 +174,7 @@ class StatBin(Stat):
     transform, and the default is ``x=after_stat("count")``.
     """
 
-    #: Either one (see :func:`~ggmanim.stats.count.check_one_axis`).
+    #: Either one (see `check_one_axis()`).
     required_aes = ("x", "y")
     default_aes = {"x": after_stat("count"), "y": after_stat("count")}
     dropped_aes = ("weight",)
@@ -281,10 +281,10 @@ def stat_bin(
     name: str | None = None,
     **params,
 ):
-    """Histogram bars of binned ``x`` (as :func:`~ggmanim.geoms.histogram.geom_histogram`).
+    """Histogram bars of binned ``x`` (as `geom_histogram()`).
     ``y=after_stat("count")`` by default; ``"density"``, ``"ncount"``,
     ``"ndensity"`` too. Map ``y`` instead of ``x`` (or pass ``orientation="y"``)
-    for horizontal bars. See :class:`StatBin` for the parameters. Returns a layer."""
+    for horizontal bars. See [`StatBin`][ggmanim.stats.StatBin] for the parameters. Returns a layer."""
     from ..geoms.count import stat_layer  # geoms import manim: keep stats free of it
 
     params.update(

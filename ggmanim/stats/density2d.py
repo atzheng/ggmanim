@@ -3,7 +3,7 @@
 Per group, a bivariate Gaussian KDE is evaluated on an ``n x n`` grid spanning
 the x and y scale limits (MASS's ``kde2d``, which ggplot2 uses):
 
-* bandwidths ``h`` per axis default to :func:`bandwidth_nrd`
+* bandwidths ``h`` per axis default to [`bandwidth_nrd()`][ggmanim.stats.bandwidth_nrd]
   (``4 * 1.06 * min(sd, IQR / 1.34) * n^(-1/5)``), times ``adjust``;
 * like ``kde2d``, the kernel standard deviation is ``h / 4``;
 * a ``weight`` aesthetic weights the observations (normalised to sum 1 per
@@ -12,7 +12,7 @@ the x and y scale limits (MASS's ``kde2d``, which ggplot2 uses):
 With ``contour=True`` (the default) the grid is contoured (lines for
 ``stat_density_2d``, bands for ``stat_density_2d_filled``) on ``contour_var``
 (``"density"``, ``"ndensity"`` or ``"count"``) with levels shared across the
-groups of the layer (see :func:`~.contour.contour_breaks`). With
+groups of the layer (see `contour_breaks()`). With
 ``contour=False`` the grid itself is returned (``x``, ``y``, ``density``,
 ``ndensity``, ``count``, ``n``), e.g. for ``geom_raster(aes(fill=after_stat("density")))``.
 """
@@ -72,7 +72,7 @@ def kde2d(
     """MASS's ``kde2d``: ``(gx, gy, z)`` with ``z[i, j]`` the density at
     ``(gx[i], gy[j])``.
 
-    ``h`` (bandwidth per axis; default :func:`bandwidth_nrd` of each) is divided
+    ``h`` (bandwidth per axis; default [`bandwidth_nrd()`][ggmanim.stats.bandwidth_nrd] of each) is divided
     by 4 to give the Gaussian kernel's standard deviation. ``n`` grid points per
     axis (one number or a pair), spanning ``lims = (xlo, xhi, ylo, yhi)``
     (default: the data ranges). ``weights`` (non-negative, one per observation)
@@ -205,7 +205,7 @@ class StatDensity2d(Stat):
 
 
 class StatDensity2dFilled(StatDensity2d):
-    """Like :class:`StatDensity2d`, contoured into filled bands
+    """Like [`StatDensity2d`][ggmanim.stats.StatDensity2d], contoured into filled bands
     (``fill=after_stat("level")``)."""
 
     default_aes = {"fill": after_stat("level")}

@@ -9,7 +9,7 @@ drawing with x and y swapped: the data columns are renamed (``x <-> y``,
 the real coord with ``(y, x)``. The orientation is
 
 * ``orientation="x"`` / ``"y"`` when given (``"y"`` = horizontal), else
-* the ``flipped_aes`` column written by :meth:`_IntervalGeom.setup_data`, else
+* the ``flipped_aes`` column written by `_IntervalGeom.setup_data()`, else
 * horizontal when ``xmin``/``xmax`` are present and ``ymin``/``ymax`` are not.
 
 ``geom_errorbarh`` is ``geom_errorbar`` in the horizontal orientation with
@@ -17,19 +17,19 @@ the real coord with ``(y, x)``. The orientation is
 
 Widths (errorbar whiskers, crossbar boxes) default to ``0.9 * resolution(x)``
 (``0.9`` on a discrete scale), as in ggplot2; ``width=`` (param or column, in
-transformed units) overrides. :meth:`setup_data` turns them into
+transformed units) overrides. [`setup_data()`][ggmanim.geoms.Geom.setup_data] turns them into
 ``xmin``/``xmax`` so the x scale trains on the full extent.
 
 Clipping (``clip="on"``) is done in transformed space with
-:func:`~ggmanim.geoms._clip.clip_segments` (lines) and
-:func:`~ggmanim.geoms._clip.clip_rects` (crossbar boxes); pointrange points are
+`clip_segments()` (lines) and
+`clip_rects()` (crossbar boxes); pointrange points are
 clipped like ``geom_point`` markers.
 
-:func:`draw_crossbar` is the reusable crossbar drawing (``geom_boxplot`` draws its
+[`draw_crossbar()`][ggmanim.geoms.draw_crossbar] is the reusable crossbar drawing (``geom_boxplot`` draws its
 box with it). The building blocks are public too, for geoms written the same
-way (``geom_boxplot``, ``geom_violin``): :func:`flip_panel` (orientation),
-:func:`clipped_segments` (clipped line segments as scene points) and
-:func:`stroke_style` (stroke colour, alpha, linewidth and linetype from a row).
+way (``geom_boxplot``, ``geom_violin``): [`flip_panel()`][ggmanim.geoms.flip_panel] (orientation),
+[`clipped_segments()`][ggmanim.geoms.clipped_segments] (clipped line segments as scene points) and
+[`stroke_style()`][ggmanim.geoms.stroke_style] (stroke colour, alpha, linewidth and linetype from a row).
 """
 
 from __future__ import annotations
@@ -123,7 +123,7 @@ def flip_panel(coord: Any, panel_params: Any) -> tuple[Any, Any]:
     """``(coord, panel_params)`` for drawing a horizontal layer in the vertical
     orientation: the coord's ``transform(x, y)`` calls the real one with
     ``(y, x)`` and the panel's ``x_range``/``y_range`` are swapped (``None``
-    stays ``None``). Use it on :func:`flip_data`-ed rows."""
+    stays ``None``). Use it on [`flip_data()`][ggmanim.geoms.flip_data]-ed rows."""
     pp = None
     if panel_params is not None:
         pp = SimpleNamespace(x_range=panel_params.y_range, y_range=panel_params.x_range)
@@ -164,7 +164,7 @@ def stroke_style(mob: VMobject, row: Mapping[str, Any], fg: Any, linewidth: floa
 
 
 def style(*args: Any, **kwargs: Any) -> VMobject:
-    """Deprecated alias of :func:`stroke_style` (the old, too generic name)."""
+    """Deprecated alias of [`stroke_style()`][ggmanim.geoms.stroke_style] (the old, too generic name)."""
     warnings.warn("ggmanim.geoms.style is renamed stroke_style", DeprecationWarning, stacklevel=2)
     return stroke_style(*args, **kwargs)
 
@@ -189,7 +189,7 @@ def clipped_segments(coord, rect, x0, y0, x1, y1) -> list[np.ndarray]:
 
 
 class _IntervalGeom(Geom):
-    """Shared orientation handling; subclasses implement :meth:`_draw_rows` in
+    """Shared orientation handling; subclasses implement `_draw_rows()` in
     the vertical orientation."""
 
     #: required columns in the vertical orientation
@@ -199,7 +199,7 @@ class _IntervalGeom(Geom):
     extra_params: tuple[str, ...] = ("orientation",)
     #: ``True``/``False`` forces the orientation (``geom_errorbarh``)
     force_flipped: bool | None = None
-    #: whether :meth:`setup_data` adds ``xmin``/``xmax`` from ``width``
+    #: whether [`setup_data()`][ggmanim.geoms.Geom.setup_data] adds ``xmin``/``xmax`` from ``width``
     has_width = False
 
     def check_required_aes(self, data: pd.DataFrame, flipped: bool = False) -> None:
@@ -423,7 +423,7 @@ def draw_crossbar(
         One crossbar per row, in the *vertical* orientation and transformed
         space: ``xmin``, ``xmax``, ``ymin``, ``ymax`` and (optionally finite)
         ``middle``. Style columns ``color``, ``fill``, ``alpha``, ``linewidth``,
-        ``linetype`` fall back to :attr:`GeomCrossbar.default_aes`.
+        ``linetype`` fall back to `GeomCrossbar.default_aes`.
     coord, panel_params
         The panel (``coord.transform``) and its params; with ``panel_params``
         and ``coord.clip != "off"`` boxes and middle lines are clipped to the panel.
@@ -443,7 +443,7 @@ def draw_crossbar(
         One ``VGroup(box, middle_line)`` per visible row (the box is a filled
         ``Polygon``; with a dashed ``linetype`` it is
         ``VGroup(fill, dashes)``), and the rows that were drawn, in order (for
-        :func:`~ggmanim.geoms.base.attach_marks`).
+        `attach_marks()`).
     """
     theme = theme if theme is not None else theme_default()
     if flipped:
@@ -494,7 +494,7 @@ def draw_crossbar(
 class GeomCrossbar(_IntervalGeom):
     """Crossbars: a box from ``ymin`` to ``ymax``, ``width`` wide, with a
     ``fatten``-times thicker line at ``y``; one ``VGroup(box, middle)`` per row
-    (see :func:`draw_crossbar`). ``fill`` defaults to none."""
+    (see [`draw_crossbar()`][ggmanim.geoms.draw_crossbar]). ``fill`` defaults to none."""
 
     vertical_aes = ("x", "y", "ymin", "ymax")
     required_aes = ("x", "y", "ymin", "ymax")
@@ -619,5 +619,5 @@ def geom_crossbar(
     **params,
 ):
     """A box from ``ymin`` to ``ymax`` with a ``fatten``-times (2.5) thicker
-    line at ``y``; ``width=`` as for :func:`geom_errorbar`."""
+    line at ``y``; ``width=`` as for [`geom_errorbar()`][ggmanim.geoms.geom_errorbar]."""
     return _layer(GeomCrossbar(), mapping, data, stat, position, inherit_aes, name, params)

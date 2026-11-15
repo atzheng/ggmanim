@@ -19,7 +19,7 @@ When fast mode is used
 What changes
     * ``layer.marks`` lists the batch mobjects (plus any marks drawn
       individually, below); ``layer.keys`` is ``None`` and ``layer.batched`` is
-      ``True``. Per-mark animation, :func:`ggmanim.animate.mark` and key-based
+      ``True``. Per-mark animation, [`ggmanim.animate.mark()`][ggmanim.animate.mark] and key-based
       transitions are therefore not available (``mark`` raises ``TypeError``);
       whole-layer reveals (``fade_in``, ``create``, ``grow_from_baseline``)
       still work.
@@ -29,7 +29,7 @@ What changes
       would show through the fills of later marks, and where marks of
       different styles overlap the wrong one could end up on top. To keep the
       slow path's look, marks are split into *stacking layers*
-      (:func:`stack_layers`): a mark goes above every earlier mark whose
+      (`stack_layers()`): a mark goes above every earlier mark whose
       bounding box it overlaps -- of another style, or of its own style when
       that style is translucent or outlined in another colour -- and batches
       are emitted layer by layer, then style by style (in order of first
@@ -81,11 +81,11 @@ __all__ = [
     "draw_segments_fast",
 ]
 
-#: Default for :attr:`ggmanim.theme.Theme.fast_threshold`.
+#: Default for `ggmanim.theme.Theme.fast_threshold`.
 DEFAULT_FAST_THRESHOLD = 2000
 #: Scene units per manim ``stroke_width`` unit (cairo's ``cairo_line_width_multiple``).
 _STROKE_UNIT = 0.01
-#: Cells along the longer side of the :func:`stack_layers` raster, at most.
+#: Cells along the longer side of the `stack_layers()` raster, at most.
 _MAX_RASTER = 2048
 
 SlowDraw = Callable[[pd.DataFrame], VMobject]
@@ -116,7 +116,7 @@ def use_fast(fast: bool | None, data: pd.DataFrame, theme: Theme | None, who: st
 def batched_group(marks: Iterable[VMobject]) -> VGroup:
     """A geom's output for batched marks: ``VGroup(*marks)`` with ``.marks`` the
     batches, ``.keys = None`` and ``.batched = True`` (which
-    :func:`ggmanim.animate.mark` checks)."""
+    [`ggmanim.animate.mark()`][ggmanim.animate.mark] checks)."""
     marks = list(marks)
     out: Any = VGroup(*marks)
     out.marks = marks
@@ -146,8 +146,8 @@ def _hex(c: Any) -> str | None:
 
 
 def _hexer() -> Callable[[Any], str | None]:
-    """:func:`_hex` memoised by object identity (resolved colours repeat as the
-    same objects, see :func:`~.base.color_resolver`)."""
+    """`_hex()` memoised by object identity (resolved colours repeat as the
+    same objects, see `color_resolver()`)."""
     cache: dict[int, tuple[Any, str | None]] = {}
 
     def hexof(c: Any) -> str | None:
@@ -278,9 +278,9 @@ def _assemble(
     ``style_of(key, first_row)`` styles a batch, ``points_of(rows)`` gives the
     ``(m, k, 3)`` Bezier points of those rows' marks (one style, so one ``k``),
     ``lo``/``hi`` the rows' bounding boxes (grown by ``pad_of(style)``, e.g. half
-    the stroke). Batches are emitted by stacking layer (:func:`stack_layers`:
+    the stroke). Batches are emitted by stacking layer (`stack_layers()`:
     marks of different styles that overlap keep their data order, as do
-    overlapping marks of one style when :func:`_needs_layers`), then by style in
+    overlapping marks of one style when `_needs_layers()`), then by style in
     order of first appearance; ``after`` post-processes each batch."""
     groups = [(k, idx) for k, idx in _groups(keys).items() if k is not None]
     if not groups:
@@ -324,7 +324,7 @@ def _unit_points(base: str) -> np.ndarray:
 def draw_points_fast(
     data: pd.DataFrame, panel_params: Any, coord: Any, theme: Theme, slow: SlowDraw
 ) -> VGroup:
-    """Batched :class:`~ggmanim.geoms.point.GeomPoint` drawing. ``data`` has the
+    """Batched `GeomPoint` drawing. ``data`` has the
     default aesthetics filled in; ``slow(rows)`` draws rows one marker each
     (used for markers cut by the panel edge)."""
     data = finite_rows(data, ("x", "y"))
@@ -391,7 +391,7 @@ def _solid(linetype: Any) -> bool:
 
 
 def _ring_points(corners: np.ndarray) -> np.ndarray:
-    """:func:`~._rect.ring_points` for every ring of ``corners`` (``(m, k, 3)``)
+    """`ring_points()` for every ring of ``corners`` (``(m, k, 3)``)
     at once: ``(m, 4k, 3)``."""
     a = corners
     b = np.roll(corners, -1, axis=1)
@@ -439,10 +439,10 @@ def draw_rects_fast(
     slow: SlowDraw,
     seal: bool = False,
 ) -> VGroup:
-    """Batched :class:`~ggmanim.geoms.rect.GeomRect` / ``GeomTile`` drawing
+    """Batched `GeomRect` / ``GeomTile`` drawing
     (``data``: rectangle columns and default aesthetics filled in). Rows with a
     dashed outline go through ``slow``; ``seal`` seals opaque batches like
-    :func:`~._rect.seal_seams` does per tile."""
+    `seal_seams()` does per tile."""
     line_of = color_resolver()
     dashed = np.array(
         [
@@ -466,7 +466,7 @@ def draw_rects_fast(
 def draw_segments_fast(
     data: pd.DataFrame, panel_params: Any, coord: Any, theme: Theme, slow: SlowDraw
 ) -> VGroup:
-    """Batched :class:`~ggmanim.geoms.segment.GeomSegment` drawing without
+    """Batched `GeomSegment` drawing without
     arrowheads (``data``: default aesthetics filled in). Dashed rows go through
     ``slow``."""
     fg = theme.get_foreground()

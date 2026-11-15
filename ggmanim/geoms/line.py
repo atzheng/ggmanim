@@ -78,20 +78,20 @@ class GeomPath(Geom):
     ``draw_panel`` returns ``VGroup(*paths, *labels)``: one open polyline per
     group (in ``group`` order; vertex count == number of finite rows in the
     group; a ``VGroup`` of dashes for a non-solid ``linetype``, see
-    :func:`~ggmanim.geoms._linetype.apply_linetype`; when colour, linewidth or
+    `apply_linetype()`; when colour, linewidth or
     alpha vary within the group, a ``VGroup`` of per-segment strokes, see
-    :func:`~ggmanim.geoms._segments.segmented_path`), then — when ``label=`` is
+    `segmented_path()`), then — when ``label=`` is
     given — one label per group placed right of the group's last visible point
     in the group's colour (for a per-segment group, the colour of its last
     visible segment). ``.marks`` holds the paths (one per group), ``.keys`` the
     group ids (or ``key`` values) and ``.labels`` the labels.
 
     ``x``/``y`` of ``+-inf`` are kept and drawn on the panel edges
-    (:func:`squish_infinite`); only NaN positions are dropped.
+    (`squish_infinite()`); only NaN positions are dropped.
 
     ``closed=True`` joins each group's last point back to its first (after the
     x sort for ``geom_line``), e.g. a radar chart under ``coord_polar`` without
-    :func:`~ggmanim.coords_polar.coord_radar`. Under ``coord_polar`` with the
+    [`coord_radar()`][ggmanim.coords_polar.coord_radar]. Under ``coord_polar`` with the
     angle on x the closing edge runs on *forwards* round the circle (to the
     first point's angle one turn later) instead of back across the whole turn.
     """
@@ -169,7 +169,7 @@ class GeomPath(Geom):
 
 
 class GeomLine(GeomPath):
-    """Like :class:`GeomPath` but each group is sorted by x first."""
+    """Like [`GeomPath`][ggmanim.geoms.GeomPath] but each group is sorted by x first."""
 
     sort_by_x = True
 
@@ -186,14 +186,14 @@ def geom_path(
     **params,
 ):
     """Paths connecting observations in the order they appear in the data, one
-    per group (unlike :func:`geom_line`, which sorts each group by x first).
+    per group (unlike [`geom_line()`][ggmanim.geoms.geom_line], which sorts each group by x first).
 
     ``label=`` (str or Mobject for every group, a list in group order, or a dict
     group value or id -> label) is drawn at each group's last point in the group's colour
-    (a *direct label*, drawn like ``geom_text``; see :mod:`ggmanim.geoms._labels`).
+    (a *direct label*, drawn like ``geom_text``; see `ggmanim.geoms._labels`).
 
     ``closed=True`` joins each group's last point back to its first (see
-    :class:`GeomPath`).
+    [`GeomPath`][ggmanim.geoms.GeomPath]).
     """
     return make_layer(
         GeomPath(),
@@ -222,10 +222,10 @@ def geom_line(
 
     ``label=`` (str or Mobject for every group, a list in group order, or a dict
     group value or id -> label) is drawn at each group's last point in the group's colour
-    (a *direct label*, drawn like ``geom_text``; see :mod:`ggmanim.geoms._labels`).
+    (a *direct label*, drawn like ``geom_text``; see `ggmanim.geoms._labels`).
 
     ``closed=True`` joins each group's last point back to its first (see
-    :class:`GeomPath`).
+    [`GeomPath`][ggmanim.geoms.GeomPath]).
     """
     return make_layer(
         GeomLine(),

@@ -1,17 +1,17 @@
 """Panel-grid geometry shared by every facet: which panels draw axes, how big
 each panel is, and where it goes.
 
-All functions take the facet's *layout table* (see :mod:`ggmanim.facets.base`):
+All functions take the facet's *layout table* (see `ggmanim.facets.base`):
 one row per panel with ``PANEL`` (1..n), ``ROW``/``COL`` (1-based grid cell),
 ``SCALE_X``/``SCALE_Y`` (which x/y scale the panel uses). Facets only compute
 that table; the pipeline (``build.build_panels``) calls these helpers:
 
-1. :func:`axis_visibility` -- per panel, draw the horizontal / vertical axis
+1. `axis_visibility()` -- per panel, draw the horizontal / vertical axis
    (tick marks + tick labels)?
-2. :func:`track_sizes` -- column widths and row heights of the plotting areas,
+2. `track_sizes()` -- column widths and row heights of the plotting areas,
    given each panel's decoration extents (tick labels, strips) measured on a
    first build, so the whole grid fits ``theme.panel_size``.
-3. :func:`place_units` -- move each panel (with its strips) into its cell.
+3. `place_units()` -- move each panel (with its strips) into its cell.
 
 Scene geometry: the *plotting area* of a panel is its ``axes`` bounding box;
 *extents* ``(top, right, bottom, left)`` are how far the rest of the panel unit

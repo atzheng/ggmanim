@@ -32,7 +32,7 @@ class GeomCol(Geom):
     visible) row, in data order (``.marks``/``.keys``: one per drawn row); a
     dashed outline (``linetype``) makes a row's mark ``VGroup(fill, dashes)``.
 
-    :meth:`setup_data` (run by the pipeline after the stat, in transformed space)
+    [`setup_data()`][ggmanim.geoms.Geom.setup_data] (run by the pipeline after the stat, in transformed space)
     adds ``xmin = x - width/2``, ``xmax = x + width/2``, ``ymin = min(y, 0)``,
     ``ymax = max(y, 0)``. ``width`` (param or column, transformed x units)
     defaults to ``0.9 * resolution(x)`` (``0.9`` on a discrete x scale, where
@@ -42,14 +42,14 @@ class GeomCol(Geom):
     panel (``clip="on"``) so bars never extend past the axes.
 
     Drawing and styling are shared with ``geom_rect``/``geom_tile``
-    (:func:`~._rect.draw_rects`): the four corners go through
+    (`draw_rects()`): the four corners go through
     ``coord.transform``, so bars are correct under any scale transform;
     ``color`` (outline) defaults to ``None`` = no outline, and ``alpha``
     applies to the fill only (as in ggplot2). Seams are not sealed by default
     (``seal = False``, like ``GeomRect``; a subclass may set it).
 
     ``fast`` (``None``: above ``theme.fast_threshold`` rows) draws batched marks,
-    one ``VMobject`` per style (:mod:`ggmanim.geoms._batch`; no per-mark
+    one ``VMobject`` per style (`ggmanim.geoms._batch`; no per-mark
     ``.keys``).
     """
 
@@ -169,7 +169,7 @@ def geom_col(
 
 
 class GeomBar(GeomCol):
-    """:class:`GeomCol` fed by ``stat_count`` by default (ggplot2's ``GeomBar``)."""
+    """[`GeomCol`][ggmanim.geoms.GeomCol] fed by ``stat_count`` by default (ggplot2's ``GeomBar``)."""
 
     default_stat = "count"
 
@@ -188,7 +188,7 @@ def geom_bar(
     """Bars of the number of rows at each x (``stat="count"``; a string column
     is counted per level). ``y=after_stat("count")`` by default (y title
     "count"); ``after_stat("prop")`` too; a ``weight`` aesthetic sums weights.
-    ``stat="identity"`` gives :func:`geom_col`. Stacked by default."""
+    ``stat="identity"`` gives [`geom_col()`][ggmanim.geoms.geom_col]. Stacked by default."""
     from .count import stat_layer
 
     return stat_layer(

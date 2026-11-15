@@ -1,4 +1,4 @@
-"""Abstract :class:`Scale` base shared by continuous and discrete scales.
+"""Abstract [`Scale`][ggmanim.scales.Scale] base shared by continuous and discrete scales.
 
 A scale owns one or more aesthetics (e.g. ``("x", "xmin", "xmax", ...)`` or
 ``("colour", "color")``). Its life cycle inside a build is::
@@ -8,9 +8,9 @@ A scale owns one or more aesthetics (e.g. ``("x", "xmin", "xmax", ...)`` or
     s.map(values)                 # data -> scale output (positions, colours, ...)
     s.get_limits(); s.get_breaks(); s.get_labels()   # for axes / legends
 
-Subclasses implement :meth:`train`, :meth:`map`, :meth:`get_limits`,
-:meth:`get_breaks`, :meth:`get_labels` and :meth:`reset`. ``reset()`` must clear
-*only* trained state (never user configuration), so that :meth:`clone` -- a shallow
+Subclasses implement [`train()`][ggmanim.scales.Scale.train], [`map()`][ggmanim.scales.Scale.map], [`get_limits()`][ggmanim.scales.Scale.get_limits],
+[`get_breaks()`][ggmanim.scales.Scale.get_breaks], [`get_labels()`][ggmanim.scales.Scale.get_labels] and [`reset()`][ggmanim.scales.Scale.reset]. ``reset()`` must clear
+*only* trained state (never user configuration), so that [`clone()`][ggmanim.scales.Scale.clone] -- a shallow
 copy followed by ``reset()`` -- yields an independent untrained scale. Subclasses
 whose trained state is a mutable container must assign a fresh container in
 ``reset()`` rather than mutating it in place.
@@ -77,7 +77,7 @@ class Scale(ABC):
 
     @abstractmethod
     def get_labels(self) -> list[str]:
-        """One label string per break returned by :meth:`get_breaks`."""
+        """One label string per break returned by [`get_breaks()`][ggmanim.scales.Scale.get_breaks]."""
 
     @abstractmethod
     def reset(self) -> None:

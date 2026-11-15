@@ -2,9 +2,9 @@
 
 The layer data is a (possibly incomplete) rectilinear grid ``aes(x, y, z)``;
 contours are traced with the numpy marching squares of
-:mod:`._marching_squares`.
+`_marching_squares`.
 
-Levels (:func:`contour_breaks`, ggplot2's rules): ``breaks`` (a sequence, or a
+Levels ([`contour_breaks()`][ggmanim.stats.contour_breaks], ggplot2's rules): ``breaks`` (a sequence, or a
 function of the z range) wins; else ``bins`` (number of bins) or ``binwidth``;
 else ``pretty(z_range, 10)``. The z range is taken over the whole layer (per
 panel), so every group shares the same levels.
@@ -197,7 +197,7 @@ _BAND_COLS = [
 
 
 def contour_lines(df, var, z_range, bins=None, binwidth=None, breaks=None) -> pd.DataFrame:
-    """Contour-line rows (see :class:`StatContour`) of column ``var`` of ``df``."""
+    """Contour-line rows (see [`StatContour`][ggmanim.stats.StatContour]) of column ``var`` of ``df``."""
     z_range = z_range if z_range is not None else _z_range(df, var)
     if z_range is None or len(df) == 0:
         return pd.DataFrame(columns=_LINE_COLS)
@@ -220,7 +220,7 @@ def contour_lines(df, var, z_range, bins=None, binwidth=None, breaks=None) -> pd
 
 
 def contour_bands(df, var, z_range, bins=None, binwidth=None, breaks=None) -> pd.DataFrame:
-    """Filled-band rows (see :class:`StatContourFilled`) of column ``var``."""
+    """Filled-band rows (see [`StatContourFilled`][ggmanim.stats.StatContourFilled]) of column ``var``."""
     z_range = z_range if z_range is not None else _z_range(df, var)
     if z_range is None or len(df) == 0:
         return pd.DataFrame(columns=_BAND_COLS)

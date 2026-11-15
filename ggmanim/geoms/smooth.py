@@ -43,7 +43,7 @@ class GeomSmooth(GeomLine):
     ribbon (``Polygon``) filled with ``fill`` at opacity ``alpha`` behind the line.
     ``alpha`` applies to the ribbon only (as in ggplot2). ``ymin``/``ymax`` train
     the y scale. When ``color``/``linewidth`` vary along a group (e.g. mapped with
-    ``after_stat``), the line is drawn per segment like :class:`GeomPath`.
+    ``after_stat``), the line is drawn per segment like [`GeomPath`][ggmanim.geoms.GeomPath].
     """
 
     default_stat = "smooth"
@@ -141,7 +141,7 @@ def geom_smooth(
     ``degree=2``, as R's ``loess``), ``"auto"`` (ggplot2's rule: loess below 1000
     rows per group, else lm) or a callable ``method(x, y, **method_args)``
     returning a predictor ``f(xgrid) -> fit`` or ``-> (fit, se)``; see
-    :mod:`ggmanim.stats.smooth`. Stat params (``degree``, ``span``, ``n``,
+    `ggmanim.stats.smooth`. Stat params (``degree``, ``span``, ``n``,
     ``level``, ``fullrange``, ``method_args``) and constant aesthetics (``color``,
     ``fill``, ``alpha``, ``linewidth``) go in ``params``.
     """

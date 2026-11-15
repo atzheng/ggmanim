@@ -71,7 +71,7 @@ def median_hilow(x: Any, conf_int: float = 0.95) -> dict[str, float]:
     return {"y": float(med), "ymin": float(lo), "ymax": float(hi)}
 
 
-#: ``fun_data`` names accepted by :func:`~ggmanim.stats.summary.stat_summary`.
+#: ``fun_data`` names accepted by `stat_summary()`.
 SUMMARY_FUNS: dict[str, Callable[..., dict[str, float]]] = {
     "mean_se": mean_se,
     "mean_cl_normal": mean_cl_normal,

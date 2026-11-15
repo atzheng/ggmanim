@@ -1,7 +1,7 @@
 """Point markers for the ``shape`` aesthetic.
 
-:func:`make_marker` draws one marker. Shape names are parsed by
-:func:`ggmanim.scales.shape.parse_shape`; the manim classes used are
+`make_marker()` draws one marker. Shape names are parsed by
+`ggmanim.scales.shape.parse_shape()`; the manim classes used are
 
 =========== =================================================
 circle      ``Dot``
@@ -23,7 +23,7 @@ if ``fill`` is ``None``); ``cross``/``plus`` are stroked in ``color``.
 
 Each marker is a copy of a cached unit-size prototype per shape (scaled and
 shifted), which is several times faster than constructing manim polygons row by
-row; the copy is :func:`ggmanim._text_cache.fast_copy`, a deep copy without the
+row; the copy is `ggmanim._text_cache.fast_copy()`, a deep copy without the
 generic ``copy.deepcopy`` machinery.
 """
 
@@ -96,7 +96,7 @@ def make_marker(
     ``radius`` is the radius (scene units) of the circle with the same area;
     ``color`` is the outline / solid colour (``None``: blank, no outline), ``fill``
     the fill (``None``: not set, solid shapes then use ``color``); ``alpha``
-    applies to fill and stroke; ``stroke_width`` overrides :func:`outline_width` for outlined shapes.
+    applies to fill and stroke; ``stroke_width`` overrides `outline_width()` for outlined shapes.
     Raises ``ValueError`` for unknown shapes.
     """
     base, style = parse_shape(shape)

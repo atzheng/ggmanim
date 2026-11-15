@@ -1,14 +1,14 @@
-"""Legend guide options (:func:`guide_legend`) and the legend frame.
+"""Legend guide options ([`guide_legend()`][ggmanim.guides.guide_legend]) and the legend frame.
 
-:func:`guide_legend` configures a key-glyph legend, either on the scale
+[`guide_legend()`][ggmanim.guides.guide_legend] configures a key-glyph legend, either on the scale
 (``scale_color_discrete(guide=guide_legend(ncol=2))``) or via
 ``guides(color=guide_legend(reverse=True))``. The legend itself
-(:class:`ggmanim.guides.Legend`) and the merging of legends live in
-:mod:`ggmanim.guides`.
+([`ggmanim.guides.Legend`][ggmanim.guides.Legend]) and the merging of legends live in
+[`ggmanim.guides`][ggmanim.guides].
 
-:func:`legend_frame` builds the optional background / border rectangle drawn
+[`legend_frame()`][ggmanim.guides_legend.legend_frame] builds the optional background / border rectangle drawn
 behind a legend or colourbar (``theme(legend_background=..., legend_border=True)``);
-:func:`place_legend_title` puts a legend's or colourbar's title beside its body
+[`place_legend_title()`][ggmanim.guides_legend.place_legend_title] puts a legend's or colourbar's title beside its body
 (``theme(legend_title_position=..., legend_title_hjust=...)``).
 """
 
@@ -42,7 +42,7 @@ def _pos_int(value: Any, name: str) -> int | None:
 
 
 class GuideLegend:
-    """Legend options (see :func:`guide_legend`)."""
+    """Legend options (see [`guide_legend()`][ggmanim.guides.guide_legend])."""
 
     __slots__ = (
         "title",

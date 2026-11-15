@@ -195,7 +195,7 @@ class PositionFill(PositionStack):
 def position_stack(vjust: float = 1.0, reverse: bool = False) -> PositionStack:
     """Stack overlapping objects on top of each other (ggplot2's ``position_stack``).
 
-    The default for :func:`~ggmanim.geom_col`. ``vjust=0.5`` centres e.g. labels in
+    The default for `geom_col()`. ``vjust=0.5`` centres e.g. labels in
     their slice; ``reverse=True`` puts the first group at the bottom.
     """
     return PositionStack(vjust=vjust, reverse=reverse)

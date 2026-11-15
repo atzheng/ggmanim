@@ -1,9 +1,9 @@
 """Dashing for the ``linetype`` aesthetic.
 
-:func:`apply_linetype` turns a stroked path into a ``VGroup`` of dash segments.
-Patterns come from :func:`ggmanim.scales.shape.parse_linetype` and are, as in
+`apply_linetype()` turns a stroked path into a ``VGroup`` of dash segments.
+Patterns come from `ggmanim.scales.shape.parse_linetype()` and are, as in
 ggplot2, alternating on/off lengths in units of the line width: one unit is
-:data:`DASH_UNIT` scene units per manim stroke-width unit, so a ``linewidth=3``
+`DASH_UNIT` scene units per manim stroke-width unit, so a ``linewidth=3``
 ``"dashed"`` line has 0.12-unit dashes and gaps whatever the path's length or
 the number of vertices (unlike ``DashedVMobject``'s ``num_dashes``, which is
 relative to the path). Dashes follow the path through its corners; the pattern

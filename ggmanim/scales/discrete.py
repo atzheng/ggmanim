@@ -7,7 +7,7 @@ training, every layer sharing the scale gets the same colour for the same level.
 
 Colour aesthetics map to ``ManimColor`` instances, ready to pass to manim as
 ``color=`` / ``stroke_color=`` (for ``color``) or ``fill_color=`` (for ``fill``),
-see :data:`AES_TO_MANIM`.
+see [`AES_TO_MANIM`][ggmanim.scales.AES_TO_MANIM].
 """
 
 from __future__ import annotations
@@ -115,7 +115,7 @@ class ScaleDiscrete(Scale):
     aesthetics:
         Aesthetic name(s) this scale applies to, e.g. ``"color"`` or ``("color", "fill")``.
     palette:
-        Palette name, list of values, or callable ``n -> list`` (default: :func:`hue_pal`).
+        Palette name, list of values, or callable ``n -> list`` (default: [`hue_pal()`][ggmanim.palettes.hue_pal]).
     name:
         Legend title (``None``: guides fall back to the mapping's label).
     breaks:
@@ -243,7 +243,7 @@ class ScaleDiscrete(Scale):
         return [str(by_break.get(b, b)) for b in breaks]
 
     def get_palette_values(self) -> list[Any]:
-        """Palette values in level order (parallel to :meth:`get_limits`)."""
+        """Palette values in level order (parallel to [`get_limits()`][ggmanim.scales.Scale.get_limits])."""
         return [self._get_lookup()[lvl] for lvl in self.get_limits()]
 
     # -- mapping -----------------------------------------------------------
@@ -425,8 +425,8 @@ def default_scale_for(aesthetic: str, values: Any) -> Scale | None:
     """Default (untrained) scale for a non-position ``aesthetic`` mapped to ``values``.
 
     ``size`` / ``alpha`` / ``linewidth`` get a range scale (see
-    :func:`.range.default_range_scale`); numeric colour/fill get the ggplot2
-    default gradient (:class:`~.colour.ScaleContinuousColour`). Returns ``None``
+    `range.default_range_scale()`); numeric colour/fill get the ggplot2
+    default gradient (`ScaleContinuousColour`). Returns ``None``
     for aesthetics that have no default scale (their values are used as is).
     Ordered categoricals (``pd.Categorical(..., ordered=True)``) mapped to
     colour/fill get ``viridis_d`` (ggplot2's ``scale_colour_ordinal``).

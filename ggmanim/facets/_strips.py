@@ -1,12 +1,12 @@
 """Strip mobjects: the labelled bars beside facet panels.
 
-:func:`make_strip` draws one strip (background rectangle + centred text) of a
-given length and thickness for a panel side; :func:`strip_thickness` picks the
+`make_strip()` draws one strip (background rectangle + centred text) of a
+given length and thickness for a panel side; `strip_thickness()` picks the
 common thickness of every strip in a plot (as ggplot2, all strips on one plot
-have the same height so panels line up); :func:`attach_strips` stacks a panel's
+have the same height so panels line up); `attach_strips()` stacks a panel's
 strips on its sides.
 
-Theme fields (region ``facets`` of :class:`~ggmanim.theme.Theme`):
+Theme fields (region ``facets`` of [`Theme`][ggmanim.theme.Theme]):
 ``strip_background`` (fill colour; ``None`` = the foreground colour at
 ``strip_background_opacity``; ``False`` = no rectangle), ``strip_text_size``,
 ``strip_text_color`` (``None`` = foreground), ``strip_margin`` (padding round the

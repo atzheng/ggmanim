@@ -1,13 +1,13 @@
 """``position_jitter`` and ``position_jitterdodge`` (``geom_jitter`` lives in
-:mod:`ggmanim.geoms.jitter`).
+`ggmanim.geoms.jitter`).
 
 Jitter adds uniform random noise to the x and y of every row (all x-like columns
 get the row's x offset, all y-like columns its y offset, so bar extents and error
-bars move with their row). Noise comes from :func:`numpy.random.default_rng`, so a
+bars move with their row). Noise comes from `numpy.random.default_rng()`, so a
 given ``seed`` gives the same result on every platform. With ``seed=None`` (the
 default) the seed is derived from a hash of the layer's positions and its index in
-the plot (``params["layer_index"]``, set by :func:`~ggmanim.build.apply_positions`),
-so building a plot twice gives identical output (:func:`~ggmanim.build.build_plot`
+the plot (``params["layer_index"]``, set by [`apply_positions()`][ggmanim.build.apply_positions]),
+so building a plot twice gives identical output ([`build_plot()`][ggmanim.build.build_plot]
 is pure) while two layers with the same data jitter differently.
 
 Defaults follow ggplot2: ``width``/``height`` are 40% of the resolution of the
@@ -15,7 +15,7 @@ data (on a discrete axis the resolution is 1, so points stay within their level)
 
 ``position_jitter`` treats x and y alike, so it needs no orientation.
 ``position_jitterdodge`` flips horizontal layers (a true ``flipped_aes`` column)
-like :func:`~ggmanim.positions.dodge.position_dodge`: it dodges along y and its
+like `position_dodge()`: it dodges along y and its
 ``jitter_width`` applies to y, as in ggplot2.
 """
 
@@ -214,7 +214,7 @@ def position_jitter(
         in transformed units. Default: 40% of the data's resolution (``0.4`` on a
         discrete axis).
     seed : int, optional
-        Seed for :func:`numpy.random.default_rng`. ``None`` derives one from the
+        Seed for `numpy.random.default_rng()`. ``None`` derives one from the
         data, so builds are reproducible either way.
     """
     return PositionJitter(width=width, height=height, seed=seed)

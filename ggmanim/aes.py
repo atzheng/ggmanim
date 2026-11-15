@@ -1,7 +1,7 @@
 """Aesthetic mappings.
 
 ``aes(x, y, **kwargs)`` maps aesthetic names to either a column name (``str``),
-a callable ``f(df) -> Series/array`` or an :func:`after_stat` reference that is
+a callable ``f(df) -> Series/array`` or an [`after_stat()`][ggmanim.aes.after_stat] reference that is
 evaluated on the stat's output. ggplot2 spellings are normalised
 (``colour`` -> ``color``, ``fill_color`` -> ``fill``, ...).
 
@@ -12,7 +12,7 @@ merged over the plot mapping, ``aes(color=None)`` removes an inherited
 ``key`` (``aes(key="id")``) is a pass-through aesthetic that identifies marks for
 animation (gganimate-style): it is never scaled, never defines groups, is carried
 through stats when constant within a group, and ends up in ``mob.keys`` of the
-drawn layer (see :func:`ggmanim.geoms.base.attach_marks`).
+drawn layer (see `ggmanim.geoms.base.attach_marks()`).
 """
 
 from __future__ import annotations
@@ -162,7 +162,7 @@ class Aes(Mapping):
         return Aes({k: v for k, v in self._d.items() if v is not None})
 
     def after_stat(self) -> Aes:
-        """Only the :class:`AfterStat` aesthetics."""
+        """Only the [`AfterStat`][ggmanim.aes.AfterStat] aesthetics."""
         return Aes({k: v for k, v in self._d.items() if isinstance(v, AfterStat)})
 
     def before_stat(self) -> Aes:
@@ -212,7 +212,7 @@ def evaluate_aes(mapping: Mapping, data: pd.DataFrame | None) -> pd.DataFrame:
 
     Column names select columns, callables are called with the DataFrame and
     other values (numbers, arrays) are used as-is / broadcast. ``None`` and
-    :class:`AfterStat` entries are skipped. Returns a DataFrame with one column
+    [`AfterStat`][ggmanim.aes.AfterStat] entries are skipped. Returns a DataFrame with one column
     per aesthetic, indexed like ``data``.
     """
     mapping = mapping if isinstance(mapping, Aes) else Aes(mapping)

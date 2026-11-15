@@ -3,8 +3,8 @@
 ggplot2's ``geom_path``/``geom_line`` draws a group as one polyline when its
 ``colour``, ``linewidth`` and ``alpha`` are constant, and otherwise as one
 segment per consecutive pair of vertices, each styled by its *starting* vertex
-(so the last vertex's aesthetics are never used). :func:`segmented_path` does
-the latter; :func:`varies_within` decides which case applies.
+(so the last vertex's aesthetics are never used). `segmented_path()` does
+the latter; `varies_within()` decides which case applies.
 
 Why segments rather than manim's multi-colour strokes: ``set_stroke(color=[...])``
 / ``set_color_by_gradient`` are rendered by the Cairo camera as one *linear*
@@ -17,9 +17,9 @@ next one, it extends one stroke width under it so the joint shows no
 anti-aliasing seam (the next run, drawn later, covers the overlap).
 
 Under a non-linear coord (``coord_trans``, ``coord_polar``) each segment is
-munched first (:func:`munch_segments`), the pieces styled like their segment.
+munched first (`munch_segments()`), the pieces styled like their segment.
 
-Clipping is per segment (Liang-Barsky, :func:`._clip.clip_segments`), in
+Clipping is per segment (Liang-Barsky, `_clip.clip_segments()`), in
 transformed space like the rest of the geoms. Dashing (``linetype``) is measured
 by arc length along the *whole* unclipped group path in scene units, so the
 pattern continues across segment and style boundaries and is unaffected by
@@ -81,7 +81,7 @@ def varies_within(gdf: pd.DataFrame, cols: tuple[str, ...] = VARYING_AES) -> boo
 def dash_polyline_phase(
     points: np.ndarray, pattern: tuple[float, ...], phase: float = 0.0
 ) -> list[np.ndarray]:
-    """Like :func:`._linetype.dash_polyline`, but the polyline starts ``phase``
+    """Like `_linetype.dash_polyline()`, but the polyline starts ``phase``
     scene units into the (on/off, even-length) ``pattern``."""
     points = np.asarray(points, dtype=float)
     if len(points) < 2 or not pattern:
@@ -124,7 +124,7 @@ def _stroke(points: np.ndarray, style: tuple[Any, float, float]) -> VMobject:
 
 def munch_segments(coord: Any, gdf: pd.DataFrame) -> pd.DataFrame:
     """``gdf`` with each segment ``i -> i+1`` munched under a non-linear coord
-    (:func:`ggmanim.coords.coord_munch`): the new vertices are rows copied from
+    ([`ggmanim.coords.coord_munch()`][ggmanim.coords.coord_munch]): the new vertices are rows copied from
     row ``i``, so every piece keeps the style of its segment's start. ``gdf``
     itself (not a copy) under a linear coord."""
     from ..coords import _munch_counts, coord_munch, is_linear
@@ -146,7 +146,7 @@ def munched_segment(
     coord: Any, panel_params: Any, x0: float, y0: float, x1: float, y1: float
 ) -> tuple[list[np.ndarray], bool, bool]:
     """The straight segment ``(x0, y0) -> (x1, y1)`` (coord input space) under a
-    non-linear coord: munched (:func:`ggmanim.coords.coord_munch`), clipped to
+    non-linear coord: munched ([`ggmanim.coords.coord_munch()`][ggmanim.coords.coord_munch]), clipped to
     the panel and transformed. Returns ``(pieces, start kept, end kept)``:
     ``pieces`` are ``(m, 3)`` scene polylines (``[]`` when nothing is visible
     or the segment has zero length)
@@ -184,7 +184,7 @@ def segmented_path(coord: Any, panel_params: Any, gdf: pd.DataFrame, fg: Any) ->
 
     Returns a ``VGroup`` of polylines (runs of joined same-style segments) or,
     for a dashed ``linetype``, of dashes (``.linetype`` set, as
-    :func:`._linetype.apply_linetype` does).
+    `_linetype.apply_linetype()` does).
     """
     out: Any = VGroup()
     if len(gdf) < 2:

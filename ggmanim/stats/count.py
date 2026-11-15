@@ -1,9 +1,9 @@
 """stat_count: number of observations (or summed ``weight``) at each x.
 
-Feeds :func:`~ggmanim.geoms.col.geom_bar`. On a discrete x scale the levels are
+Feeds `geom_bar()`. On a discrete x scale the levels are
 already ``1..n`` when the stat runs, so string columns are counted per level.
 
-Orientation (shared with :mod:`ggmanim.stats.bin`): the stat takes an ``x`` *or*
+Orientation (shared with `ggmanim.stats.bin`): the stat takes an ``x`` *or*
 a ``y`` aesthetic, not both. With only ``y`` mapped (or ``orientation="y"``)
 it counts per ``y`` instead: the data is computed with x and y swapped and
 comes back with the roles swapped and ``flipped_aes = True``, as in ggplot2
@@ -27,7 +27,7 @@ __all__ = ["StatCount", "stat_count"]
 
 def _resolution(x) -> float:
     """Smallest gap between distinct finite values of ``x`` (1 if fewer than two).
-    Same as :func:`ggmanim.geoms.col.resolution` (kept here: stats never import manim)."""
+    Same as `ggmanim.geoms.col.resolution()` (kept here: stats never import manim)."""
     x = np.asarray(pd.to_numeric(pd.Series(x), errors="coerce"), dtype=float)
     u = np.unique(x[np.isfinite(x)])
     if len(u) < 2:
@@ -89,7 +89,7 @@ class StatCount(Stat):
     distinct ``y`` and ``flipped_aes = True`` (``x=after_stat("count")``).
     """
 
-    #: Either one (see :func:`check_one_axis`); both are listed so the build drops
+    #: Either one (see `check_one_axis()`); both are listed so the build drops
     #: rows whose x or y is missing before the stat.
     required_aes = ("x", "y")
     default_aes = {"x": after_stat("count"), "y": after_stat("count")}
@@ -132,7 +132,7 @@ def stat_count(
     name: str | None = None,
     **params,
 ):
-    """Bars of the number of rows at each x (as :func:`~ggmanim.geoms.col.geom_bar`).
+    """Bars of the number of rows at each x (as `geom_bar()`).
     ``y=after_stat("count")`` by default; ``after_stat("prop")`` too. A ``weight``
     aesthetic sums weights instead of counting. Map ``y`` instead of ``x`` (or
     pass ``orientation="y"``) for horizontal bars. Returns a layer."""

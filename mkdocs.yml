@@ -48,7 +48,6 @@ plugins:
             docstring_options:
               warn_missing_types: false
               warn_unknown_params: false
-              warnings: false
 
 markdown_extensions:
   - admonition

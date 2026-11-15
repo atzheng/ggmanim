@@ -1,23 +1,23 @@
 """Shared drawing helpers for filled geoms (rect, tile, raster, ribbon, area, polygon).
 
 Everything here works on *scene* points (``coord.transform`` output) except
-:func:`draw_rects`, which clips transformed-space rectangles to the panel first.
+`draw_rects()`, which clips transformed-space rectangles to the panel first.
 
-* :func:`ring_points` / :func:`rings_mobject` -- closed polylines as straight
+* `ring_points()` / `rings_mobject()` -- closed polylines as straight
   cubic Bezier subpaths of one ``VMobject`` (built straight from a numpy array,
   much faster than ``Polygon(*corners)`` for thousands of tiles).
-* :func:`orient_rings` -- give every ring the orientation that makes manim's
+* `orient_rings()` -- give every ring the orientation that makes manim's
   (Cairo's) *nonzero winding* fill behave like the *even-odd* rule ggplot2 uses
   for polygon holes: rings nested an even number of times run counter-clockwise,
   odd ones clockwise. Manim exposes no fill-rule setting, so this is how
   ``geom_polygon(subgroup=...)`` gets its holes.
-* :func:`style_filled` -- fill/alpha/outline/linewidth/linetype. Like ggplot2's
+* `style_filled()` -- fill/alpha/outline/linewidth/linetype. Like ggplot2's
   ``GeomRect``/``GeomPolygon``/``GeomRibbon``, ``alpha`` applies to the fill only;
   ``color=None`` (the default) means no outline. A non-solid ``linetype`` turns
   the result into ``VGroup(fill, dashes)``.
-* :func:`rect_corners` / :func:`draw_rects` -- axis-aligned rectangles (one
-  mobject per visible row), clipped with :func:`._clip.clip_rects`.
-* :func:`filled_key` -- the legend glyph (``draw_key_polygon``): a filled square.
+* `rect_corners()` / `draw_rects()` -- axis-aligned rectangles (one
+  mobject per visible row), clipped with `_clip.clip_rects()`.
+* `filled_key()` -- the legend glyph (``draw_key_polygon``): a filled square.
 """
 
 from __future__ import annotations
@@ -141,7 +141,7 @@ def style_filled(
     return VGroup(mob, dashes)
 
 
-#: Stroke width (manim units) of the fill-coloured hairline :func:`seal_seams` adds.
+#: Stroke width (manim units) of the fill-coloured hairline `seal_seams()` adds.
 SEAM_WIDTH = 1.0
 
 
@@ -186,8 +186,8 @@ def draw_rects(
 ) -> tuple[VGroup, pd.DataFrame]:
     """One styled mobject per visible rectangle row of ``data`` (which must have
     ``xmin``/``xmax``/``ymin``/``ymax`` and the aesthetic columns). Returns the
-    ``VGroup`` and the drawn rows (for :func:`~.base.attach_marks`). ``seal``
-    applies :func:`seal_seams` to each (for tiles that abut)."""
+    ``VGroup`` and the drawn rows (for `attach_marks()`). ``seal``
+    applies `seal_seams()` to each (for tiles that abut)."""
     data, corners = clipped_rects(data, coord, panel_params)
     out = VGroup()
     rows = data.to_dict("records")
@@ -200,6 +200,6 @@ def draw_rects(
 
 
 def filled_key(row: Mapping[str, Any], theme: Theme, default_linewidth: float = 1.0) -> VMobject:
-    """Legend glyph for filled geoms: a :data:`~.base.KEY_SIZE` square styled
+    """Legend glyph for filled geoms: a `KEY_SIZE` square styled
     like the geom (fill, alpha, outline)."""
     return style_filled(Square(side_length=KEY_SIZE), row, theme, default_linewidth)
