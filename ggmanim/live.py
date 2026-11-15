@@ -51,8 +51,12 @@ the identity stat on the layers it updates (a stat such as ``stat_bin`` would
 change the rows, not move them); :func:`always_rebuild` redraws any stat
 (``geom_function``, smooths ...). Non-position scales (colour, size) are
 retrained on every update but the legend is not redrawn; fix their
-``limits`` too when the legend must stay true. Faceted plots are not
-supported.
+``limits`` too when the legend must stay true.
+
+Faceted plots work the same way (each layer is redrawn per panel on the frozen
+:class:`~ggmanim.facets.PanelGrid`), provided the new data yields the same
+facet layout (same panels); a new facet level raises
+:class:`~ggmanim.build.BuildError`. Free scales need fixed limits too.
 """
 
 from __future__ import annotations
@@ -73,6 +77,7 @@ from .build import (
     map_non_position,
     resolve_layers,
     setup_geom_data,
+    setup_panel_scales,
     setup_position_scales,
     train_position_scales,
 )
@@ -112,8 +117,6 @@ def check_fixed_limits(spec: Any) -> None:
     """Raise :class:`~ggmanim.build.BuildError` unless both position axes of
     ``spec`` have limits that do not depend on the data (explicit scale limits,
     or ``coord_cartesian`` limits with both ends)."""
-    if getattr(spec, "facet", None) is not None and not getattr(spec.facet, "is_null", True):
-        raise BuildError("live updates do not support faceted plots")
     coord = getattr(spec, "coord", None)
     missing = []
     for axis in ("x", "y"):
@@ -167,10 +170,33 @@ def _resolve_spec(plot: Any, spec: Any) -> Any:
     return spec
 
 
-def _layer_data(spec: Any) -> list[LayerData]:
-    """Steps 1-6 of :func:`ggmanim.build.build_plot` (no panel, no text)."""
+def _layer_data(spec: Any, plot: Any = None) -> list[LayerData]:
+    """Steps 1-6 of :func:`ggmanim.build.build_plot` (no panel, no text).
+    ``plot`` (the built GGPlot) is needed for faceted specs."""
     lds = resolve_layers(spec)
-    assign_panels(lds, spec)
+    layout = assign_panels(lds, spec)
+    facet = getattr(spec, "facet", None)
+    if facet is not None and not getattr(facet, "is_null", True):
+        grid = getattr(plot, "panel_grid", None)
+        if grid is None:
+            raise BuildError("the plot was built without facets but its spec has a facet")
+        cols = ["PANEL", "ROW", "COL"]
+        old = grid.layout[cols].reset_index(drop=True)
+        if not old.equals(layout[cols].reset_index(drop=True)):
+            raise BuildError(
+                "the new data changes the facet layout (panels added or removed); "
+                "rebuild the plot instead"
+            )
+        panel_scales = setup_panel_scales(spec, lds, layout)
+        first = panel_scales[min(panel_scales)]
+        compute_stats(lds, first, panel_scales, layout)
+        map_non_position(spec, lds)
+        setup_geom_data(lds, first)
+        apply_positions(lds, first, panel_scales)
+        train_position_scales(lds, first, panel_scales)
+        for ld in lds:
+            ld.data = facet.finish_data(ld.data, layout)
+        return lds
     pos_scales = setup_position_scales(spec, lds)
     compute_stats(lds, pos_scales)
     map_non_position(spec, lds)
@@ -252,7 +278,7 @@ def _apply(plot: Any, lds: list[LayerData], spec: Any) -> list[Any]:
     if theme is None:
         theme = spec.theme if spec.theme is not None else theme_default()
     replaced = []
-    for (key, new), ld in zip(draw_layers(lds, plot.panel, theme), lds):
+    for (key, new), ld in zip(draw_layers(lds, plot.panel_grid or plot.panel, theme), lds):
         old = plot.layers[key]
         old_keys: Any = getattr(old, "keys", None)
         new_keys: Any = getattr(new, "keys", None)
@@ -287,7 +313,7 @@ def update_data(plot: Any, data: pd.DataFrame, layers: Any = None, *, spec: Any 
     base = _resolve_spec(plot, spec)
     check_fixed_limits(base)
     new_spec = base.with_data(data)
-    lds = _layer_data(new_spec)
+    lds = _layer_data(new_spec, plot)
     chosen = _select(
         plot,
         lds,
@@ -307,7 +333,7 @@ def refresh(plot: Any, spec: Any = None, layers: Any = None) -> Any:
     ``fun`` reads a ``ValueTracker`` follow the tracker. Returns ``plot``."""
     spec = _resolve_spec(plot, spec)
     check_fixed_limits(spec)
-    lds = _layer_data(spec)
+    lds = _layer_data(spec, plot)
     _apply(plot, _select(plot, lds, layers, lambda ld: True), spec)
     plot.spec = spec
     return plot
