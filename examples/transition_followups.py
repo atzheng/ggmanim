@@ -33,6 +33,8 @@ def series() -> pd.DataFrame:
 
 
 class SeriesStates(Scene):
+    gallery_gif = True  # render as a GIF in the docs gallery
+
     """One state per year on a date axis: the shared x range is the union of all
     years and each region's line morphs into itself (stable group ids)."""
 
@@ -57,6 +59,8 @@ def fruit(names, values):
 
 
 class SharedLevels(Scene):
+    gallery_gif = True  # render as a GIF in the docs gallery
+
     """A discrete x axis shared by both plots (``limits="union"``): bars that
     stay keep their place, new ones grow in their own slot."""
 
@@ -73,6 +77,8 @@ class SharedLevels(Scene):
 
 
 class AxisRescale(Scene):
+    gallery_gif = True  # render as a GIF in the docs gallery
+
     """The y axis grows twenty-fold: incoming labels appear at the top edge one
     at a time instead of piling up there."""
 

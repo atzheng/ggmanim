@@ -196,6 +196,8 @@ class ReferenceLayer(Scene):
 
 
 class PanelReveal(Scene):
+    gallery_gif = True  # render as a GIF in the docs gallery
+
     """Reveal the wrapped panels one by one via ``GGPlot.panels[(row, col)]``,
     each with its strip and its own slice of every layer."""
 

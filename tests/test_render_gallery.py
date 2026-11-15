@@ -61,6 +61,8 @@ EXAMPLE = textwrap.dedent(
 
 
     class Moving(Scene):
+        gallery_gif = True  # marker
+
         def construct(self):
             pass
 
@@ -72,10 +74,9 @@ EXAMPLE = textwrap.dedent(
 
 
 @pytest.fixture
-def examples_dir(tmp_path, monkeypatch):
+def examples_dir(tmp_path):
     (tmp_path / "toy.py").write_text(EXAMPLE)
     (tmp_path / "helpers.py").write_text("def f():\n    return 1\n")
-    monkeypatch.setitem(rg.ANIMATED, "toy", frozenset({"Moving"}))
     return tmp_path
 
 
@@ -145,11 +146,13 @@ def test_discovery_matches_import(real_examples):
         assert found.get(path.stem, set()) == _imported_scenes(path), path.name
 
 
-def test_animated_entries_exist(real_examples):
-    found = {ex.module: {s.name for s in ex.scenes} for ex in real_examples}
-    for module, names in rg.ANIMATED.items():
-        assert module in found, module
-        assert names is None or names <= found[module], (module, names - found[module])
+def test_animated_marker(real_examples):
+    animated = {s.key for ex in real_examples for s in ex.scenes if s.animated}
+    assert {"transitions.StatesLoop", "polar.BarsToPie", "live_plot.SineTracker"} <= animated
+    assert "polar.Polar" not in animated
+    for ex in real_examples:
+        for s in ex.scenes:
+            assert rg.MARKER not in s.source  # the marker is not shown in the gallery
     loop = next(s for ex in real_examples for s in ex.scenes if s.key == "transitions.StatesLoop")
     assert loop.animated and loop.image.endswith(".gif")
 
@@ -168,7 +171,8 @@ def test_render_index_toy(examples_dir):
     assert '???+ example "`manim -ql -s examples/toy.py Still`"' in page
     assert f"--format gif --fps {rg.GIF_FPS} examples/toy.py Moving" in page
     # the source sits inside the admonition: every line indented (or blank)
-    block = page.split('examples/toy.py Still`"\n\n', 1)[1].split("\n\n###", 1)[0]
+    block = page.split('examples/toy.py Still`"\n\n', 1)[1].split("\n\n</div>", 1)[0]
+    assert page.count('<div class="gallery-scene" markdown>') == 2
     assert block.startswith("    ```python\n    N = 10")
     assert all(not line or line.startswith("    ") for line in block.splitlines())
 

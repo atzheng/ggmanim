@@ -11,8 +11,9 @@ Every ``Scene`` subclass defined in ``examples/*.py`` (found by parsing, not
 importing, the files; names starting with ``_`` are skipped) is rendered in its
 own ``manim`` process, in parallel, into a throwaway media directory; the result
 is copied to ``docs/gallery/img/<module>/<Scene>.png`` (or ``.gif``). Stills are
-the last frame at ``-ql`` (``-s``). The scenes listed in :data:`ANIMATED` are
-animation showcases and are rendered as ``-ql`` GIFs at :data:`GIF_FPS` instead.
+the last frame at ``-ql`` (``-s``). Scenes whose class body sets
+``gallery_gif = True`` (see :data:`MARKER`) are animation showcases and are
+rendered as ``-ql`` GIFs at :data:`GIF_FPS` instead.
 
 Everything under ``docs/gallery/`` is build output and ignored by version
 control: the docs workflow runs this script before ``mkdocs build``. The page is
@@ -44,16 +45,8 @@ INDEX = GALLERY / "index.md"
 IMG_DIR = GALLERY / "img"
 SOURCE_URL = "https://github.com/atzheng/ggmanim/blob/main/examples/"
 
-#: Scenes rendered as GIFs: module -> scene names (``None``: every scene in it).
-ANIMATED: dict[str, frozenset[str] | None] = {
-    "animate_create": None,
-    "live_plot": None,
-    "transitions": None,
-    "transition_followups": None,
-    "coord_trans": frozenset({"LineToCurve"}),
-    "polar": frozenset({"BarsToPie"}),
-    "gallery_facets": frozenset({"PanelReveal"}),
-}
+#: Class attribute that marks a scene as an animation showcase (rendered as a GIF).
+MARKER = "gallery_gif"
 GIF_FPS = 10
 #: Seconds before one manim process is killed.
 TIMEOUT = 600
@@ -157,11 +150,22 @@ def scene_source(tree: ast.Module, lines: Sequence[str], cls: ast.ClassDef) -> s
     return "\n\n\n".join(chunks)
 
 
-def _is_animated(module: str, name: str) -> bool:
-    if module not in ANIMATED:
-        return False
-    names = ANIMATED[module]
-    return names is None or name in names
+def _is_animated(node: ast.ClassDef) -> bool:
+    """Whether the class body assigns ``gallery_gif = True``."""
+    for stmt in node.body:
+        if (
+            isinstance(stmt, ast.Assign)
+            and any(isinstance(t, ast.Name) and t.id == MARKER for t in stmt.targets)
+            and isinstance(stmt.value, ast.Constant)
+        ):
+            return bool(stmt.value.value)
+    return False
+
+
+def _strip_marker(source: str) -> str:
+    return "\n".join(
+        line for line in source.splitlines() if not line.strip().startswith(f"{MARKER} =")
+    ).replace("\n\n\n    def", "\n\n    def")
 
 
 def discover_example(path: Path) -> Example:
@@ -186,8 +190,8 @@ def discover_example(path: Path) -> Example:
                 name=node.name,
                 path=path,
                 doc=_first_paragraph(ast.get_docstring(node)),
-                source=scene_source(tree, lines, node),
-                animated=_is_animated(module, node.name),
+                source=_strip_marker(scene_source(tree, lines, node)),
+                animated=_is_animated(node),
             )
         )
     return Example(module, path, _first_paragraph(ast.get_docstring(tree)), tuple(scenes))
@@ -248,7 +252,10 @@ def render_index(examples: Iterable[Example]) -> str:
             out += [f"### {sc.name} {{ #{sc.anchor} }}", ""]
             if sc.doc:
                 out += [sc.doc, ""]
+            # md_in_html + docs/stylesheets/gallery.css: image beside the source on wide screens
             out += [
+                '<div class="gallery-scene" markdown>',
+                "",
                 f"![{sc.key}]({sc.image}){{ loading=lazy }}",
                 "",
                 f'???+ example "`manim -ql {flags} examples/{ex.path.name} {sc.name}`"',
@@ -256,6 +263,8 @@ def render_index(examples: Iterable[Example]) -> str:
                 "    ```python",
                 _indent(sc.source),
                 "    ```",
+                "",
+                "</div>",
                 "",
             ]
     return "\n".join(out).rstrip() + "\n"

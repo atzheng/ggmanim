@@ -76,6 +76,8 @@ def bars(df: pd.DataFrame, year: int):
 
 
 class ScatterYears(Scene):
+    gallery_gif = True  # render as a GIF in the docs gallery
+
     def construct(self):
         df = countries()
         t = transition(scatter(df, 1952), scatter(df, 2007), key="country", run_time=2.5)
@@ -86,6 +88,8 @@ class ScatterYears(Scene):
 
 
 class BarsResort(Scene):
+    gallery_gif = True  # render as a GIF in the docs gallery
+
     def construct(self):
         df = countries()
         t = transition(bars(df, 1952), bars(df, 2007), key="country", run_time=2)
@@ -97,6 +101,8 @@ class BarsResort(Scene):
 
 class StatesLoop(Scene):
     """gganimate's ``transition_states``: 4 years, wrapping (a looping GIF)."""
+
+    gallery_gif = True  # render as a GIF in the docs gallery
 
     def construct(self):
         df = countries()
@@ -120,6 +126,8 @@ class StatesLoop(Scene):
 
 class RevealLines(Scene):
     """gganimate's ``transition_reveal``: lines grow along the x axis."""
+
+    gallery_gif = True  # render as a GIF in the docs gallery
 
     def construct(self):
         x = np.linspace(0, 10, 60)
