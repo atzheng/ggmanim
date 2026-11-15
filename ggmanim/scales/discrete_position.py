@@ -45,7 +45,7 @@ import pandas as pd
 from ..registry import register
 from .base import Scale
 from .breaks import expand_range, expansion
-from .continuous import X_AESTHETICS, Y_AESTHETICS
+from .continuous import X_AESTHETICS, Y_AESTHETICS, _check_axis_guide
 from .discrete import _is_na, _sorted_levels, _to_python, is_discrete
 
 __all__ = [
@@ -93,6 +93,8 @@ class ScaleDiscretePosition(Scale):
     expand : ``None`` (``add=0.6`` each side), ``False``, ``(mult, add)`` or
         ``(mult_lo, add_lo, mult_hi, add_hi)``.
     drop : drop unused categories of a pandas Categorical when training.
+    guide : ``None``/``"axis"`` or a :func:`~ggmanim.guides_axis.guide_axis` (drop
+        overlapping tick labels, stagger them into rows).
 
     Level order: a pandas Categorical's categories in category order (several
     Categoricals accumulate in encounter order); otherwise the levels are sorted,
@@ -110,8 +112,10 @@ class ScaleDiscretePosition(Scale):
         labels: Sequence[str] | Mapping[Any, str] | Callable | None = None,
         expand=None,
         drop: bool = True,
+        guide: Any = None,
     ) -> None:
         super().__init__(aesthetics, name)
+        self.guide = _check_axis_guide(guide)
         self.limits = None if limits is None else [_to_python(v) for v in limits]
         self.breaks = breaks if breaks is None or callable(breaks) else list(breaks)
         if labels is not None and not callable(labels) and not isinstance(labels, Mapping):
@@ -315,7 +319,14 @@ class ScaleDiscretePosition(Scale):
 # --------------------------------------------------------------------------- constructors
 @register
 def scale_x_discrete(
-    name=None, limits=None, breaks=None, labels=None, expand=None, drop=True, aesthetics=None
+    name=None,
+    limits=None,
+    breaks=None,
+    labels=None,
+    expand=None,
+    drop=True,
+    aesthetics=None,
+    guide=None,
 ) -> ScaleDiscretePosition:
     """Discrete x position scale. See :class:`ScaleDiscretePosition` for arguments;
     ``aesthetics`` defaults to every x-like aesthetic."""
@@ -327,12 +338,20 @@ def scale_x_discrete(
         labels=labels,
         expand=expand,
         drop=drop,
+        guide=guide,
     )
 
 
 @register
 def scale_y_discrete(
-    name=None, limits=None, breaks=None, labels=None, expand=None, drop=True, aesthetics=None
+    name=None,
+    limits=None,
+    breaks=None,
+    labels=None,
+    expand=None,
+    drop=True,
+    aesthetics=None,
+    guide=None,
 ) -> ScaleDiscretePosition:
     """Discrete y position scale. See :class:`ScaleDiscretePosition` for arguments;
     ``aesthetics`` defaults to every y-like aesthetic."""
@@ -344,4 +363,5 @@ def scale_y_discrete(
         labels=labels,
         expand=expand,
         drop=drop,
+        guide=guide,
     )

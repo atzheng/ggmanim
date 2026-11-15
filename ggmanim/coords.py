@@ -75,6 +75,7 @@ from manim import (
     VMobject,
 )
 
+from .guides_axis import check_axis_overlap
 from .labels import render_label
 from .registry import register
 from .scales.breaks import expand_range
@@ -435,20 +436,84 @@ def _crowded(breaks, labels, rng, length: float, theme: Theme, axis: str, far: b
     return any(b[0] - a[1] < gap for a, b in zip(spans, spans[1:]))
 
 
+def _axis_labels(strings, at, direction, gap, theme: Theme, axis: str, scale) -> VGroup:
+    """The tick labels of one primary axis (one per break, empty ones included),
+    placed at ``gap`` from the ticks ``at``. A scale ``guide`` of
+    :func:`~ggmanim.guides_axis.guide_axis` staggers them into ``n_dodge`` rows
+    (label ``i`` in row ``i % n_dodge``, each row beyond the previous one) and, with
+    ``check_overlap``, replaces labels overlapping an earlier one of their row by an
+    empty placeholder (visiting order: :func:`~ggmanim.guides_axis.axis_label_priority`)."""
+    guide = getattr(scale, "guide", None) if scale is not None else None
+    n_rows = max(1, int(getattr(guide, "n_dodge", 1)))
+    check = bool(getattr(guide, "check_overlap", False))
+    labs: list[Mobject] = []
+    row_gap = gap
+    for r in range(n_rows):
+        idx = range(r, len(strings), n_rows)
+        row = {
+            i: _place_tick_label(
+                _label(theme, strings[i], axis), at[i], direction, row_gap, theme, axis
+            )
+            for i in idx
+        }
+        if check:
+            keep = check_axis_overlap([_box_of(row[i]) for i in idx])
+            for k, i in enumerate(idx):
+                if not keep[k]:
+                    row[i] = VMobject().move_to(row[i].get_center())
+        labs.extend(row.values())
+        if r + 1 < n_rows:
+            edges = [
+                float(np.dot(lab.get_critical_point(direction) - at[i], direction))
+                for i, lab in row.items()
+                if len(lab.get_all_points())
+            ]
+            if edges:
+                row_gap = max(edges) + theme.tick_label_buff
+    order = [i for r in range(n_rows) for i in range(r, len(strings), n_rows)]
+    out: list[Mobject | None] = [None] * len(strings)
+    for i, lab in zip(order, labs):
+        out[i] = lab
+    return VGroup(*out)  # type: ignore[arg-type]
+
+
+def _box_of(m: Mobject) -> tuple[float, float, float, float] | None:
+    if len(m.get_all_points()) == 0:
+        return None
+    lo, hi = m.get_corner(DL), m.get_corner(UR)
+    return (float(lo[0]), float(lo[1]), float(hi[0]), float(hi[1]))
+
+
 def _line_height(theme: Theme) -> float:
     return float(theme.make_text("0", **theme.text_style("axis_text")).height)
 
 
 def _warn_discrete_crowding(breaks, labels, rng, length, theme: Theme, axis: str, scale) -> None:
     """Warn when the drawn tick labels of a discrete axis overlap (ggplot2 draws
-    them overlapping; its ``guide_axis(check.overlap=, n.dodge=)`` are not
-    implemented). ``axis`` is the screen axis (``"x"`` = horizontal). Rotated labels
+    them overlapping unless the scale's ``guide_axis(check_overlap=, n_dodge=)``
+    says otherwise). ``axis`` is the screen axis (``"x"`` = horizontal). Rotated labels
     are not checked: their bounding boxes overlap long before the text does."""
     if len(breaks) < 2 or not theme.axis_element("axis_text", axis):
         return
     if getattr(theme, f"axis_text_{axis}_angle", 0.0):
         return
     far = _side(scale, "bottom" if axis == "x" else "left") in ("top", "right")
+    guide = getattr(scale, "guide", None)
+    if getattr(guide, "check_overlap", False):
+        return  # overlapping labels are dropped when drawn
+    n_dodge = int(getattr(guide, "n_dodge", 1))
+    if n_dodge > 1:  # judge each row of the staggered labels on its own
+        if any(
+            _crowded(breaks[r::n_dodge], labels[r::n_dodge], rng, length, theme, axis, far)
+            for r in range(n_dodge)
+        ):
+            warnings.warn(
+                f"{len(breaks)} discrete {axis}-axis labels overlap even with n_dodge={n_dodge}; "
+                "increase n_dodge, rotate or shrink the labels, or use check_overlap=True",
+                UserWarning,
+                stacklevel=2,
+            )
+        return
     if not _crowded(breaks, labels, rng, length, theme, axis, far):
         return
     warnings.warn(
@@ -627,13 +692,9 @@ class CoordCartesian:
         y_gap = (tl if len(y_ticks) else 0.0) + theme.tick_label_buff
         x_tick_labels, y_tick_labels = VGroup(), VGroup()
         if _sec_element(theme, "axis_text", "x", x_side):
-            for p, s in zip(x_at, pp.x_labels):
-                lab = _place_tick_label(_label(theme, s, "x"), p, x_dir, x_gap, theme, "x")
-                x_tick_labels.add(lab)  # type: ignore[arg-type]
+            x_tick_labels = _axis_labels(pp.x_labels, x_at, x_dir, x_gap, theme, "x", x_scale)
         if _sec_element(theme, "axis_text", "y", y_side):
-            for p, s in zip(y_at, pp.y_labels):
-                lab = _place_tick_label(_label(theme, s, "y"), p, y_dir, y_gap, theme, "y")
-                y_tick_labels.add(lab)  # type: ignore[arg-type]
+            y_tick_labels = _axis_labels(pp.y_labels, y_at, y_dir, y_gap, theme, "y", y_scale)
 
         x_title = y_title = None
         if _sec_element(theme, "axis_title", "x", x_side):

@@ -41,6 +41,7 @@ from manim import (
 
 from .aes import AfterStat, standardise_aes_name
 from .geoms.base import KEY_SIZE
+from .guides_axis import GuideAxis, guide_axis
 from .guides_colourbar import (
     Colourbar,
     GuideColourbar,
@@ -84,6 +85,8 @@ __all__ = [
     "guide_coloursteps",
     "GuideLegend",
     "guide_legend",
+    "GuideAxis",
+    "guide_axis",
 ]
 
 #: Valid guide specs for :func:`guides`.

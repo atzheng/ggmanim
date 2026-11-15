@@ -67,6 +67,7 @@ from .geoms import (
     geom_vline,
 )
 from .guides import (
+    guide_axis,
     guide_colorbar,
     guide_colorsteps,
     guide_colourbar,
@@ -324,6 +325,7 @@ __all__ = [
     "geom_vline",
     "ggplot",
     "gradient_n_pal",
+    "guide_axis",
     "guide_colorbar",
     "guide_colorsteps",
     "guide_colourbar",
