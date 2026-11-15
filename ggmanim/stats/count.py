@@ -94,8 +94,6 @@ class StatCount(Stat):
     required_aes = ("x", "y")
     default_aes = {"x": after_stat("count"), "y": after_stat("count")}
     dropped_aes = ("weight",)
-    #: The layer runs its position on swapped x/y for horizontal (flipped) data.
-    oriented_position = True
 
     def check_required_aes(self, df: pd.DataFrame) -> None:
         check_one_axis(self, df)

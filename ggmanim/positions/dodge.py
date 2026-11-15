@@ -25,7 +25,7 @@ from typing import Any
 import numpy as np
 import pandas as pd
 
-from ..stats.boxplot import flip_names
+from ..stats.boxplot import _is_discrete_scale, flip_names
 from .base import Position
 
 __all__ = ["PositionDodge", "PositionDodge2", "position_dodge", "position_dodge2"]
@@ -35,13 +35,38 @@ def _num(s: pd.Series) -> np.ndarray:
     return pd.to_numeric(s, errors="coerce").to_numpy(dtype=float)
 
 
+def _flipped_flag(data: pd.DataFrame) -> bool | None:
+    """The first non-missing ``flipped_aes`` of ``data`` (``None`` if there is none)."""
+    if "flipped_aes" not in data.columns:
+        return None
+    flags = data["flipped_aes"].dropna()
+    return bool(flags.iloc[0]) if len(flags) else None
+
+
 def _is_flipped(data: pd.DataFrame) -> bool:
     """Whether ``data`` is a horizontal layer: its first non-missing
     ``flipped_aes`` is true (ggplot2's ``has_flipped_aes`` for positions)."""
-    if "flipped_aes" not in data.columns:
-        return False
-    flags = data["flipped_aes"].dropna()
-    return bool(flags.iloc[0]) if len(flags) else False
+    return bool(_flipped_flag(data))
+
+
+def _orientation_params(data: pd.DataFrame, orientation: str | None) -> tuple[bool, bool]:
+    """``(flipped, explicit)``: a ``flipped_aes`` column wins, else
+    ``orientation`` (``"y"`` = horizontal) is the default. ``explicit`` is false
+    when neither says anything, so :func:`_guess_flipped` may decide later."""
+    if orientation not in (None, "x", "y"):
+        raise ValueError(f"orientation must be 'x' or 'y', got {orientation!r}")
+    flag = _flipped_flag(data)
+    if flag is not None:
+        return flag, True
+    return orientation == "y", orientation is not None
+
+
+def _guess_flipped(params: dict[str, Any], scales: dict[str, Any] | None) -> bool:
+    """Horizontal when nothing said so explicitly, y is a discrete scale and x is
+    not (ggplot2's ``has_flipped_aes`` guess)."""
+    if params.get("flipped_aes") or params.get("orientation_explicit"):
+        return bool(params.get("flipped_aes"))
+    return _is_discrete_scale(scales, "y") and not _is_discrete_scale(scales, "x")
 
 
 def _flip(data: pd.DataFrame, flipped: bool) -> pd.DataFrame:
@@ -127,12 +152,21 @@ class PositionDodge(Position):
     name = "dodge"
 
     def __init__(
-        self, width: float | None = None, preserve: str = "total", reverse: bool = False
+        self,
+        width: float | None = None,
+        preserve: str = "total",
+        reverse: bool = False,
+        orientation: str | None = None,
     ) -> None:
-        super().__init__(width=width, preserve=_check_preserve(preserve), reverse=reverse)
+        super().__init__(
+            width=width,
+            preserve=_check_preserve(preserve),
+            reverse=reverse,
+            orientation=orientation,
+        )
 
     def setup_params(self, data: pd.DataFrame) -> dict[str, Any]:
-        flipped = _is_flipped(data)
+        flipped, explicit = _orientation_params(data, self.params.get("orientation"))
         data = _flip(data, flipped)
         width = self.params.get("width")
         if width is None and "xmin" not in data.columns and "xmax" not in data.columns:
@@ -145,6 +179,7 @@ class PositionDodge(Position):
             "n": n,
             "reverse": bool(self.params.get("reverse", False)),
             "flipped_aes": flipped,
+            "orientation_explicit": explicit,
         }
 
     def setup_data(self, data: pd.DataFrame, params: dict[str, Any]) -> pd.DataFrame:
@@ -156,7 +191,13 @@ class PositionDodge(Position):
         self, data: pd.DataFrame, params: dict[str, Any], scales: dict[str, Any] | None = None
     ) -> pd.DataFrame:
         flipped = params.get("flipped_aes", False)
-        data = _flip(data, flipped)
+        if not flipped and _guess_flipped(params, scales):
+            flipped, params = True, {**params, "flipped_aes": True}
+            data = _add_x(_flip(data, True))
+            if params["n"] is not None:
+                params["n"] = _max_groups_per_x(data)
+        else:
+            data = _flip(data, flipped)
         index = data.index
         data, width = collide_setup(data.reset_index(drop=True), params["width"], params["reverse"])
         key = _num(data["xmin"])
@@ -252,13 +293,18 @@ class PositionDodge2(Position):
         preserve: str = "total",
         padding: float = 0.1,
         reverse: bool = False,
+        orientation: str | None = None,
     ) -> None:
         super().__init__(
-            width=width, preserve=_check_preserve(preserve), padding=padding, reverse=reverse
+            width=width,
+            preserve=_check_preserve(preserve),
+            padding=padding,
+            reverse=reverse,
+            orientation=orientation,
         )
 
     def setup_params(self, data: pd.DataFrame) -> dict[str, Any]:
-        flipped = _is_flipped(data)
+        flipped, explicit = _orientation_params(data, self.params.get("orientation"))
         data = _flip(data, flipped)
         n = None
         if self.params.get("preserve") == "single" and len(data):
@@ -269,6 +315,7 @@ class PositionDodge2(Position):
             "padding": float(self.params.get("padding", 0.1)),
             "reverse": bool(self.params.get("reverse", False)),
             "flipped_aes": flipped,
+            "orientation_explicit": explicit,
         }
 
     def setup_data(self, data: pd.DataFrame, params: dict[str, Any]) -> pd.DataFrame:
@@ -280,7 +327,13 @@ class PositionDodge2(Position):
         self, data: pd.DataFrame, params: dict[str, Any], scales: dict[str, Any] | None = None
     ) -> pd.DataFrame:
         flipped = params.get("flipped_aes", False)
-        data = _flip(data, flipped)
+        if not flipped and _guess_flipped(params, scales):
+            flipped, params = True, {**params, "flipped_aes": True}
+            data = _add_x(_flip(data, True))
+            if params["n"] is not None:
+                params["n"] = _max_rows_per_x(data)
+        else:
+            data = _flip(data, flipped)
         index = data.index
         data, _ = collide_setup(data.reset_index(drop=True), params["width"], params["reverse"])
         out = pos_dodge2(data, params["n"], params["padding"])
@@ -288,7 +341,10 @@ class PositionDodge2(Position):
 
 
 def position_dodge(
-    width: float | None = None, preserve: str = "total", reverse: bool = False
+    width: float | None = None,
+    preserve: str = "total",
+    reverse: bool = False,
+    orientation: str | None = None,
 ) -> PositionDodge:
     """Dodge overlapping objects side to side (ggplot2's ``position_dodge``).
 
@@ -302,8 +358,12 @@ def position_dodge(
         one slot of the busiest x.
     reverse : bool
         Dodge the groups in reverse order.
+    orientation : {"x", "y"}, optional
+        ``"y"`` dodges along y (horizontal layers). Default: the layer's
+        ``flipped_aes`` column, else guessed from the scales (y discrete and x
+        not -> horizontal).
     """
-    return PositionDodge(width=width, preserve=preserve, reverse=reverse)
+    return PositionDodge(width=width, preserve=preserve, reverse=reverse, orientation=orientation)
 
 
 def position_dodge2(
@@ -311,10 +371,18 @@ def position_dodge2(
     preserve: str = "total",
     padding: float = 0.1,
     reverse: bool = False,
+    orientation: str | None = None,
 ) -> PositionDodge2:
     """Dodge by interval overlap, for variable widths (ggplot2's ``position_dodge2``).
 
     ``padding`` is the fraction of each slot left empty between neighbours
-    (``0.1``). The default for boxplots.
+    (``0.1``). The default for boxplots. ``orientation`` as in
+    :func:`position_dodge`.
     """
-    return PositionDodge2(width=width, preserve=preserve, padding=padding, reverse=reverse)
+    return PositionDodge2(
+        width=width,
+        preserve=preserve,
+        padding=padding,
+        reverse=reverse,
+        orientation=orientation,
+    )

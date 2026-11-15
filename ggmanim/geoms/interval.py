@@ -29,11 +29,12 @@ clipped like ``geom_point`` markers.
 box with it). The building blocks are public too, for geoms written the same
 way (``geom_boxplot``, ``geom_violin``): :func:`flip_panel` (orientation),
 :func:`clipped_segments` (clipped line segments as scene points) and
-:func:`style` (stroke colour, alpha, linewidth and linetype from a row).
+:func:`stroke_style` (stroke colour, alpha, linewidth and linetype from a row).
 """
 
 from __future__ import annotations
 
+import warnings
 from collections.abc import Mapping
 from types import SimpleNamespace
 from typing import Any
@@ -77,6 +78,7 @@ __all__ = [
     "flip_data",
     "flip_panel",
     "clipped_segments",
+    "stroke_style",
     "style",
 ]
 
@@ -153,12 +155,18 @@ def _widths(data: pd.DataFrame, params: Mapping[str, Any], discrete: bool) -> np
     return np.broadcast_to(np.asarray(width, dtype=float), x.shape).copy()
 
 
-def style(mob: VMobject, row: Mapping[str, Any], fg: Any, linewidth: float) -> VMobject:
+def stroke_style(mob: VMobject, row: Mapping[str, Any], fg: Any, linewidth: float) -> VMobject:
     """Stroke ``mob`` with the row's colour/alpha, then dash it (``linetype``)."""
     color: Any = resolve_color(row.get("color"), fg)
     mob.set_fill(opacity=0)
     paint_stroke(mob, color, linewidth, num(row.get("alpha"), 1.0))  # None: blank colour
     return apply_linetype(mob, row.get("linetype"))
+
+
+def style(*args: Any, **kwargs: Any) -> VMobject:
+    """Deprecated alias of :func:`stroke_style` (the old, too generic name)."""
+    warnings.warn("ggmanim.geoms.style is renamed stroke_style", DeprecationWarning, stacklevel=2)
+    return stroke_style(*args, **kwargs)
 
 
 def clipped_segments(coord, rect, x0, y0, x1, y1) -> list[np.ndarray]:
@@ -269,7 +277,7 @@ class GeomLinerange(_IntervalGeom):
             pieces = clipped_segments(coord, rect, row["x"], row["ymin"], row["x"], row["ymax"])
             if pieces:
                 mob = multi_path_mobject(pieces, None, 2.0, 1.0)
-                out.add(style(mob, row, fg, num(row.get("linewidth"), 2.0)))
+                out.add(stroke_style(mob, row, fg, num(row.get("linewidth"), 2.0)))
                 drawn.append(i)
         return out, data.iloc[drawn]
 
@@ -319,7 +327,7 @@ class GeomPointrange(GeomLinerange):
             pieces = clipped_segments(coord, rect, row["x"], row["ymin"], row["x"], row["ymax"])
             if pieces:
                 mob = multi_path_mobject(pieces, None, 2.0, 1.0)
-                parts.add(style(mob, row, fg, num(row.get("linewidth"), 2.0)))
+                parts.add(stroke_style(mob, row, fg, num(row.get("linewidth"), 2.0)))
             if np.isfinite(num(row.get("y"), np.nan)):
                 p = transform_points(coord, row["x"], row["y"])[0]
                 dot: VMobject | None = self._point(p, row, fg, fatten)
@@ -358,7 +366,7 @@ class GeomErrorbar(_IntervalGeom):
             pieces = clipped_segments(coord, rect, [a, x, a], [hi, lo, lo], [b, x, b], [hi, hi, lo])
             if pieces:
                 mob = multi_path_mobject(pieces, None, 2.0, 1.0)
-                out.add(style(mob, row, fg, num(row.get("linewidth"), 2.0)))
+                out.add(stroke_style(mob, row, fg, num(row.get("linewidth"), 2.0)))
                 drawn.append(i)
         return out, data.iloc[drawn]
 
@@ -372,7 +380,7 @@ class GeomErrorbar(_IntervalGeom):
             np.array([[-w, -h, 0], [w, -h, 0]]),
         ]
         mob = multi_path_mobject(pts, None, 2.0, 1.0)
-        mob = style(mob, row, theme.get_foreground(), num(row.get("linewidth"), 2.0))
+        mob = stroke_style(mob, row, theme.get_foreground(), num(row.get("linewidth"), 2.0))
         return mob
 
 
@@ -477,7 +485,7 @@ def draw_crossbar(
             pieces = clipped_segments(coord, rect, row["xmin"], m, row["xmax"], m)
             if pieces:
                 line = multi_path_mobject(pieces, None, 2.0, 1.0)
-                parts.add(style(line, row, fg, lw * fatten))
+                parts.add(stroke_style(line, row, fg, lw * fatten))
         out.add(parts)
         drawn.append(i)
     return out, rows.iloc[drawn]
