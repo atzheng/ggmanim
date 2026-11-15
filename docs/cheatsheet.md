@@ -7,6 +7,7 @@ roadmap.
 | ggplot2 | ggmanim | notes |
 |---|---|---|
 | `ggplot(df, aes(x, y, colour = g)) + ...` | `ggplot(df, aes("x", "y", color="g")).add(...)` | strings for columns; `colour` accepted |
+| `geom_*(colour = NA)` / `fill = NA` | `geom_*(color=None)` / `fill=None` (or `"NA"`) | blanks the stroke / fill even when mapped or defaulted |
 | `labs()`, `xlab()`, `ylab()`, `ggtitle()` | `labs()`, `xlab()`, `ylab()`, `labs(title=...)` | |
 | `p1 + p2` (patchwork) | build both, arrange the mobjects | see `examples/gallery.py` |
 
@@ -31,7 +32,7 @@ roadmap.
 | `geom_segment(arrow = arrow())`, `geom_curve(curvature, angle, ncp)` | same | `arrow(length=)` in scene units; curves follow grid's `curveGrob`, shaped in scene space |
 | `geom_abline(slope, intercept)` | same | trains no scale; slope/intercept in transformed units (as ggplot2) |
 | `geom_errorbar()`, `geom_errorbarh()`, `geom_linerange()`, `geom_pointrange()`, `geom_crossbar()` | same | `orientation="y"` (or `xmin`/`xmax`) for horizontal |
-| `geom_boxplot(outlier.colour, notch, varwidth, staplewidth)` | `geom_boxplot(outlier_color=..., notch=True, varwidth=True, staplewidth=0.5)` | dodged by `position_dodge2`; `outliers=False` hides them; horizontal when `y` is discrete |
+| `geom_boxplot(outlier.colour, notch, varwidth, staplewidth)` | `geom_boxplot(outlier_color=..., notch=True, varwidth=True, staplewidth=0.5)` | dodged by `position_dodge2`; `outliers=False` hides them; `color=None` (`colour = NA`) blanks the outline *and* the inherited outliers unless `outlier_color` is set; horizontal when `y` is discrete |
 | `geom_violin(scale, trim, draw_quantiles)` | same | `scale="area"`/`"count"`/`"width"`; dodged by `position_dodge` |
 | `geom_density(adjust, bw, kernel, bounds)` | same | outline only unless `fill` is set; `alpha` is the fill's |
 | `geom_rug(sides = "bl", length = unit(0.03, "npc"))` | `geom_rug(sides="bl", length=None)` | `length` in scene units (default 3% of the panel); `outside=True` |

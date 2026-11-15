@@ -13,7 +13,9 @@ that exist and are visible):
   staples that wide (relative to the box) at the whisker ends;
 * outlier points (``outliers`` list column) at the box's ``x``, styled by the
   ``outlier_*`` params (``color``, ``fill``, ``shape``, ``size``, ``alpha``;
-  default: the box's ``color`` and :class:`GeomPoint`'s size), or hidden with
+  default: the box's ``color`` and :class:`GeomPoint`'s size; as in ggplot2,
+  ``outlier.colour = NULL`` inherits the box colour, so a blank ``color=None``/``"NA"``
+  hides the outliers too unless ``outlier_color`` is set), or hidden with
   ``outliers=False`` (which also keeps them out of the y scale).
 
 ``setup_data`` turns ``width`` (from the stat: 0.75 on a discrete scale) into
@@ -208,6 +210,9 @@ class GeomBoxplot(Geom):
         color = resolve_color(
             color if color is not None else row.get("color"), theme.get_foreground()
         )
+        fill = resolve_color(params.get("outlier_fill"))
+        if color is None and fill is None:
+            return None  # blank colour is inherited (ggplot2: NA): nothing to draw
         shape = params.get("outlier_shape")
         size = params.get("outlier_size")
         alpha = params.get("outlier_alpha")
@@ -219,7 +224,7 @@ class GeomBoxplot(Geom):
                 p,
                 radius=num(size if size is not None else row.get("size"), 0.06),
                 color=color,
-                fill=resolve_color(params.get("outlier_fill")),
+                fill=fill,
                 alpha=num(alpha if alpha is not None else row.get("alpha"), 1.0),
             )
             if box is not None and dot is not None:
