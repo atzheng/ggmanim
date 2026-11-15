@@ -171,3 +171,18 @@ def test_horizontal_boxplots_dodge_along_y():
     np.testing.assert_allclose(ld["y"], vert["x"])
     np.testing.assert_allclose(ld[["ymin", "ymax"]].to_numpy(), vert[["xmin", "xmax"]].to_numpy())
     np.testing.assert_allclose(ld[["xmin", "xmax"]].to_numpy(), vert[["ymin", "ymax"]].to_numpy())
+
+
+def test_blank_colour_blanks_inherited_outliers():
+    """ggplot2: outlier.colour = NULL inherits the box colour, so colour = NA hides
+    the outliers too; an explicit outlier_colour brings them back."""
+
+    def outliers(**kw):
+        p = ggplot(DATA, aes("g", "v")).add(geom_boxplot(**kw))
+        marks = p.build().layers[0].marks[1]
+        return len(marks[0]) if len(marks) == 3 else 0
+
+    assert outliers() == 2
+    assert outliers(colour=None) == 0
+    assert outliers(colour="NA") == 0
+    assert outliers(colour=None, outlier_colour="red") == 2

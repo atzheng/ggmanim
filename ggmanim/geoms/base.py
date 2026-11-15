@@ -32,7 +32,10 @@ space, ``color``/``fill`` either already ``ManimColor`` (mapped) or absent, and 
 ``group`` column (added if missing). Constant aesthetics in ``params``
 (``geom_point(color=RED)``) override mapped and default values. Default aesthetic
 values that are ``None`` are resolved per geom (``color=None`` usually means the
-theme's foreground colour; for ``geom_col`` it means "no outline").
+theme's foreground colour; for ``geom_col`` it means "no outline"). Passing
+``color=None`` or ``"NA"`` (likewise ``fill``) as a *constant* is different: it blanks
+the stroke/fill even when the aesthetic is mapped or has a default, like ggplot2's
+``colour = NA``. Parts that inherit the colour (e.g. boxplot outliers) are blanked too.
 
 Legend guides (``ggm-s11.7``) call ``geom.draw_key(row, theme)`` with a dict of
 aesthetic values (e.g. ``{"color": ManimColor(...)}``); missing aesthetics fall back
