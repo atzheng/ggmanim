@@ -471,7 +471,7 @@ def _axis_labels(strings, at, direction, gap, theme: Theme, axis: str, scale) ->
             if edges:
                 row_gap = max(edges) + theme.tick_label_buff
     order = [i for r in range(n_rows) for i in range(r, len(strings), n_rows)]
-    out = [None] * len(strings)
+    out: list[Mobject | None] = [None] * len(strings)
     for i, lab in zip(order, labs):
         out[i] = lab
     return VGroup(*out)  # type: ignore[arg-type]
