@@ -64,11 +64,8 @@ from ._rect import clipped_rects, seal_seams, style_filled
 from .base import (
     color_resolver,
     finite_rows,
-    num,
     num_array,
-    paint_fill,
     paint_stroke,
-    resolve_color,
     transform_points,
 )
 
@@ -81,7 +78,6 @@ __all__ = [
     "batch_mobject",
     "draw_points_fast",
     "draw_rects_fast",
-    "draw_bars_fast",
     "draw_segments_fast",
 ]
 
@@ -465,27 +461,6 @@ def draw_rects_fast(
     )
     out.extend(_slow_marks(slow, data[dashed]))
     return batched_group(out)
-
-
-def draw_bars_fast(data: pd.DataFrame, panel_params: Any, coord: Any, theme: Theme) -> VGroup:
-    """Batched :class:`~ggmanim.geoms.col.GeomCol` drawing (``data``: bar
-    extents and default aesthetics filled in). Styled like ``GeomCol._bar``:
-    ``alpha`` applies to the fill and the outline."""
-    fg = theme.get_foreground()
-    data, corners = clipped_rects(data, coord, panel_params)
-
-    def style_of(row: dict) -> VMobject:
-        alpha = num(row.get("alpha"), 1.0)
-        m = VMobject()
-        paint_fill(m, resolve_color(row.get("fill"), fg), alpha)
-        line = resolve_color(row.get("color"))
-        if line is None:
-            m.set_stroke(width=0, opacity=0)
-        else:
-            m.set_stroke(color=line, width=num(row.get("linewidth"), 1.0), opacity=alpha)
-        return m
-
-    return batched_group(_rect_batches(data, corners, fg, style_of, None))
 
 
 def draw_segments_fast(
