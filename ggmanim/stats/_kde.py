@@ -333,12 +333,26 @@ _BW_RULES: dict[str, Callable[[np.ndarray], float]] = {
     "silverman": bw_nrd0,
     "nrd": bw_nrd,
     "scott": bw_nrd,
+}
+
+#: ggplot2's ``precompute_bw`` rules beyond nrd0/nrd. Not accepted by
+#: :func:`bandwidth` itself (as before); the stats resolve them with
+#: :func:`precompute_bw` first.
+_PRECOMPUTE_BW_RULES: dict[str, Callable[[np.ndarray], float]] = {
     "ucv": bw_ucv,
     "bcv": bw_bcv,
     "sj": bw_sj,
     "sj-ste": bw_sj,
     "sj-dpi": lambda x: bw_sj(x, method="dpi"),
 }
+
+
+def precompute_bw(x: Any, bw: Any) -> Any:
+    """``bw`` with the ``"ucv"``/``"bcv"``/``"SJ"``/``"sj-ste"``/``"sj-dpi"`` rule
+    names (any case) evaluated on ``x``; anything else is returned unchanged."""
+    if isinstance(bw, str) and bw.lower() in _PRECOMPUTE_BW_RULES:
+        return _PRECOMPUTE_BW_RULES[bw.lower()](np.asarray(x, dtype=float))
+    return bw
 
 
 def bandwidth(x: Any, bw: Any = "nrd0") -> float:

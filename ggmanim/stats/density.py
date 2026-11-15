@@ -40,7 +40,7 @@ import pandas as pd
 
 from ..aes import after_stat
 from ..registry import register
-from ._kde import bandwidth, bw_bcv, bw_sj, bw_ucv, compute_density
+from ._kde import bandwidth, bw_bcv, bw_sj, bw_ucv, compute_density, precompute_bw
 from .base import Stat, scale_limits
 from .boxplot import _finite_y, _is_discrete_scale, flip_names, regroup_by_x, resolve_flipped
 
@@ -58,9 +58,6 @@ __all__ = [
 
 _VIOLIN_SCALES = ("area", "count", "width")
 
-#: ggplot2 ``precompute_bw`` rule names beyond nrd0/nrd (see :mod:`ggmanim.stats._kde`).
-_EXTRA_BW = ("ucv", "bcv", "sj", "sj-ste", "sj-dpi")
-
 
 def resolve_bw(x: Any, bw: Any) -> Any:
     """``bw`` as accepted by :func:`ggmanim.stats._kde.bandwidth`: the rules
@@ -68,9 +65,7 @@ def resolve_bw(x: Any, bw: Any) -> Any:
     as ggplot2's ``precompute_bw``) are evaluated on ``x``; anything else is
     returned unchanged. (:func:`~ggmanim.stats._kde.bandwidth` resolves all of
     them itself; this stays for backwards compatibility.)"""
-    if isinstance(bw, str) and bw.lower() in _EXTRA_BW:
-        return bandwidth(x, bw)
-    return bw
+    return precompute_bw(x, bw)
 
 
 def _weights(df: pd.DataFrame) -> np.ndarray | None:

@@ -18,11 +18,13 @@ X = np.random.default_rng(1).normal(size=80)
 
 def test_bw_rules_registered_in_kde():
     for name in ("ucv", "bcv", "sj", "sj-ste", "sj-dpi"):
-        assert name in _kde._BW_RULES
-    assert _kde.bandwidth(X, "ucv") == bw_ucv(X)
-    assert _kde.bandwidth(X, "bcv") == bw_bcv(X)
-    assert _kde.bandwidth(X, "SJ") == bw_sj(X)
-    assert _kde.bandwidth(X, "sj-dpi") == bw_sj(X, method="dpi")
+        assert name in _kde._PRECOMPUTE_BW_RULES
+        with pytest.raises(ValueError, match="unknown bandwidth"):
+            _kde.bandwidth(X, name)
+    assert _kde.precompute_bw(X, "ucv") == bw_ucv(X)
+    assert _kde.precompute_bw(X, "bcv") == bw_bcv(X)
+    assert _kde.precompute_bw(X, "SJ") == bw_sj(X)
+    assert _kde.precompute_bw(X, "sj-dpi") == bw_sj(X, method="dpi")
     assert resolve_bw(X, "SJ") == bw_sj(X)
     assert resolve_bw(X, "nrd0") == "nrd0"
 
@@ -93,7 +95,9 @@ def test_orientation_param():
     p = position_dodge(orientation="x")
     params = p.setup_params(ref)
     out = p.compute_layer(p.setup_data(ref, params), params, _scales(ydisc=True))
-    assert (out["xmin"].to_numpy() == ref["xmin"].to_numpy()).all()
+    # dodged along x (not guessed horizontal): y extents untouched
+    assert (out["ymax"].to_numpy() == ref["ymax"].to_numpy()).all()
+    assert (out["xmax"] - out["xmin"]).max() < 0.9
     with pytest.raises(ValueError):
         position_dodge2(orientation="z").setup_params(data)
 
