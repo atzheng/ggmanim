@@ -31,8 +31,7 @@ from ..theme import Theme, theme_default
 from ._clip import clip_polygon, panel_rect
 from ._rect import filled_key, rings_mobject, style_filled
 from .base import Geom, attach_marks, first, make_layer, multi_path_mobject, num, transform_points
-from .interval import clipped_segments, flip_panel
-from .interval import style as stroke_style
+from .interval import clipped_segments, flip_panel, stroke_style
 
 __all__ = ["GeomViolin", "geom_violin"]
 

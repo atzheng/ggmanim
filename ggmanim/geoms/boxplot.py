@@ -57,7 +57,7 @@ from .base import (
     resolve_color,
     transform_points,
 )
-from .interval import clipped_segments, draw_crossbar, flip_panel, style
+from .interval import clipped_segments, draw_crossbar, flip_panel, stroke_style
 
 __all__ = ["GeomBoxplot", "geom_boxplot"]
 
@@ -180,10 +180,10 @@ class GeomBoxplot(Geom):
             a, b = x + (xmin - x) * staple, x + (xmax - x) * staple
             pieces = clipped_segments(coord, rect, [a, a], [ymax, ymin], [b, b], [ymax, ymin])
             if pieces:
-                parts.add(style(multi_path_mobject(pieces, None, lw, 1.0), row, fg, lw))
+                parts.add(stroke_style(multi_path_mobject(pieces, None, lw, 1.0), row, fg, lw))
         pieces = clipped_segments(coord, rect, [x, x], [upper, lower], [x, x], [ymax, ymin])
         if pieces:
-            parts.add(style(multi_path_mobject(pieces, None, lw, 1.0), row, fg, lw))
+            parts.add(stroke_style(multi_path_mobject(pieces, None, lw, 1.0), row, fg, lw))
         fatten = num(params.get("fatten"), 2.0)
         if params.get("notch"):
             box = self._notched(row, coord, rect, theme, num(params.get("notchwidth"), 0.5), fatten)
@@ -260,7 +260,7 @@ class GeomBoxplot(Geom):
         parts = VGroup(poly)
         pieces = clipped_segments(coord, rect, xmin + indent, mid, xmax - indent, mid)
         if pieces:
-            parts.add(style(multi_path_mobject(pieces, None, lw, 1.0), row, fg, lw * fatten))
+            parts.add(stroke_style(multi_path_mobject(pieces, None, lw, 1.0), row, fg, lw * fatten))
         return parts
 
     def draw_key(self, data_row, theme: Theme | None = None) -> VMobject:
@@ -284,7 +284,7 @@ class GeomBoxplot(Geom):
         fg = theme.get_foreground()
         lw = num(row.get("linewidth"), 2.0)
         pieces = clipped_segments(coord, None, [0, 0], [0.5 * s, -0.5 * s], [0, 0], [s, -s])
-        whiskers = style(multi_path_mobject(pieces, None, lw, 1.0), row, fg, lw)
+        whiskers = stroke_style(multi_path_mobject(pieces, None, lw, 1.0), row, fg, lw)
         return VGroup(whiskers, box[0])
 
 

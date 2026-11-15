@@ -48,6 +48,7 @@ from .interval import (
     geom_errorbarh,
     geom_linerange,
     geom_pointrange,
+    stroke_style,
     style,
 )
 from .jitter import geom_jitter
@@ -166,6 +167,7 @@ __all__ = [
     "resolution",
     "resolve_color",
     "stairstep",
+    "stroke_style",
     "style",
 ]
 # -- end generated --
