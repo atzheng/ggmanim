@@ -124,6 +124,8 @@ class Polar(Scene):
 class BarsToPie(Scene):
     """Morph a stacked bar into a pie: the same wedges, unrolled."""
 
+    gallery_gif = True  # render as a GIF in the docs gallery
+
     def construct(self):
         bar = ggplot(FRUIT, aes(x=1, fill="fruit")).add(geom_bar(width=1), coord_cartesian())
         a = bar.add(labs(title="stacked bar")).build()

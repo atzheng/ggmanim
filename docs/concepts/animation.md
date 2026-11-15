@@ -112,6 +112,8 @@ manim -ql examples/transitions.py ScatterYears
 manim -ql --format=gif examples/transitions.py StatesLoop
 ```
 
+![StatesLoop: four years, looping](../gallery/img/transitions/StatesLoop.gif){ loading=lazy }
+
 ## Live plots
 
 A transition morphs between two finished builds. Live plots

@@ -21,6 +21,8 @@ from ggmanim.live import LivePlot, always_rebuild, build_live
 class SineTracker(Scene):
     """``always_rebuild``: the curve's amplitude and phase read two trackers."""
 
+    gallery_gif = True  # render as a GIF in the docs gallery
+
     def construct(self):
         amp, phase = ValueTracker(0.5), ValueTracker(0.0)
         spec = (
@@ -51,6 +53,8 @@ def _signal(n: int = 120) -> pd.DataFrame:
 class StreamingLine(Scene):
     """``update_data`` in an updater: rows are appended as a tracker advances."""
 
+    gallery_gif = True  # render as a GIF in the docs gallery
+
     def construct(self):
         full = _signal()
         now = ValueTracker(0.3)
@@ -69,6 +73,8 @@ class StreamingLine(Scene):
 
 class MovingDots(Scene):
     """``LivePlot`` with a spec factory: the same Dot objects glide around."""
+
+    gallery_gif = True  # render as a GIF in the docs gallery
 
     def construct(self):
         t = ValueTracker(0.0)

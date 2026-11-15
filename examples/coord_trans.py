@@ -111,6 +111,8 @@ class CoordTrans(Scene):
 class LineToCurve(Scene):
     """Morph the cartesian plot into the coord_trans one: the line bends."""
 
+    gallery_gif = True  # render as a GIF in the docs gallery
+
     def construct(self):
         a = line_rects(coord_cartesian(), "coord_cartesian()").build()
         b = line_rects(coord_trans(x="log10"), 'coord_trans(x="log10")').add(DECADES).build()

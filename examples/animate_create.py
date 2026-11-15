@@ -49,6 +49,8 @@ def scatter_plot():
 
 
 class AnimateCreate(Scene):
+    gallery_gif = True  # render as a GIF in the docs gallery
+
     def construct(self):
         spec = bar_plot()
         plot = attach_geoms(spec.build(), spec)  # so bars grow from the zero line
@@ -58,6 +60,8 @@ class AnimateCreate(Scene):
 
 
 class AnimateFacets(Scene):
+    gallery_gif = True  # render as a GIF in the docs gallery
+
     def construct(self):
         spec = scatter_plot()
         plot = attach_geoms(spec.build(), spec)

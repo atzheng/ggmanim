@@ -26,6 +26,10 @@ class DoseResponse(Scene):
         self.play(plot.create())              # panel, axes, layers, legend, titles
 ```
 
+![Scatter moving through four years, keyed by country](gallery/img/transitions/StatesLoop.gif){ loading=lazy }
+
+The [gallery](gallery/index.md) has every example scene with its source.
+
 ## Where to go next
 
 - **[Getting started](getting-started.md)**: install, the first plot, the first scene.
