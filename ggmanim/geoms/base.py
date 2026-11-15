@@ -701,12 +701,8 @@ class StatDefault(AfterStat):
 def _with_stat_defaults(stat: Any, mapping: Aes | None, params: Mapping[str, Any]) -> Aes | None:
     """``mapping`` plus ``stat.default_aes``'s ``after_stat`` entries (as
     :class:`StatDefault`) for aesthetics neither in ``mapping`` (an explicit
-    ``None`` counts) nor set as constants in ``params``.
-
-    Entries of ``mapping`` that *are* (by identity) the stat's own default
-    objects, as pre-added by :func:`ggmanim.geoms.count.stat_layer`, become
-    :class:`StatDefault` too; a user's ``after_stat("count")`` is a different
-    object and keeps precedence over the plot mapping."""
+    ``None`` counts) nor set as constants in ``params``. A user's own
+    ``after_stat("count")`` in ``mapping`` keeps precedence over the plot mapping."""
     defaults = {
         k: v
         for k, v in (getattr(stat, "default_aes", None) or {}).items()
@@ -715,13 +711,10 @@ def _with_stat_defaults(stat: Any, mapping: Aes | None, params: Mapping[str, Any
     if not defaults:
         return mapping
     given = dict(mapping) if mapping is not None else {}
-    given = {
-        k: StatDefault(defaults[k].expr) if v is defaults.get(k) else v for k, v in given.items()
-    }
     extra = {
         k: StatDefault(v.expr) for k, v in defaults.items() if k not in given and k not in params
     }
-    if not extra and not any(isinstance(v, StatDefault) for v in given.values()):
+    if not extra:
         return mapping
     return Aes({**extra, **given})
 

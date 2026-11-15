@@ -61,13 +61,24 @@ class GeomCol(Geom):
         "alpha": 1.0,
         "linetype": "solid",
     }
-    extra_params: tuple[str, ...] = ("width", "fast")
+    extra_params: tuple[str, ...] = ("width", "fast", "orientation")
     na_aes: tuple[str, ...] | None = ("xmin", "xmax", "ymin", "ymax")
     default_position = "stack"
     #: Hide anti-aliasing seams between abutting bars (see ``_rect.seal_seams``).
     seal = False
 
     def setup_data(self, data: pd.DataFrame, params) -> pd.DataFrame:
+        if len(data) and "flipped_aes" not in data.columns:
+            # no stat decided: ``orientation``, else a discrete y with a continuous x
+            ori = (params or {}).get("orientation")
+            if ori not in (None, "x", "y"):
+                raise ValueError(f"orientation must be 'x' or 'y', got {ori!r}")
+            if ori == "y" or (
+                ori is None
+                and (params or {}).get("_y_discrete")
+                and not (params or {}).get("_x_discrete")
+            ):
+                data = data.assign(flipped_aes=True)
         if len(data) and "flipped_aes" in data.columns and bool(data["flipped_aes"].all()):
             # horizontal bars (stat_count/stat_bin on y): extents on swapped axes
             from ..stats.boxplot import flip_names

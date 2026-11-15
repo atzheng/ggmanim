@@ -176,12 +176,18 @@ class Stat:
             )
 
     # -- computation ---------------------------------------------------------
+    def setup_layer(self, df: pd.DataFrame, params: Mapping[str, Any]) -> None:
+        """Hook run once per layer by the build, before :meth:`compute_layer` (which
+        runs once per panel under facets): validate parameters, warn, ... The default
+        does nothing. ``df`` is the whole layer data, ``params`` the stat's params."""
+
     def compute(self, df: pd.DataFrame, scales=None) -> pd.DataFrame:
         """Convenience: ``add_group`` (if needed) + ``compute_layer`` with ``self.params``."""
         if df is None:
             df = pd.DataFrame()
         if "group" not in df.columns:
             df = add_group(df)
+        self.setup_layer(df, self.params)
         return self.compute_layer(df, scales, **self.params)
 
     def compute_layer(self, df: pd.DataFrame, scales=None, **params) -> pd.DataFrame:

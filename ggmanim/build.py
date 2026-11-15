@@ -458,6 +458,8 @@ def compute_stats(
         stat = ld.layer.stat
         if stat is not None:
             _remove_missing_for_stat(ld, stat)
+            if hasattr(stat, "setup_layer"):
+                stat.setup_layer(ld.data, stat.params)
             try:
                 if panel_scales is not None:
                     df = _compute_layer_panels(ld, stat, panel_scales, layout)
