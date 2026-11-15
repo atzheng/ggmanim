@@ -303,10 +303,12 @@ class ScaleContinuous(Scale):
             minor_breaks = tuple(float(b) for b in np.asarray(minor_breaks, dtype=float).ravel())
         self.minor_breaks = minor_breaks
         self._range: tuple[float, float] | None = None
+        self._pos_min: float | None = None  # smallest positive trained value
 
     # ------------------------------------------------------------- training
     def reset(self) -> None:
         self._range = None
+        self._pos_min = None
 
     def transform(self, values: Any) -> np.ndarray:
         """Data space -> transformed space (no oob handling)."""
@@ -324,6 +326,10 @@ class ScaleContinuous(Scale):
         if self._range is not None:
             lo, hi = min(lo, self._range[0]), max(hi, self._range[1])
         self._range = (lo, hi)
+        pos = x[x > 0]
+        if pos.size:
+            m = float(pos.min())
+            self._pos_min = m if self._pos_min is None else min(self._pos_min, m)
 
     @property
     def range(self) -> tuple[float, float] | None:

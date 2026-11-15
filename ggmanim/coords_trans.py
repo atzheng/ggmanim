@@ -285,8 +285,19 @@ class CoordTrans(CoordCartesian):
         with np.errstate(all="ignore"):
             te = np.asarray(trans.transform(np.asarray(ends, dtype=float)), dtype=float)
         if not np.isfinite(te).all():  # e.g. log of a range starting at 0
-            fin = te[np.isfinite(te)]
-            te = np.array([fin[0], fin[0]]) if len(fin) else np.array(_FALLBACK_RANGE)
+            # ggplot2 drops non-finite transformed limits and takes the range from
+            # the finite data: here the smallest positive trained value stands in
+            # for the open end (else one transformed unit beyond the finite end).
+            bad = ~np.isfinite(te)
+            pos = getattr(scale, "_pos_min", None)
+            sub = trans.transform(np.array([pos if pos is not None else np.nan], dtype=float))[0]
+            if bad.all():
+                te = np.array(_FALLBACK_RANGE)
+            else:
+                fin = te[~bad][0]
+                if not np.isfinite(sub) or (bad[0] and sub >= fin) or (bad[1] and sub <= fin):
+                    sub = fin - 1.0 if bad[0] else fin + 1.0
+                te = np.where(bad, sub, te)
         expand: Any = False
         if self.expand:
             expand = getattr(scale, "expand", None)
