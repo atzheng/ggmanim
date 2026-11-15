@@ -506,6 +506,18 @@ class ScaleContinuous(Scale):
         )
 
 
+def _check_axis_guide(guide: Any) -> Any:
+    """Validate a position scale's ``guide``: ``None``/``"axis"`` (plain axis) or a
+    :func:`~ggmanim.guides_axis.guide_axis`; returns the guide object or ``None``."""
+    from ..guides_axis import GuideAxis  # lazy: keeps the scales import graph small
+
+    if guide is None or guide == "axis":
+        return None
+    if not isinstance(guide, GuideAxis):
+        raise ValueError(f"guide of a position scale must be 'axis' or guide_axis(), got {guide!r}")
+    return guide
+
+
 _POSITIONS = {"x": ("bottom", "top"), "y": ("left", "right")}
 
 
@@ -517,12 +529,14 @@ class ScaleContinuousPosition(ScaleContinuous):
     ``"right"`` for y; ``None`` means the default side. ``sec_axis`` (an
     :class:`~ggmanim.scales.sec_axis.AxisSecondary` from ``sec_axis()`` /
     ``dup_axis()``, or ``None``) adds a secondary axis on the opposite side.
+    ``guide`` is ``None``/``"axis"`` or a :func:`~ggmanim.guides_axis.guide_axis`.
     """
 
     def __init__(
-        self, aesthetics, *args, position: str | None = None, sec_axis=None, **kwargs
+        self, aesthetics, *args, position: str | None = None, sec_axis=None, guide=None, **kwargs
     ) -> None:
         super().__init__(aesthetics, *args, **kwargs)
+        self.guide = _check_axis_guide(guide)
         if sec_axis is not None and not callable(getattr(sec_axis, "break_info", None)):
             raise TypeError(f"sec_axis must come from sec_axis() or dup_axis(), got {sec_axis!r}")
         self.sec_axis = sec_axis
@@ -548,6 +562,7 @@ def _position(
     minor_breaks=None,
     position=None,
     sec_axis=None,
+    guide=None,
 ):
     aes = X_AESTHETICS if axis == "x" else Y_AESTHETICS
     return ScaleContinuousPosition(
@@ -563,6 +578,7 @@ def _position(
         minor_breaks=minor_breaks,
         position=position,
         sec_axis=sec_axis,
+        guide=guide,
     )
 
 
@@ -579,6 +595,7 @@ def scale_x_continuous(
     minor_breaks=None,
     position=None,
     sec_axis=None,
+    guide=None,
 ):
     """Continuous x position scale. See :class:`ScaleContinuous` for arguments;
     ``position`` is "bottom"/"top" (see :class:`ScaleContinuousPosition`)."""
@@ -595,6 +612,7 @@ def scale_x_continuous(
         minor_breaks,
         position,
         sec_axis,
+        guide,
     )
 
 
@@ -611,6 +629,7 @@ def scale_y_continuous(
     minor_breaks=None,
     position=None,
     sec_axis=None,
+    guide=None,
 ):
     """Continuous y position scale. See :class:`ScaleContinuous` for arguments;
     ``position`` is "left"/"right" (see :class:`ScaleContinuousPosition`)."""
@@ -627,6 +646,7 @@ def scale_y_continuous(
         minor_breaks,
         position,
         sec_axis,
+        guide,
     )
 
 
