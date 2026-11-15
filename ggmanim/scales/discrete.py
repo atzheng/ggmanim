@@ -13,6 +13,7 @@ see :data:`AES_TO_MANIM`.
 from __future__ import annotations
 
 import copy
+import warnings
 from collections.abc import Callable, Iterable, Mapping, Sequence
 from typing import Any
 
@@ -449,6 +450,11 @@ def default_scale_for(aesthetic: str, values: Any) -> Scale | None:
         )
     if aes in COLOUR_AESTHETICS and _is_ordered(values):
         return ScaleDiscrete(aes, palette=viridis_pal())
+    if aes in ("shape", "linetype") and _is_ordered(values):
+        # ggplot2: scale_shape_ordinal / scale_linetype_ordinal warn, same palette
+        warnings.warn(
+            f"Using {aes} for an ordinal variable is not advised.", UserWarning, stacklevel=3
+        )
     return ScaleDiscrete(aes, palette=_DEFAULT_PALETTES[aes])
 
 

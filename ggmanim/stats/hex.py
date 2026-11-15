@@ -37,6 +37,24 @@ def _bounds(lo: float, hi: float, w: float) -> tuple[float, float]:
     return math.floor(lo / w) * w - 1e-6, math.ceil(hi / w) * w + 1e-6
 
 
+def _hex_cells(x, y, binwidth, xlim, ylim) -> tuple[np.ndarray, np.ndarray]:
+    """Lattice coordinates ``(ci, cj)`` of the hexagon holding each point (shared
+    by :func:`hexbin` and ``summary_hex``); centre ``(xlo + ci * wx, ylo + cj * sqrt(3) * wy)``."""
+    wx, wy = (float(v) for v in binwidth)
+    if not (wx > 0 and wy > 0):
+        raise ValueError(f"binwidth must be positive, got {binwidth!r}")
+    xlo = _bounds(float(xlim[0]), float(xlim[1]), wx)[0]
+    ylo = _bounds(float(ylim[0]), float(ylim[1]), wy)[0]
+    sx = (np.asarray(x, dtype=float) - xlo) / wx  # lattice-1 centres at integers
+    sy = (np.asarray(y, dtype=float) - ylo) / (_SQRT3 * wy)
+    i1, j1 = np.floor(sx + 0.5), np.floor(sy + 0.5)
+    i2, j2 = np.floor(sx) + 0.5, np.floor(sy) + 0.5
+    d1 = (sx - i1) ** 2 + 3 * (sy - j1) ** 2
+    d2 = (sx - i2) ** 2 + 3 * (sy - j2) ** 2
+    first = d1 <= d2
+    return np.where(first, i1, i2), np.where(first, j1, j2)
+
+
 def hexbin(x, y, binwidth: tuple[float, float], weight=None, xlim=None, ylim=None) -> pd.DataFrame:
     """Hexagonal bin counts: ``x``, ``y`` (centres) and ``count`` (summed
     ``weight``) of every non-empty hexagon, sorted by centre (y, then x).
@@ -49,22 +67,12 @@ def hexbin(x, y, binwidth: tuple[float, float], weight=None, xlim=None, ylim=Non
     x, y, w = x[ok], y[ok], w[ok]
     if not len(x):
         return pd.DataFrame({"x": [], "y": [], "count": []})
-    wx, wy = (float(v) for v in binwidth)
-    if not (wx > 0 and wy > 0):
-        raise ValueError(f"binwidth must be positive, got {binwidth!r}")
     xl = xlim if xlim is not None else (x.min(), x.max())
     yl = ylim if ylim is not None else (y.min(), y.max())
+    ci, cj = _hex_cells(x, y, binwidth, xl, yl)
+    wx, wy = (float(v) for v in binwidth)
     xlo = _bounds(float(xl[0]), float(xl[1]), wx)[0]
     ylo = _bounds(float(yl[0]), float(yl[1]), wy)[0]
-    sx = (x - xlo) / wx  # lattice-1 centres at integers
-    sy = (y - ylo) / (_SQRT3 * wy)
-    i1, j1 = np.floor(sx + 0.5), np.floor(sy + 0.5)
-    i2, j2 = np.floor(sx) + 0.5, np.floor(sy) + 0.5
-    d1 = (sx - i1) ** 2 + 3 * (sy - j1) ** 2
-    d2 = (sx - i2) ** 2 + 3 * (sy - j2) ** 2
-    first = d1 <= d2
-    ci = np.where(first, i1, i2)
-    cj = np.where(first, j1, j2)
     cells = pd.DataFrame({"cj": cj, "ci": ci, "count": w})
     out = cells.groupby(["cj", "ci"], sort=True)["count"].sum().reset_index()
     return pd.DataFrame(
