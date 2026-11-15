@@ -20,7 +20,7 @@ from ..registry import register
 from .base import Stat, scale_limits
 from .bin2d import _per_axis
 from .contour import _stat_layer
-from .hex import _bounds
+from .hex import _bounds, _hex_cells
 from .summary2d import summarise_z
 
 __all__ = ["StatSummaryHex", "hex_cells", "stat_summary_hex"]
@@ -31,17 +31,7 @@ _SQRT3 = math.sqrt(3.0)
 def hex_cells(x, y, binwidth: tuple[float, float], xlim, ylim) -> tuple[np.ndarray, np.ndarray]:
     """Lattice coordinates ``(ci, cj)`` of the hexagon holding each point, on the
     lattice of :func:`~.hex.hexbin` (centre ``(xlo + ci * wx, ylo + cj * sqrt(3) * wy)``)."""
-    wx, wy = (float(v) for v in binwidth)
-    if not (wx > 0 and wy > 0):
-        raise ValueError(f"binwidth must be positive, got {binwidth!r}")
-    xlo = _bounds(float(xlim[0]), float(xlim[1]), wx)[0]
-    ylo = _bounds(float(ylim[0]), float(ylim[1]), wy)[0]
-    sx = (np.asarray(x, dtype=float) - xlo) / wx
-    sy = (np.asarray(y, dtype=float) - ylo) / (_SQRT3 * wy)
-    i1, j1 = np.floor(sx + 0.5), np.floor(sy + 0.5)
-    i2, j2 = np.floor(sx) + 0.5, np.floor(sy) + 0.5
-    first = (sx - i1) ** 2 + 3 * (sy - j1) ** 2 <= (sx - i2) ** 2 + 3 * (sy - j2) ** 2
-    return np.where(first, i1, i2), np.where(first, j1, j2)
+    return _hex_cells(x, y, binwidth, xlim, ylim)
 
 
 class StatSummaryHex(Stat):
