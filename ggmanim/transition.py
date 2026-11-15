@@ -65,7 +65,7 @@ from manim import (
     VMobject,
     Wait,
 )
-from manim.utils.rate_functions import linear
+from manim.utils.rate_functions import linear, smooth, squish_rate_func
 
 from .aes import Aes
 from .scales.continuous import ScaleContinuousPosition
@@ -352,16 +352,32 @@ class _Builder:
         self._mark(self._seen_b, y)
         (self.anims if out is None else out).append(Transform(x, y))
 
-    def fade_out(self, x: Mobject, shift: np.ndarray | None = None, out: list | None = None):
+    def fade_out(
+        self,
+        x: Mobject,
+        shift: np.ndarray | None = None,
+        out: list | None = None,
+        rate_func: Any = None,
+    ):
         self._mark(self._seen_a, x)
         if _has_points(x):
-            kw = {"shift": shift} if shift is not None else {}
+            kw: dict[str, Any] = {"shift": shift} if shift is not None else {}
+            if rate_func is not None:
+                kw["rate_func"] = rate_func
             (self.anims if out is None else out).append(FadeOut(x, **kw))
 
-    def fade_in(self, y: Mobject, shift: np.ndarray | None = None, out: list | None = None):
+    def fade_in(
+        self,
+        y: Mobject,
+        shift: np.ndarray | None = None,
+        out: list | None = None,
+        rate_func: Any = None,
+    ):
         self._mark(self._seen_b, y)
         if _has_points(y):
-            kw = {"shift": shift} if shift is not None else {}
+            kw: dict[str, Any] = {"shift": shift} if shift is not None else {}
+            if rate_func is not None:
+                kw["rate_func"] = rate_func
             (self.anims if out is None else out).append(FadeIn(y, **kw))
 
     def add(self, m: Mobject, anim: Animation, entering: bool, out: list | None = None) -> None:
@@ -493,6 +509,10 @@ def _ticks(panel: Any, horizontal: bool) -> tuple[list[_Tick], list[tuple[float,
 EDGE_FADE = 0.35
 
 
+_FADE_OUT_EARLY = squish_rate_func(smooth, 0.0, 0.5)
+_FADE_IN_LATE = squish_rate_func(smooth, 0.5, 1.0)
+
+
 class _AxisSlide:
     """Mixin for an unmatched tick part (label, tick mark, grid line) riding
     along the axis as it rescales: its axis coordinate goes from ``p0`` (the
@@ -578,7 +598,11 @@ def _axis_anims(
         p_a = _pos(pa, v, horizontal) if comparable else np.nan
         p_b = _pos(pb, v, horizontal) if comparable else np.nan
         if not (np.isfinite(p_a) and np.isfinite(p_b)):
-            (bld.fade_in if entering else bld.fade_out)(m, None, out)
+            # no common coordinate (e.g. discrete axes with different levels): the
+            # old part is gone by mid-transition and the new one fades in after,
+            # so the two sets of labels never overlap
+            rf = _FADE_IN_LATE if entering else _FADE_OUT_EARLY
+            (bld.fade_in if entering else bld.fade_out)(m, None, out, rf)
             return
         home = p_b if entering else p_a
         cls = _AxisSlideIn if entering else _AxisSlideOut
@@ -815,6 +839,7 @@ def transition(
     match_layers: str = "by_name",
     limits: str | Mapping[str, Any] | None = None,
     align: bool = True,
+    share_scales: bool = True,
     **kwargs: Any,
 ) -> Transition:
     """Morph one plot into another, mark by mark.
@@ -841,6 +866,11 @@ def transition(
         be rebuilt, so then only ``plot_b`` gets the limits.
     align : bool
         Scale/shift a built ``plot_b`` onto ``plot_a``'s panel (specs always are).
+    share_scales : bool
+        When both are specs, give their discrete non-position scales (``colour``,
+        ``fill``, ``shape`` ...) the union of both plots' levels, so a level keeps
+        its colour (and legend entry) across the transition. Scales with user
+        ``limits`` are left alone.
     **kwargs
         Passed to the :class:`Transition` (``rate_func`` ...).
 
@@ -850,6 +880,8 @@ def transition(
     """
     spec_a = _with_key(plot_a, key) if _is_spec(plot_a) else None
     spec_b = _with_key(plot_b, key) if _is_spec(plot_b) else None
+    if share_scales and spec_a is not None and spec_b is not None:
+        spec_a, spec_b = _share_discrete_scales(spec_a, spec_b)
     built_a = spec_a.build() if spec_a is not None else plot_a
 
     if limits is not None:
@@ -992,6 +1024,41 @@ def _stable_groups(spec: Any) -> Any:
         base = layer.mapping if layer.mapping is not None else Aes()
         layers[i] = layer.replace(mapping=Aes({**dict(base), "group": col}))
     return spec._replace(data=data, layers=tuple(layers))
+
+
+def _share_discrete_scales(spec_a: Any, spec_b: Any) -> tuple[Any, Any]:
+    """Both specs with the levels of their discrete non-position scales set to
+    the ordered union of the two, so a level maps to the same colour (shape ...)
+    in both. Scales with user ``limits`` and identity scales are left alone."""
+    import copy
+
+    from .scales.discrete import ScaleDiscrete, ScaleDiscreteIdentity
+
+    sa, sb = spec_a.build().scales, spec_b.build().scales
+    for aes_name, scale_a in sa.items():
+        scale_b = sb.get(aes_name)
+        if aes_name in ("x", "y") or scale_b is None:
+            continue
+        if not all(
+            isinstance(s, ScaleDiscrete) and not isinstance(s, ScaleDiscreteIdentity)
+            for s in (scale_a, scale_b)
+        ):
+            continue
+        la, lb = list(scale_a.get_limits() or []), list(scale_b.get_limits() or [])
+        if not la or not lb or la == lb:
+            continue
+        levels = _union_levels([la, lb])
+        specs = []
+        for spec, scale in ((spec_a, scale_a), (spec_b, scale_b)):
+            own = spec.get_scale(aes_name)
+            if own is not None and getattr(own, "limits", None) is not None:
+                specs.append(spec)
+                continue
+            new = copy.copy(own) if own is not None else scale.clone()
+            new.limits = list(levels)
+            specs.append(spec.add(new))
+        spec_a, spec_b = specs
+    return spec_a, spec_b
 
 
 def _stable_discrete_scales(spec: Any) -> Any:
