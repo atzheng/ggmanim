@@ -880,11 +880,9 @@ def transition(
     """
     spec_a = _with_key(plot_a, key) if _is_spec(plot_a) else None
     spec_b = _with_key(plot_b, key) if _is_spec(plot_b) else None
-    built_a = spec_a.build() if spec_a is not None else plot_a
-
     if share_scales and spec_a is not None and spec_b is not None:
         spec_a, spec_b = _share_discrete_scales(spec_a, spec_b)
-        built_a = spec_a.build()
+    built_a = spec_a.build() if spec_a is not None else plot_a
 
     if limits is not None:
         pre_b = spec_b.build() if spec_b is not None else plot_b
