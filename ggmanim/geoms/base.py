@@ -516,6 +516,9 @@ def munch_rect_corners(coord, cx, cy) -> np.ndarray:
     cy = np.asarray(cy, dtype=float).reshape(-1, 4)
     if is_linear(coord) or len(cx) == 0:
         return transform_points(coord, cx.ravel(), cy.ravel()).reshape(-1, 4, 3)
+    squish = getattr(coord, "squish_input", None)
+    if squish is not None:  # values drawn at a panel edge (0 on log) -> that edge's input value
+        cx, cy = squish(cx, cy)
     rx, ry = np.concatenate([cx, cx[:, :1]], axis=1), np.concatenate([cy, cy[:, :1]], axis=1)
     with np.errstate(invalid="ignore"):
         d = np.concatenate([_munch_distance(coord, a, b) for a, b in zip(rx, ry)])
