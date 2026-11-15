@@ -13,9 +13,7 @@ from typing import Any
 
 import pandas as pd
 
-from ..aes import Aes, AfterStat, standardise_aes_name
 from ..registry import register
-from ..stats import STATS
 from .base import Geom, make_layer
 from .point import GeomPoint
 
@@ -75,27 +73,6 @@ def _resolve_geom(geom) -> Geom:
     raise ValueError(f"Cannot interpret {geom!r} as a geom")
 
 
-def _stat_default_mapping(stat, mapping, params: Mapping[str, Any]) -> Aes | None:
-    """``mapping`` plus the stat's ``after_stat`` defaults (e.g. ``stat_sum``'s
-    ``size=after_stat("n")``) for aesthetics neither mapped nor set as constants."""
-    cls = (
-        STATS.get(stat[5:] if stat.startswith("stat_") else stat)
-        if isinstance(stat, str)
-        else (stat if isinstance(stat, type) else type(stat))
-    )
-    defaults = {
-        k: v
-        for k, v in (getattr(cls, "default_aes", None) or {}).items()
-        if isinstance(v, AfterStat)
-    }
-    if not defaults:
-        return mapping
-    given = Aes(mapping) if mapping is not None and not isinstance(mapping, pd.DataFrame) else Aes()
-    set_ = {standardise_aes_name(k) for k in params}
-    extra = {k: v for k, v in defaults.items() if k not in given and k not in set_}
-    return Aes(extra).merge(given) if extra else mapping
-
-
 def stat_layer(
     stat,
     geom,
@@ -108,14 +85,14 @@ def stat_layer(
     params: Mapping[str, Any] | None = None,
 ):
     """The layer behind a standalone ``stat_<stat>(...)`` constructor: ``geom``
-    (instance, class or name) fed by ``stat``, with the stat's ``after_stat``
-    default aesthetics added where not mapped or set."""
+    (instance, class or name) fed by ``stat`` (:func:`make_layer` adds the stat's
+    ``after_stat`` default aesthetics where not mapped or set)."""
     params = dict(params or {})
     if isinstance(mapping, pd.DataFrame) and (data is None or isinstance(data, Mapping)):
         mapping, data = data, mapping
     return make_layer(
         _resolve_geom(geom),
-        _stat_default_mapping(stat, mapping, params),
+        mapping,
         data,
         stat=stat,
         position=position,

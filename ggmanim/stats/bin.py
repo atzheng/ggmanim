@@ -15,9 +15,8 @@ Orientation: with only ``y`` mapped (or ``orientation="y"``) ``y`` is binned
 instead (``ymin``/``ymax`` edges, ``flipped_aes = True``; the counts come from
 the default ``x=after_stat("count")``); see :mod:`ggmanim.stats.count`.
 
-The ``bins = 30`` warning is given once per build: under facets the stat runs
-once per panel, on slices of the layer data, and only the slice holding the
-layer's first row (index label ``0``) warns.
+The ``bins = 30`` warning comes from the once-per-layer :meth:`Stat.setup_layer`
+hook, so it is given once per build even when the stat runs per facet panel.
 """
 
 from __future__ import annotations
@@ -185,15 +184,13 @@ class StatBin(Stat):
     def check_required_aes(self, df: pd.DataFrame) -> None:
         check_one_axis(self, df)
 
-    def compute_layer(self, df: pd.DataFrame, scales=None, **params) -> pd.DataFrame:
+    def setup_layer(self, df: pd.DataFrame, params) -> None:
         if (
             params.get("bins") is None
             and params.get("binwidth") is None
-            and params.get("breaks") is None
-            and _first_slice(df)
+            and (params.get("breaks") is None)
         ):
-            warnings.warn(BINS_WARNING, UserWarning, stacklevel=3)
-        return super().compute_layer(df, scales, **params)
+            warnings.warn(BINS_WARNING, UserWarning, stacklevel=2)
 
     def compute_panel(  # type: ignore[override]
         self, df: pd.DataFrame, scales=None, orientation=None, **params
@@ -266,13 +263,6 @@ class StatBin(Stat):
                 (fin.min(), fin.max()), fin, bins, binwidth, center, boundary, breaks
             )
         return bin_vector(x, _breaks, closed, weights(df), pad)
-
-
-def _first_slice(df: pd.DataFrame) -> bool:
-    """Whether ``df`` is the whole layer data or the per-panel slice holding its
-    first row (index label 0). An empty frame (an empty layer is computed for
-    every panel) does not warn: there is nothing to bin."""
-    return len(df) > 0 and 0 in df.index
 
 
 @register
